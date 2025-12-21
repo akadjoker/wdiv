@@ -54,7 +54,8 @@ Interpreter::~Interpreter()
     {
         Process *proc = cleanProcesses[j];
         proc->release();
-        arena.Free(proc, sizeof(Process));
+        //arena.Free(proc, sizeof(Process));
+        delete proc;
     }
     cleanProcesses.clear();
 
@@ -71,7 +72,7 @@ Interpreter::~Interpreter()
     {
         Process *process = aliveProcesses[i];
         process->release();
-        arena.Free(process, sizeof(Process));
+        delete process;
     }
 
     aliveProcesses.clear();
@@ -247,6 +248,7 @@ Function *Interpreter::compileExpression(const char *source)
 }
 bool Interpreter::run(const char *source)
 {
+    hasFatalError_ = false;
     Process *proc = compiler->compile(source);
     if (!proc)
     {
@@ -257,7 +259,7 @@ bool Interpreter::run(const char *source)
 
     Fiber *fiber = &mainProcess->fibers[0];
 
-    run_fiber(fiber, 30);
+    run_fiber(fiber, 1);
 
     //     Debug::dumpFunction(fiber->frames[0].func);
 
@@ -276,6 +278,26 @@ void Interpreter::render()
 {
     if (!hooks.onRender)
         return;
+
+        
+    // for (size_t i = 0; i < aliveProcesses.size(); i++)
+    // {
+    //     Process *proc = aliveProcesses[i];
+    //     bool isAlive = false;
+    //     for (int j = 0; j < proc->nextFiberIndex; j++)
+    //     {
+    //         if (proc->fibers[j].state != FiberState::DEAD)
+    //         {
+    //             isAlive = true;
+    //             break;
+    //         }
+    //     }
+        
+    //     if (isAlive)
+    //     {
+    //         hooks.onRender(proc);
+    //     }
+    // }
 
     for (size_t i = 0; i < aliveProcesses.size(); i++)
     {
@@ -550,13 +572,13 @@ FiberResult Interpreter::run_fiber(Fiber *fiber, int maxInstructions)
     for (;;)
     {
         // Limite de instruções (time slice)
-        if (++instructionsRun > maxInstructions)
-        {
-            STORE_FRAME();
-            fiber->ip = ip;
-            fiber->stackTop = fiber->stackTop;
-            return {FiberResult::FIBER_YIELD, instructionsRun, 0, 0};
-        }
+        // if (++instructionsRun > maxInstructions)
+        // {
+        //     STORE_FRAME();
+        //     fiber->ip = ip;
+        //     fiber->stackTop = fiber->stackTop;
+        //     return {FiberResult::FIBER_YIELD, instructionsRun, 0, 0};
+        // }
 
         // Debug: mostra stack e instrução
         // printf("          ");

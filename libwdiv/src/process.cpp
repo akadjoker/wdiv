@@ -51,7 +51,11 @@ Process *Interpreter::spawnProcess(Process *blueprint)
 {
     // Process* instance = new Process();
 
-    Process *instance = (Process *)arena.Allocate(sizeof(Process));
+    //Process *instance = (Process *)arena.Allocate(sizeof(Process));
+
+    Process *instance = new Process();
+
+
 
     instance->name = blueprint->name; // Compartilha nome
     instance->id = PROCESS_IDS++;     // ID único
@@ -104,7 +108,7 @@ Process *Interpreter::spawnProcess(Process *blueprint)
     }
 
     instance->current = &instance->fibers[0];
-    aliveProcesses.push(instance);
+    aliveProcesses.push_back(instance);
 
 
     if (hooks.onStart)
@@ -171,7 +175,7 @@ void Interpreter::destroyProcess(Process *proc)
         {
             // Swap-and-pop
             aliveProcesses[i] = aliveProcesses.back();
-            aliveProcesses.pop();
+            aliveProcesses.pop_back();
             break;
         }
     }
@@ -247,13 +251,13 @@ void Interpreter::update(float deltaTime)
 
             if (hooks.onDestroy)
                 hooks.onDestroy(proc, proc->exitCode);
-            cleanProcesses.push(proc);
-            aliveProcesses.pop();
+            cleanProcesses.push_back(proc);
+            aliveProcesses.pop_back();
             continue; // NÃO incrementa i (porque trouxe outro para i)
         }
 
         currentProcess = proc;
-        run_process_step(proc, 60);
+        run_process_step(proc, 30);
         if (proc->state != FiberState::DEAD && hooks.onUpdate)
             hooks.onUpdate(proc, deltaTime);
 
@@ -264,8 +268,8 @@ void Interpreter::update(float deltaTime)
             if (hooks.onDestroy)
                 hooks.onDestroy(proc, proc->exitCode);
             Warning(" Process %s (id=%u) is dead. Cleaning up. ", proc->name->chars(), proc->id);
-            cleanProcesses.push(proc);
-            aliveProcesses.pop();
+            cleanProcesses.push_back(proc);
+            aliveProcesses.pop_back();
             continue;
         }
 
@@ -280,50 +284,14 @@ void Interpreter::update(float deltaTime)
                 Process* proc = cleanProcesses[j];
                 Warning(" Releasing process %s (id=%u) ", proc->name->chars(), proc->id);
                 proc->release();
-                arena.Free(proc, sizeof(Process));
+                delete proc;
                 
             }
             cleanProcesses.clear();
         }
 }
 
-// void Interpreter::update(float deltaTime)
-// {
-//     currentTime += deltaTime;
-
-//     // Warning("[UPDATE] currentTime=%.3f, aliveProcesses=%zu", currentTime, aliveProcesses.size());
-
-//     for (size_t i = 0; i < aliveProcesses.size(); i++)
-//     {
-//         Process *proc = aliveProcesses[i];
-
-//         //   Warning("  Process %zu: state=%d, resumeTime=%.3f", i, (int)proc->state, proc->resumeTime);
-
-//         if (proc->state == FiberState::SUSPENDED)
-//         {
-//             if (currentTime >= proc->resumeTime)
-//             {
-//                 // Warning("  -> Resuming process");
-//                 proc->state = FiberState::RUNNING;
-//             }
-//             else
-//             {
-//                 //  Warning("  -> Still suspended (wait %.3fms)", (proc->resumeTime - currentTime) * 1000);
-//                 continue;
-//             }
-//         }
-
-//         if (proc->state == FiberState::DEAD)
-//         {
-//             Warning("  -> Process is dead");
-//             continue;
-//         }
-
-//         currentProcess = proc;
-//         run_process_step(proc, 1000);
-//     }
-// }
-
+ 
 void Interpreter::run_process_step(Process *proc, int maxInstructions)
 {
     // printf("  [run_process_step] Starting\n");

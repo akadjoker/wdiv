@@ -297,7 +297,8 @@ int main()
 
         BeginDrawing();
         
-        ClearBackground(BLACK);
+       ClearBackground(BLACK);
+
 
 
         vm.render();

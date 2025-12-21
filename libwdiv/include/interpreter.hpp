@@ -175,8 +175,8 @@ class Interpreter
 
     BlockAllocator arena;
 
-    Vector<Process *> aliveProcesses;
-    Vector<Process *> cleanProcesses;
+    std::vector<Process *> aliveProcesses;
+    std::vector<Process *> cleanProcesses;
     BlockAllocator processArena;
 
     float currentTime;

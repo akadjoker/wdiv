@@ -48,7 +48,7 @@ process main()
          {
             for (var i = 0; i < 100; i++)
             {
-                 bunny(400, 300);
+                 bunny(mouseX(), mouseY());
             }
          }
          
