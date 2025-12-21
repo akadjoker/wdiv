@@ -201,6 +201,8 @@ private:
     void forStatement();
     void returnStatement();
     void block();
+    void yieldStatement();
+    void fiberStatement();
 
     int getPrivateIndex(const char *name);
     void handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssign);

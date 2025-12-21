@@ -624,6 +624,12 @@ void Compiler::statement()
     if (match(TOKEN_FRAME))
     {
         frameStatement();
+    } else if (match(TOKEN_YIELD))
+    {
+        yieldStatement();
+    } else if (match(TOKEN_FIBER))
+    {
+        fiberStatement();
     }
     else if (match(TOKEN_EXIT))
     {
@@ -1727,4 +1733,67 @@ void Compiler::exitStatement()
     consume(TOKEN_SEMICOLON, "Expect ';' after exit");
     emitByte(OP_EXIT);   
 
+}
+
+
+void Compiler::yieldStatement()
+{
+       
+    if (match(TOKEN_LPAREN))
+    {
+        expression(); // Percentagem vai para stack
+        consume(TOKEN_RPAREN, "Expect ')' after percentage");
+    }
+    else
+    {
+        
+        emitBytes(OP_CONSTANT, makeConstant(Value::makeDouble(1.0)));
+    }
+    
+    consume(TOKEN_SEMICOLON, "Expect ';' after yild");
+    emitByte(OP_YIELD);
+}
+
+ 
+
+void Compiler::fiberStatement()
+{
+    consume(TOKEN_IDENTIFIER, "Expect function name after 'fiber'.");
+    Token nameToken = previous;
+
+    namedVariable(nameToken, false); // empilha callee
+
+    
+    
+    consume(TOKEN_LPAREN, "Expect '(' after fiber function name.");
+
+    
+    uint8 argCount = 0;
+    
+    if (!check(TOKEN_RPAREN))
+    {
+        do
+        {
+            expression();
+            
+            if (argCount == 255)
+            {
+                error("Can't have more than 255 arguments");
+            }
+            argCount++;
+        } while (match(TOKEN_COMMA));
+    }
+
+    consume(TOKEN_RPAREN, "Expect ')' after arguments");
+    Warning("Compiling fiber call to '%s' with %d arguments", nameToken.lexeme.c_str(), argCount);
+    
+
+
+
+    consume(TOKEN_SEMICOLON, "Expect ';' after fiber call.");
+
+    emitByte(OP_SPAWN);
+    emitByte(argCount);
+    //emitByte(OP_POP); // descarta o nil/handle se spawn devolver algo
+    
 }

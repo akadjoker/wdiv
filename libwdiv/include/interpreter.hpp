@@ -57,6 +57,15 @@ struct CallFrame
     Value *slots;
 };
 
+struct VMHooks
+{
+    void (*onStart)(Process* p) = nullptr;
+    void (*onUpdate)(Process* p, float dt) = nullptr;
+    void (*onRender)(Process* p) = nullptr;
+    void (*onDestroy)(Process* p, int exitCode) = nullptr;
+};
+
+
 struct FiberResult
 {
     enum Reason : uint8
@@ -180,6 +189,10 @@ class Interpreter
 
     Compiler* compiler;
 
+      VMHooks hooks;
+
+    
+
     // const Value &peek(int distance = 0);
 
     Fiber *get_ready_fiber(Process *proc);
@@ -225,6 +238,10 @@ public:
     
     void reset();  
 
+
+    void setHooks(const VMHooks& h);
+
+    void render();  
 
 
     

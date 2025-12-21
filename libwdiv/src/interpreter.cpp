@@ -43,20 +43,18 @@ Interpreter::~Interpreter()
 
     for (size_t j = 0; j < processes.size(); j++)
     {
-        Process* proc = processes[j];
+        Process *proc = processes[j];
         proc->release();
         delete proc;
     }
 
     processes.clear();
-    
 
     for (size_t j = 0; j < cleanProcesses.size(); j++)
     {
-        Process* proc = cleanProcesses[j];
+        Process *proc = cleanProcesses[j];
         proc->release();
         arena.Free(proc, sizeof(Process));
-        
     }
     cleanProcesses.clear();
 
@@ -81,10 +79,9 @@ Interpreter::~Interpreter()
     // {
     //     Process* proc = cleanProcesses[j];
     //     arena.Free(proc, sizeof(Process));
-        
+
     // }
     // cleanProcesses.clear();
-
 
     arena.Clear();
 }
@@ -237,6 +234,25 @@ void Interpreter::reset()
 {
     compiler->clear();
 }
+void Interpreter::setHooks(const VMHooks &h)
+{
+    hooks = h;
+}
+
+void Interpreter::render()
+{
+    if (!hooks.onRender)
+        return;
+
+    for (size_t i = 0; i < aliveProcesses.size(); i++)
+    {
+        Process *p = aliveProcesses[i];
+        if (p->state == FiberState::DEAD)
+            continue;
+        hooks.onRender(p);
+    }
+}
+
 void Interpreter::initFiber(Fiber *fiber, Function *func)
 {
     fiber->state = FiberState::RUNNING;
@@ -1134,6 +1150,23 @@ FiberResult Interpreter::run_fiber(Fiber *fiber, int maxInstructions)
 
             STORE_FRAME();
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+        }
+        case OP_SPAWN:
+        {
+            uint8 argCount = READ_BYTE();
+            Value callee = NPEEK(argCount);
+            printValue(callee);
+            printf("%i \n", argCount);
+
+            if (currentProcess->nextFiberIndex >= MAX_FIBERS)
+            {
+                runtimeError("Too many fibers in process");
+                // limpa callee+args
+                for (int i = 0; i < argCount + 1; i++)
+                    POP();
+                PUSH(Value::makeNil());
+                break;
+            }
         }
 
             // ========== DEBUG ==========

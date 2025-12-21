@@ -105,6 +105,10 @@ Process *Interpreter::spawnProcess(Process *blueprint)
     instance->current = &instance->fibers[0];
     aliveProcesses.push(instance);
 
+
+    if (hooks.onStart)
+        hooks.onStart(instance);
+
     return instance;
 }
 
@@ -223,6 +227,9 @@ void Interpreter::update(float deltaTime)
         {
             // remove sem manter ordem
             aliveProcesses[i] = aliveProcesses.back();
+
+            if (hooks.onDestroy)
+                hooks.onDestroy(proc, proc->exitCode);
             cleanProcesses.push(proc);
             aliveProcesses.pop();
             continue; // NÃO incrementa i (porque trouxe outro para i)
@@ -230,11 +237,15 @@ void Interpreter::update(float deltaTime)
 
         currentProcess = proc;
         run_process_step(proc, 1000);
+        if (proc->state != FiberState::DEAD && hooks.onUpdate)
+            hooks.onUpdate(proc, deltaTime);
 
         // Se morreu durante este step, remove já
         if (proc->state == FiberState::DEAD)
         {
             aliveProcesses[i] = aliveProcesses.back();
+            if (hooks.onDestroy)
+                hooks.onDestroy(proc, proc->exitCode);
             cleanProcesses.push(proc);
             aliveProcesses.pop();
             continue;

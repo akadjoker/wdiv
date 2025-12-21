@@ -49,9 +49,11 @@ enum Opcode : uint8
     OP_CALL_NATIVE,
     OP_RETURN,
     OP_RETURN_NIL,
+    OP_SPAWN,
 
     OP_YIELD,           
     OP_FRAME, 
+    
     OP_EXIT,
 
     // I/O
