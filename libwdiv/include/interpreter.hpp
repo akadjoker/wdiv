@@ -126,6 +126,7 @@ struct Process
 
     Fiber fibers[MAX_FIBERS];
     int nextFiberIndex;
+    int currentFiberIndex;
     Fiber *current;
 
     Value privates[MAX_PRIVATES];
@@ -182,6 +183,7 @@ class Interpreter
 
     Fiber *currentFiber;
     Process *currentProcess;
+    Process *mainProcess;
     bool hasFatalError_;
 
     bool isTruthy(const Value &value);

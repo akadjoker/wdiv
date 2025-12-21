@@ -58,6 +58,7 @@ Process *Interpreter::spawnProcess(Process *blueprint)
     instance->state = FiberState::RUNNING;
     instance->resumeTime = 0;
     instance->nextFiberIndex = blueprint->nextFiberIndex;
+    instance->currentFiberIndex = 0; 
     instance->current = nullptr;
     instance->next = nullptr;
     instance->prev = nullptr;
@@ -206,6 +207,13 @@ void Interpreter::update(float deltaTime)
 {
     currentTime += deltaTime;
 
+    // if (aliveProcesses.size() == 0)
+    // {
+
+    //     currentProcess = mainProcess;
+    //     return;
+    // }
+
     size_t i = 0;
     while (i < aliveProcesses.size())
     {
@@ -228,6 +236,8 @@ void Interpreter::update(float deltaTime)
             // remove sem manter ordem
             aliveProcesses[i] = aliveProcesses.back();
 
+            Warning(" Process %s (id=%u) is dead. Cleaning up. ", proc->name->chars(), proc->id);
+
             if (hooks.onDestroy)
                 hooks.onDestroy(proc, proc->exitCode);
             cleanProcesses.push(proc);
@@ -246,6 +256,7 @@ void Interpreter::update(float deltaTime)
             aliveProcesses[i] = aliveProcesses.back();
             if (hooks.onDestroy)
                 hooks.onDestroy(proc, proc->exitCode);
+            Warning(" Process %s (id=%u) is dead. Cleaning up. ", proc->name->chars(), proc->id);
             cleanProcesses.push(proc);
             aliveProcesses.pop();
             continue;

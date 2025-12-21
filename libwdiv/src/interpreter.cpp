@@ -91,22 +91,53 @@ void Interpreter::print(Value value)
     printValue(value);
 }
 
-Fiber *Interpreter::get_ready_fiber(Process *proc)
+Fiber* Interpreter::get_ready_fiber(Process* proc)
 {
     int checked = 0;
-
-    while (checked < MAX_FIBERS)
+    int totalFibers = proc->nextFiberIndex;
+    
+    if (totalFibers == 0)
+        return nullptr;
+    
+    //printf("[get_ready_fiber] Checking %d fibers, time=%.3f\n", totalFibers, currentTime);
+    
+    while (checked < totalFibers)
     {
-        Fiber *f = &proc->fibers[proc->nextFiberIndex];
-        proc->nextFiberIndex = (proc->nextFiberIndex + 1) % MAX_FIBERS;
+        int idx = proc->currentFiberIndex;
+        proc->currentFiberIndex = (proc->currentFiberIndex + 1) % totalFibers;
+        
+        Fiber* f = &proc->fibers[idx];
+        
+        //printf("  Fiber %d: state=%d, resumeTime=%.3f\n", idx, (int)f->state, f->resumeTime);
+        
         checked++;
-
-        if (f->state == FiberState::RUNNING && currentTime >= f->resumeTime)
+        
+        if (f->state == FiberState::DEAD)
         {
+          //  printf("  -> DEAD, skip\n");
+            continue;
+        }
+        
+        if (f->state == FiberState::SUSPENDED)
+        {
+            if (currentTime >= f->resumeTime)
+            {
+                //printf("  -> RESUMING (%.3f >= %.3f)\n", currentTime, f->resumeTime);
+                f->state = FiberState::RUNNING;
+                return f;
+            }
+            //printf("  -> Still suspended (wait %.3fms)\n", (f->resumeTime - currentTime) * 1000);
+            continue;
+        }
+        
+        if (f->state == FiberState::RUNNING)
+        {
+          //  printf("  -> RUNNING, execute\n");
             return f;
         }
     }
-
+    
+  //  printf("  -> No ready fiber\n");
     return nullptr;
 }
 
@@ -221,8 +252,10 @@ bool Interpreter::run(const char *source)
     {
         return false;
     }
+    mainProcess = spawnProcess(proc);
+    currentProcess = mainProcess;
 
-    Fiber *fiber = &proc->fibers[0];
+    Fiber *fiber = &mainProcess->fibers[0];
 
     run_fiber(fiber, 30);
 
@@ -1040,54 +1073,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber, int maxInstructions)
             break;
         }
 
-            // case OP_RETURN:
-            // {
-            //     Value result = POP();
-
-            //     CallFrame *frame = &fiber->frames[--fiber->frameCount];
-
-            //     // Volta para onde estava (antes dos args)
-            //     fiber->stackTop = frame->slots;
-
-            //     // ✅ Remove o CALLEE (que está em slots[-1])
-            //     fiber->stackTop--;
-
-            //     // Push resultado (substitui callee)
-            //     PUSH(result);
-
-            //     if (fiber->frameCount == 0)
-            //     {
-            //         fiber->state = FiberState::DEAD;
-            //         STORE_FRAME();
-            //         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            //     }
-
-            //     LOAD_FRAME();
-            //     break;
-            //}
-            // case OP_RETURN:
-            // {
-            //     Value result = POP();
-
-            //     fiber->frameCount--;
-
-            //     if (fiber->frameCount == 0)
-            //     {
-            //         // Top-level script terminou
-            //         fiber->state = FiberState::DEAD;
-            //         fiber->stackTop = fiber->stack; // Reset stack
-            //         PUSH(result);                   // Coloca resultado
-            //         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            //     }
-
-            //     // Volta ao frame anterior
-            //     fiber->stackTop = stackStart;
-            //     PUSH(result);
-
-            //     LOAD_FRAME();
-            //     break;
-            // }
-
             // ========== PROCESS/FIBER CONTROL ==========
 
         case OP_YIELD:
@@ -1112,18 +1097,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber, int maxInstructions)
             return {FiberResult::PROCESS_FRAME, instructionsRun, 0, percent};
         }
 
-            // case OP_EXIT:
-            // {
-            //     Value exitCode = POP();
-            //     fiber->state = FiberState::DEAD;
-            //     fiber->stackTop = stackStart;
-            //     // printValue(exitCode);
-            //     currentProcess->exitCode = exitCode.isInt() ? exitCode.asInt() : 0;
-            //     PUSH(exitCode);
-            //     // printf(" exit code %d\n", currentProcess->exitCode);
-            //     STORE_FRAME();
-            //     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            // }
         case OP_EXIT:
         {
             Value exitCode = POP();
@@ -1155,18 +1128,71 @@ FiberResult Interpreter::run_fiber(Fiber *fiber, int maxInstructions)
         {
             uint8 argCount = READ_BYTE();
             Value callee = NPEEK(argCount);
-            printValue(callee);
-            printf("%i \n", argCount);
+
+            if (!currentProcess)
+            {
+                runtimeError("No current process for spawn");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
 
             if (currentProcess->nextFiberIndex >= MAX_FIBERS)
             {
-                runtimeError("Too many fibers in process");
-                // limpa callee+args
-                for (int i = 0; i < argCount + 1; i++)
-                    POP();
-                PUSH(Value::makeNil());
-                break;
+                runtimeError("Too many fibers in process (max %d)", MAX_FIBERS);
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
+
+            if (!callee.isFunction())
+            {
+                runtimeError("fiber expects a function");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            // ✅ Pega função pelo ID do callee
+            int funcIndex = callee.asFunctionId();
+            Function *func = functions[funcIndex];
+
+            if (!func)
+            {
+                runtimeError("Invalid function");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            if (argCount != func->arity)
+            {
+                runtimeError("Expected %d arguments but got %d", func->arity, argCount);
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            // ✅ Cria nova fiber no processo
+            int fiberIdx = currentProcess->nextFiberIndex++;
+            Fiber *newFiber = &currentProcess->fibers[fiberIdx];
+
+            // ✅ Inicializa fiber
+            newFiber->state = FiberState::RUNNING;
+            newFiber->resumeTime = 0;
+            newFiber->stackTop = newFiber->stack;
+            newFiber->frameCount = 0;
+
+            // ✅ Copia argumentos para a stack da nova fiber
+            for (int i = 0; i < argCount; i++)
+            {
+                newFiber->stack[i] = fiber->stackTop[-(argCount - i)];
+            }
+            newFiber->stackTop = newFiber->stack + argCount;
+
+            // ✅ Cria call frame inicial
+            CallFrame *frame = &newFiber->frames[newFiber->frameCount++];
+            frame->func = func;
+            frame->ip = func->chunk.code;
+            frame->slots = newFiber->stack; // Argumentos começam aqui
+
+            // ✅ Remove callee + args da stack atual
+            fiber->stackTop -= (argCount + 1);
+
+            // ✅ Push fiber index como resultado (opcional)
+            PUSH(Value::makeInt(fiberIdx));
+
+            break;
         }
 
             // ========== DEBUG ==========

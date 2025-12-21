@@ -1,9 +1,32 @@
-
-def patrol(a,b) 
+def worker(id, interval) 
 {
-    print("Before yield");
-        yield(5.0); 
-    print("After yield");
+    var count = 0;
+    while (count < 5) 
+    {
+        write("Worker {} tick {}\n", id, count);
+        yield(interval);
+        count++;
+    }
+    format("Worker {} DONE\n", id);
 }
 
-fiber patrol(1,2);
+process factory() 
+{
+    x = 0;
+    
+    fiber worker(1, 100);   // Rápido
+    fiber worker(2, 300);   // Médio
+    fiber worker(3, 500);   // Lento
+    
+    // Main fiber
+    var i = 0;
+    while (i < 30) 
+    {
+        write("Factory: x={}\n", x);
+        x++;
+        frame;
+        i++;
+    }
+}
+
+factory();
