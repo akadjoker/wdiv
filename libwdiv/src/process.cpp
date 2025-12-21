@@ -213,68 +213,28 @@ void Interpreter::update(float deltaTime)
     currentTime += deltaTime;
     lastFrameTime = deltaTime;
 
-    for (size_t i = 0; i < aliveProcesses.size(); i++)
-    {
-        Process *proc = aliveProcesses[i];
-
-        // Suspenso?
-        if (proc->state == FiberState::SUSPENDED)
-        {
-            if (currentTime >= proc->resumeTime)
-            {
-                proc->state = FiberState::RUNNING;
-            }
-            else
-            {
-                continue;
-            }
-        }
-
-        // Morto?
-        if (proc->state == FiberState::DEAD)
-        {
-            aliveProcesses[i] = aliveProcesses.back();
-            //Warning(" Process %s (id=%u) is dead. Cleaning up. ", proc->name->chars(), proc->id);
-            cleanProcesses.push(proc);
-            aliveProcesses.pop();
-            continue;
-        }
-
-        currentProcess = proc;
-        run_process_step(proc);
-        if (hooks.onUpdate)
-            hooks.onUpdate(proc, deltaTime);
-   
-      
-    }
-
-    // size_t i = 0;
-    // while (i < aliveProcesses.size())
+    // for (size_t i = 0; i < aliveProcesses.size(); i++)
     // {
     //     Process *proc = aliveProcesses[i];
 
-    //     // Suspended?
+    //     // Suspenso?
     //     if (proc->state == FiberState::SUSPENDED)
     //     {
     //         if (currentTime >= proc->resumeTime)
+    //         {
     //             proc->state = FiberState::RUNNING;
+    //         }
     //         else
     //         {
-    //             i++;
     //             continue;
     //         }
     //     }
 
-    //     // Dead? -> remove da lista
+    //     // Morto?
     //     if (proc->state == FiberState::DEAD)
     //     {
-    //         // remove sem manter ordem
     //         aliveProcesses[i] = aliveProcesses.back();
-
-    //         Warning(" Process %s (id=%u) is dead. Cleaning up. ", proc->name->chars(), proc->id);
-
-    //         if (hooks.onDestroy)
-    //             hooks.onDestroy(proc, proc->exitCode);
+    //         //Warning(" Process %s (id=%u) is dead. Cleaning up. ", proc->name->chars(), proc->id);
     //         cleanProcesses.push(proc);
     //         aliveProcesses.pop();
     //         continue;
@@ -283,24 +243,54 @@ void Interpreter::update(float deltaTime)
     //     currentProcess = proc;
     //     run_process_step(proc);
     //     if (hooks.onUpdate)
-    //          hooks.onUpdate(proc, deltaTime);
-
-    //     // Se morreu durante este step, remove já
-    //     if (proc->state == FiberState::DEAD)
-    //     {
-    //         aliveProcesses[i] = aliveProcesses.back();
-    //         if (hooks.onDestroy)
-    //             hooks.onDestroy(proc, proc->exitCode);
-    //         Warning(" Process %s (id=%u) is dead. Cleaning up. ", proc->name->chars(), proc->id);
-    //         cleanProcesses.push(proc);
-    //         aliveProcesses.pop();
-    //         continue;
-    //     }
-
-    //     i++;
+    //         hooks.onUpdate(proc, deltaTime);
+   
+      
     // }
 
-    if (cleanProcesses.size() > 50)
+    size_t i = 0;
+    while (i < aliveProcesses.size())
+    {
+        Process *proc = aliveProcesses[i];
+
+        // Suspended?
+        if (proc->state == FiberState::SUSPENDED)
+        {
+            if (currentTime >= proc->resumeTime)
+                proc->state = FiberState::RUNNING;
+            else
+            {
+                i++;
+                continue;
+            }
+        }
+
+        // Dead? -> remove da lista
+        if (proc->state == FiberState::DEAD)
+        {
+            // remove sem manter ordem
+            aliveProcesses[i] = aliveProcesses.back();
+
+           // Warning(" Process %s (id=%u) is dead. Cleaning up. ", proc->name->chars(), proc->id);
+
+            if (hooks.onDestroy)
+                hooks.onDestroy(proc, proc->exitCode);
+            cleanProcesses.push(proc);
+            aliveProcesses.pop();
+             i++;
+            continue;
+        }
+
+        currentProcess = proc;
+        run_process_step(proc);
+        if (hooks.onUpdate)
+             hooks.onUpdate(proc, deltaTime);
+
+
+        i++;
+    }
+
+    if (cleanProcesses.size() >= 1)
     {
         //Warning(" Cleaning up %zu processes ", cleanProcesses.size());
 
