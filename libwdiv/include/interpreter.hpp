@@ -5,11 +5,11 @@
 #include "string.hpp"
 #include "arena.hpp"
 #include "code.hpp"
-#include <vector>
+ 
 static constexpr int MAX_PRIVATES = 16;
 static constexpr int MAX_FIBERS = 8;
 static constexpr int STACK_MAX = 256;
-static constexpr int FRAMES_MAX = 64;
+static constexpr int FRAMES_MAX = 32;
 
 enum class InterpretResult : uint8
 {
@@ -122,16 +122,19 @@ struct Process
     uint32 id;
 
     FiberState state; //  Estado do PROCESSO (frame)
-    float resumeTime;   // Quando acorda (frame)
+    float resumeTime=0.0f;   // Quando acorda (frame)
 
     Fiber fibers[MAX_FIBERS];
     int nextFiberIndex;
     int currentFiberIndex;
     Fiber *current;
-
+    
     Value privates[MAX_PRIVATES];
-
+    
     int exitCode = 0;
+ 
+ 
+    bool initialized =false;
 
     void release();
 };
@@ -177,9 +180,13 @@ class Interpreter
 
     Vector<Process *> aliveProcesses;
     Vector<Process *> cleanProcesses;
+ 
     BlockAllocator processArena;
 
     float currentTime;
+    float lastFrameTime;
+    float accumulator = 0.0f;
+    const float FIXED_DT = 1.0f / 60.0f; 
 
     Fiber *currentFiber;
     Process *currentProcess;
@@ -226,8 +233,8 @@ public:
     bool functionExists(const char* name);
     int registerFunction(const char* name, Function* func);
 
-    void run_process_step(Process *proc, int maxInstructions);
-    FiberResult run_fiber(Fiber *fiber, int maxInstructions);
+    void run_process_step(Process *proc );
+    FiberResult run_fiber(Fiber *fiber );
 
     float getCurrentTime() const;
 

@@ -1,13 +1,12 @@
 process bunny(startX, startY) 
 {
     x = startX;
-    y = startY;
-    graph = 1;
-    
+    y = startY;  
     
     var vx = (rand(200) - 100) / 10.0;
     var vy = (rand(200) - 100) / 10.0;
     var gravity = 0.5;
+    var live = (rand(1000) + 500);
     
     loop 
     {
@@ -25,12 +24,43 @@ process bunny(startX, startY)
         {
             vx = vx * -1;
         }
-        
+
+        live = live - 1;
         frame;
+        
+        if (live < 0) 
+        {
+            break;
+        }
+        
     }
+
+//    print("Bunny process ended");
 }
+
+
+process flecha(delay, ly)
+{
+	
+    y=ly;
+    	
+	loop
+    {
+		x += 5; 
+        if (x > 800) 
+        {
+        x = -2;
+        }
+
+		frame(delay);
+	}
+}
+
+
 process main()
 {
+    x=100;
+    y=100;
     loop
     {
          if (key(32)) 
@@ -48,14 +78,20 @@ process main()
          {
             for (var i = 0; i < 100; i++)
             {
-                 bunny(400, 300);
+                 bunny(mouseX(), mouseY());
             }
          }
          
+        x+=1;
+        if (x > 800) x = 0;
          
         
-        frame;
+        frame(1);
     }
 }
-
+ 
+flecha(100, 140);
+flecha(200, 190);
+flecha(400, 240);
+flecha(800, 290);
 main();

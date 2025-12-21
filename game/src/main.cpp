@@ -222,12 +222,7 @@ void onStart(Process *proc)
 void onUpdate(Process *proc, float dt)
 {
     // ler posição vinda do script
-    float x = (float)proc->privates[0].asDouble();
-    float y = (float)proc->privates[1].asDouble();
-
-    //DrawCircle((int)x, (int)y, 20, RED);
-
-    DrawTexture(bunny, (int)x - bunny.width / 2, (int)y - bunny.height / 2, WHITE);
+   
 
     // printf("[update] %s pos=(%.2f, %.2f) dt=%.3f\n",
     //     proc->name->chars(), x, y, dt);
@@ -238,12 +233,18 @@ void onUpdate(Process *proc, float dt)
 
 void onDestroy(Process *proc, int exitCode)
 {
-    printf("[destroy] %s exit=%d\n", proc->name->chars(), proc->exitCode);
+   // printf("[destroy] %s exit=%d\n", proc->name->chars(), proc->exitCode);
 }
 
 void onRender(Process *proc)
 {
-    // printf("[render] %s rendering...\n", proc->name->chars());
+        // printf("[render] %s rendering...\n", proc->name->chars());
+    float x = (float)proc->privates[0].asDouble();
+    float y = (float)proc->privates[1].asDouble();
+
+    //DrawCircle((int)x, (int)y, 20, RED);
+
+    DrawTexture(bunny, (int)x - bunny.width / 2, (int)y - bunny.height / 2, WHITE);
 }
 
 int main()

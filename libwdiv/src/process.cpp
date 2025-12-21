@@ -34,7 +34,7 @@ Process *Interpreter::addProcess(const char *name, Function *func)
 
     for (int i = 0; i < MAX_PRIVATES; i++)
     {
-        proc->privates[i] = Value::makeDouble(0.0);
+        proc->privates[i] = Value::makeDouble(0);
     }
 
     initFiber(&proc->fibers[0], func);
@@ -58,10 +58,12 @@ Process *Interpreter::spawnProcess(Process *blueprint)
     instance->state = FiberState::RUNNING;
     instance->resumeTime = 0;
     instance->nextFiberIndex = blueprint->nextFiberIndex;
-    instance->currentFiberIndex = 0; 
+    instance->currentFiberIndex = 0;
     instance->current = nullptr;
     instance->next = nullptr;
     instance->prev = nullptr;
+    instance->initialized=false;
+ 
 
     // CLONA PRIVATES (estado da entidade)
     for (int i = 0; i < MAX_PRIVATES; i++)
@@ -106,7 +108,6 @@ Process *Interpreter::spawnProcess(Process *blueprint)
     instance->current = &instance->fibers[0];
     aliveProcesses.push(instance);
 
-
     if (hooks.onStart)
         hooks.onStart(instance);
 
@@ -122,8 +123,6 @@ uint32 Interpreter::getTotalAliveProcesses() const
 {
     return uint32(aliveProcesses.size());
 }
-
- 
 
 int Interpreter::addGlobal(const char *name, Value value)
 {
@@ -209,165 +208,175 @@ void Process::release()
 {
 }
 
-
 void Interpreter::update(float deltaTime)
 {
     currentTime += deltaTime;
+    lastFrameTime = deltaTime;
 
-    // if (aliveProcesses.size() == 0)
-    // {
-
-    //     currentProcess = mainProcess;
-    //     return;
-    // }
-
-    size_t i = 0;
-    while (i < aliveProcesses.size())
+    for (size_t i = 0; i < aliveProcesses.size(); i++)
     {
-        Process* proc = aliveProcesses[i];
+        Process *proc = aliveProcesses[i];
 
-        // Suspended?
+        // Suspenso?
         if (proc->state == FiberState::SUSPENDED)
         {
             if (currentTime >= proc->resumeTime)
+            {
                 proc->state = FiberState::RUNNING;
-            else {
-                i++;
+            }
+            else
+            {
                 continue;
             }
         }
 
-        // Dead? -> remove da lista
+        // Morto?
         if (proc->state == FiberState::DEAD)
         {
-            // remove sem manter ordem
             aliveProcesses[i] = aliveProcesses.back();
-
-            Warning(" Process %s (id=%u) is dead. Cleaning up. ", proc->name->chars(), proc->id);
-
-            if (hooks.onDestroy)
-                hooks.onDestroy(proc, proc->exitCode);
+            //Warning(" Process %s (id=%u) is dead. Cleaning up. ", proc->name->chars(), proc->id);
             cleanProcesses.push(proc);
             aliveProcesses.pop();
-            continue; // NÃO incrementa i (porque trouxe outro para i)
+            continue;
         }
 
         currentProcess = proc;
-        run_process_step(proc, 60);
-        if (proc->state != FiberState::DEAD && hooks.onUpdate)
+        run_process_step(proc);
+        if (hooks.onUpdate)
             hooks.onUpdate(proc, deltaTime);
-
-        // Se morreu durante este step, remove já
-        if (proc->state == FiberState::DEAD)
-        {
-            aliveProcesses[i] = aliveProcesses.back();
-            if (hooks.onDestroy)
-                hooks.onDestroy(proc, proc->exitCode);
-            Warning(" Process %s (id=%u) is dead. Cleaning up. ", proc->name->chars(), proc->id);
-            cleanProcesses.push(proc);
-            aliveProcesses.pop();
-            continue;
-        }
-
-        i++;
+   
+      
     }
+
+    // size_t i = 0;
+    // while (i < aliveProcesses.size())
+    // {
+    //     Process *proc = aliveProcesses[i];
+
+    //     // Suspended?
+    //     if (proc->state == FiberState::SUSPENDED)
+    //     {
+    //         if (currentTime >= proc->resumeTime)
+    //             proc->state = FiberState::RUNNING;
+    //         else
+    //         {
+    //             i++;
+    //             continue;
+    //         }
+    //     }
+
+    //     // Dead? -> remove da lista
+    //     if (proc->state == FiberState::DEAD)
+    //     {
+    //         // remove sem manter ordem
+    //         aliveProcesses[i] = aliveProcesses.back();
+
+    //         Warning(" Process %s (id=%u) is dead. Cleaning up. ", proc->name->chars(), proc->id);
+
+    //         if (hooks.onDestroy)
+    //             hooks.onDestroy(proc, proc->exitCode);
+    //         cleanProcesses.push(proc);
+    //         aliveProcesses.pop();
+    //         continue;
+    //     }
+
+    //     currentProcess = proc;
+    //     run_process_step(proc);
+    //     if (hooks.onUpdate)
+    //          hooks.onUpdate(proc, deltaTime);
+
+    //     // Se morreu durante este step, remove já
+    //     if (proc->state == FiberState::DEAD)
+    //     {
+    //         aliveProcesses[i] = aliveProcesses.back();
+    //         if (hooks.onDestroy)
+    //             hooks.onDestroy(proc, proc->exitCode);
+    //         Warning(" Process %s (id=%u) is dead. Cleaning up. ", proc->name->chars(), proc->id);
+    //         cleanProcesses.push(proc);
+    //         aliveProcesses.pop();
+    //         continue;
+    //     }
+
+    //     i++;
+    // }
+
     if (cleanProcesses.size() > 50)
     {
-        Warning(" Cleaning up %zu processes ", cleanProcesses.size());
-    
-            for (size_t j = 0; j < cleanProcesses.size(); j++)
-            {
-                Process* proc = cleanProcesses[j];
-                Warning(" Releasing process %s (id=%u) ", proc->name->chars(), proc->id);
-                proc->release();
-                arena.Free(proc, sizeof(Process));
-                
-            }
-            cleanProcesses.clear();
+        //Warning(" Cleaning up %zu processes ", cleanProcesses.size());
+
+        for (size_t j = 0; j < cleanProcesses.size(); j++)
+        {
+            Process *proc = cleanProcesses[j];
+            //Warning(" Releasing process %s (id=%u) ", proc->name->chars(), proc->id);
+            proc->release();
+            arena.Free(proc, sizeof(Process));
         }
+        cleanProcesses.clear();
+    }
 }
 
-// void Interpreter::update(float deltaTime)
-// {
-//     currentTime += deltaTime;
-
-//     // Warning("[UPDATE] currentTime=%.3f, aliveProcesses=%zu", currentTime, aliveProcesses.size());
-
-//     for (size_t i = 0; i < aliveProcesses.size(); i++)
-//     {
-//         Process *proc = aliveProcesses[i];
-
-//         //   Warning("  Process %zu: state=%d, resumeTime=%.3f", i, (int)proc->state, proc->resumeTime);
-
-//         if (proc->state == FiberState::SUSPENDED)
-//         {
-//             if (currentTime >= proc->resumeTime)
-//             {
-//                 // Warning("  -> Resuming process");
-//                 proc->state = FiberState::RUNNING;
-//             }
-//             else
-//             {
-//                 //  Warning("  -> Still suspended (wait %.3fms)", (proc->resumeTime - currentTime) * 1000);
-//                 continue;
-//             }
-//         }
-
-//         if (proc->state == FiberState::DEAD)
-//         {
-//             Warning("  -> Process is dead");
-//             continue;
-//         }
-
-//         currentProcess = proc;
-//         run_process_step(proc, 1000);
-//     }
-// }
-
-void Interpreter::run_process_step(Process *proc, int maxInstructions)
+void Interpreter::run_process_step(Process *proc)
 {
     // printf("  [run_process_step] Starting\n");
 
-    int instructionsExecuted = 0;
-    while (instructionsExecuted < maxInstructions)
+    Fiber *fiber = get_ready_fiber(proc);
+    if (!fiber)
     {
-        Fiber *fiber = get_ready_fiber(proc);
-        if (!fiber)
+        // Warning("  [run_process_step] No ready fiber");
+        return;
+    }
+
+    proc->current = fiber;
+    FiberResult result = run_fiber(fiber);
+
+    // Warning("  [run_process_step] result.reason=%d, instructions=%d",   (int)result.reason, result.instructionsRun);
+
+    if (proc->state == FiberState::DEAD)
+    {
+        proc->initialized = false;
+        return;
+    }
+
+    if (result.reason == FiberResult::FIBER_YIELD)
+    {
+        fiber->state = FiberState::SUSPENDED;
+        fiber->resumeTime = currentTime + result.yieldMs / 1000.0f;
+        return;
+    }
+
+    if (result.reason == FiberResult::PROCESS_FRAME)
+    {
+        proc->state = FiberState::SUSPENDED;
+        proc->resumeTime = currentTime + (lastFrameTime * result.framePercent / 100.0f);
+
+        // proc->frameCounter = result.framePercent / 100;
+        if (!proc->initialized)
         {
-            // Warning("  [run_process_step] No ready fiber");
-            break;
+            proc->initialized = true;
         }
+ 
+        return;
+    }
 
-        proc->current = fiber;
-        FiberResult result = run_fiber(fiber, maxInstructions - instructionsExecuted);
+    if (result.reason == FiberResult::FIBER_DONE)
+    {
+        fiber->state = FiberState::DEAD;
+        // Warning("  [run_process_step] Fiber DONE");
+        return;
+    }
+}
 
-        // Warning("  [run_process_step] result.reason=%d, instructions=%d",   (int)result.reason, result.instructionsRun);
 
-        instructionsExecuted += result.instructionsRun;
-
-        if (proc->state == FiberState::DEAD)
-            break;
-
-        if (result.reason == FiberResult::FIBER_YIELD)
+void Interpreter::render()
+{
+    if (!hooks.onRender) return;
+    for (size_t i = 0; i < aliveProcesses.size(); i++)
+    {
+        Process* proc = aliveProcesses[i];
+        if (proc->state != FiberState::DEAD &&  proc->initialized )
         {
-            fiber->state = FiberState::SUSPENDED;
-            fiber->resumeTime = currentTime + result.yieldMs / 1000.0f;
-            continue;
-        }
-
-        if (result.reason == FiberResult::PROCESS_FRAME)
-        {
-            proc->state = FiberState::SUSPENDED;
-            proc->resumeTime = currentTime + (0.01667f * static_cast<float>(result.framePercent) / 100.0f);
-            // Warning("  [run_process_step] FRAME! resumeTime=%.3f", proc->resumeTime);
-            break;
-        }
-
-        if (result.reason == FiberResult::FIBER_DONE)
-        {
-            fiber->state = FiberState::DEAD;
-            // Warning("  [run_process_step] Fiber DONE");
-            continue;
+            hooks.onRender(proc);
         }
     }
+    
 }
