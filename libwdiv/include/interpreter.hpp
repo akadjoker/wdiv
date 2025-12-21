@@ -5,7 +5,7 @@
 #include "string.hpp"
 #include "arena.hpp"
 #include "code.hpp"
-
+#include <vector>
 static constexpr int MAX_PRIVATES = 16;
 static constexpr int MAX_FIBERS = 8;
 static constexpr int STACK_MAX = 256;
@@ -212,6 +212,7 @@ public:
     Process* spawnProcess(Process *proc);
 
     uint32 getTotalProcesses() const ;
+    uint32 getTotalAliveProcesses() const ;
 
     void destroyFunction(Function *func);
     void addFiber(Process* proc, Function* func);

@@ -1,32 +1,61 @@
-def worker(id, interval) 
+process bunny(startX, startY) 
 {
-    var count = 0;
-    while (count < 5) 
-    {
-        write("Worker {} tick {}\n", id, count);
-        yield(interval);
-        count++;
-    }
-    format("Worker {} DONE\n", id);
-}
-
-process factory() 
-{
-    x = 0;
+    x = startX;
+    y = startY;
+    graph = 1;
     
-    fiber worker(1, 100);   // Rápido
-    fiber worker(2, 300);   // Médio
-    fiber worker(3, 500);   // Lento
     
-    // Main fiber
-    var i = 0;
-    while (i < 30) 
+    var vx = (rand(200) - 100) / 10.0;
+    var vy = (rand(200) - 100) / 10.0;
+    var gravity = 0.5;
+    
+    loop 
     {
-        write("Factory: x={}\n", x);
-        x++;
+        x = x + vx;
+        y = y + vy;
+        vy = vy + gravity;
+        
+        if (y > 600) 
+        {
+            y = 600;
+            vy = vy * -0.85;
+        }
+        
+        if (x < 0 || x > 800) 
+        {
+            vx = vx * -1;
+        }
+        
         frame;
-        i++;
+    }
+}
+process main()
+{
+    loop
+    {
+         if (key(32)) 
+         {
+             print("breaking loop\n");
+             break;
+         }
+
+         if(mouse_down(0))
+         {
+             bunny(400, 300);
+         }
+
+         if(mouse_down(1))
+         {
+            for (var i = 0; i < 100; i++)
+            {
+                 bunny(400, 300);
+            }
+         }
+         
+         
+        
+        frame;
     }
 }
 
-factory();
+main();

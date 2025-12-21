@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include "interpreter.hpp"
 #include "opcode.hpp"
+#include <raylib.h>
 
 Value native_write(Interpreter *vm, int argCount, Value *args)
 {
@@ -151,35 +152,98 @@ Value native_clock(Interpreter *vm, int argCount, Value *args)
     return Value::makeDouble(static_cast<double>(clock()) / CLOCKS_PER_SEC);
 }
 
-void onStart(Process *proc) 
+Value native_key(Interpreter *vm, int argCount, Value *args)
 {
-   // printf("[start] %s id=%u\n", proc->name->chars(), proc->id);
+    if (argCount != 1 || !args[0].isInt())
+    {
+        vm->runtimeError("key expects 1 integer argument");
+        return Value::makeNil();
+    }
+
+    int key = args[0].asInt();
+    bool pressed = IsKeyPressed(key);
+    return Value::makeBool(pressed);
 }
 
-void onUpdate(Process *proc, float dt) 
+Value native_mouseX(Interpreter *vm, int argCount, Value *args)
+{
+    int x = GetMouseX();
+    return Value::makeInt(x);
+}
+Value native_mouseY(Interpreter *vm, int argCount, Value *args)
+{
+    int y = GetMouseY();
+    return Value::makeInt(y);
+}
+
+Value native_mouse_down(Interpreter *vm, int argCount, Value *args)
+{
+    if (argCount != 1 || !args[0].isInt())
+    {
+        vm->runtimeError("mouse_down expects 1 integer argument");
+        return Value::makeNil();
+    }
+
+    int button = args[0].asInt();
+    bool down = IsMouseButtonDown(button);
+    return Value::makeBool(down);
+}
+
+Value native_rand(Interpreter *vm, int argCount, Value *args)
+{
+    if (argCount != 1 || !args[0].isInt())
+    {
+        vm->runtimeError("rand expects 1 integer argument");
+        return Value::makeNil();
+    }
+
+    int max = args[0].asInt();
+    return Value::makeInt(GetRandomValue(0, max));
+}
+
+Value native_rand_range(Interpreter *vm, int argCount, Value *args)
+{
+    if (argCount != 2 || !args[0].isInt() || !args[1].isInt())
+    {
+        vm->runtimeError("rand_range expects 2 integer arguments");
+        return Value::makeNil();
+    }
+    int min = args[0].asInt();
+    int max = args[1].asInt();
+    return Value::makeInt(GetRandomValue(min, max));
+}
+Texture2D bunny;
+
+void onStart(Process *proc)
+{
+    // printf("[start] %s id=%u\n", proc->name->chars(), proc->id);
+}
+
+void onUpdate(Process *proc, float dt)
 {
     // ler posição vinda do script
     float x = (float)proc->privates[0].asDouble();
     float y = (float)proc->privates[1].asDouble();
 
-    // printf("[update] %s pos=(%.2f, %.2f) dt=%.3f\n", 
-    //     proc->name->chars(), x, y, dt);
+    //DrawCircle((int)x, (int)y, 20, RED);
 
+    DrawTexture(bunny, (int)x - bunny.width / 2, (int)y - bunny.height / 2, WHITE);
+
+    // printf("[update] %s pos=(%.2f, %.2f) dt=%.3f\n",
+    //     proc->name->chars(), x, y, dt);
 
     // proc->privates[0] = Value::makeDouble(1);
     // proc->privates[1] = Value::makeDouble(1);
-    
 }
 
-void onDestroy(Process *proc, int exitCode) 
+void onDestroy(Process *proc, int exitCode)
 {
     printf("[destroy] %s exit=%d\n", proc->name->chars(), proc->exitCode);
 }
 
-void onRender(Process *proc) 
+void onRender(Process *proc)
 {
-    printf("[render] %s rendering...\n", proc->name->chars());
-    
+    // printf("[render] %s rendering...\n", proc->name->chars());
 }
 
 int main()
@@ -192,6 +256,12 @@ int main()
     vm.registerNative("sin", native_sin, 1);
     vm.registerNative("cos", native_cos, 1);
     vm.registerNative("abs", native_abs, 1);
+    vm.registerNative("key", native_key, 1);
+    vm.registerNative("mouseX", native_mouseX, 0);
+    vm.registerNative("mouseY", native_mouseY, 0);
+    vm.registerNative("mouse_down", native_mouse_down, 1);
+    vm.registerNative("rand", native_rand, 1);
+    vm.registerNative("rand_range", native_rand_range, 2);
 
     VMHooks hooks;
     hooks.onStart = onStart;
@@ -199,25 +269,48 @@ int main()
     hooks.onDestroy = onDestroy;
     hooks.onRender = onRender;
 
-
     vm.setHooks(hooks);
 
     std::ifstream file("main.cc");
     std::string code((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
 
-    if (!vm.run(code.c_str()))
+   
+
+    InitWindow(800, 600, "Game");
+    SetTargetFPS(60);
+
+    bunny = LoadTexture("assets/wabbit_alpha.png");
+
+     if (!vm.run(code.c_str()))
     {
         std::cerr << "Error running code.\n";
+
         return 1;
     }
 
-    int stapes = 0;
-    while (stapes < 50000)
+    while (!WindowShouldClose())
     {
-        stapes++;
-        vm.update(0.016f); // Simula um frame de 16ms
+        float dt = GetFrameTime();
+
+        vm.update(dt);
+
+        BeginDrawing();
+        
+        ClearBackground(BLACK);
+
+
+        vm.render();
+
+        DrawFPS(10, 10);
+        DrawText(TextFormat("Processes: %d", vm.getTotalAliveProcesses()), 10, 30, 20, GREEN);
+
+        EndDrawing();
     }
+
+    UnloadTexture(bunny);
+
+    CloseWindow();
 
     return 0;
 }

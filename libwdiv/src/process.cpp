@@ -118,6 +118,13 @@ uint32 Interpreter::getTotalProcesses() const
     return static_cast<uint32>(processes.size());
 }
 
+uint32 Interpreter::getTotalAliveProcesses() const
+{
+    return uint32(aliveProcesses.size());
+}
+
+ 
+
 int Interpreter::addGlobal(const char *name, Value value)
 {
     String *pName = createString(name);
@@ -246,7 +253,7 @@ void Interpreter::update(float deltaTime)
         }
 
         currentProcess = proc;
-        run_process_step(proc, 1000);
+        run_process_step(proc, 60);
         if (proc->state != FiberState::DEAD && hooks.onUpdate)
             hooks.onUpdate(proc, deltaTime);
 

@@ -64,7 +64,7 @@ endif()
    
 endif()
 
-target_link_libraries(game libwdiv)
+target_link_libraries(game libwdiv raylib)
 
 if (WIN32)
     target_link_libraries(game Winmm.lib)
