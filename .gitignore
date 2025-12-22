@@ -1,2 +1,6 @@
 /build
 /tmp
+/bin/game
+/bin/main
+/bin/testStructs
+.cache

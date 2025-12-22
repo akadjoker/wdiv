@@ -13,6 +13,7 @@ enum Opcode : uint8
     OP_POP,
     OP_HALT,
     OP_NOT,
+    OP_DUP,
 
     // Arithmetic
     OP_ADD,

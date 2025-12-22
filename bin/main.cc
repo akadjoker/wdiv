@@ -1,97 +1,23 @@
-process bunny(startX, startY) 
-{
-    x = startX;
-    y = startY;  
+ var a = 1;
+    var b = 2;
     
-    var vx = (rand(200) - 100) / 10.0;
-    var vy = (rand(200) - 100) / 10.0;
-    var gravity = 0.5;
-    var live = (rand(1000) + 500);
-    
-    loop 
-    {
-        x = x + vx;
-        y = y + vy;
-        vy = vy + gravity;
-        
-        if (y > 600) 
-        {
-            y = 600;
-            vy = vy * -0.85;
-        }
-        
-        if (x < 0 || x > 800) 
-        {
-            vx = vx * -1;
-        }
-
-        live = live - 1;
-        frame;
-        
-        if (live < 0) 
-        {
-            break;
-        }
-        
-    }
-
-//    print("Bunny process ended");
-}
-
-
-process flecha(delay, ly)
-{
-	
-    y=ly;
-    	
-	loop
-    {
-		x += 5; 
-        if (x > 800) 
-        {
-        x = -2;
-        }
-
-		frame(delay);
-	}
-}
-
-
-process main()
-{
-    x=100;
-    y=100;
-    loop
-    {
-         if (key(32)) 
-         {
-             print("breaking loop\n");
-             break;
-         }
-
-         if(mouse_down(0))
-         {
-             bunny(400, 300);
-         }
-
-         if(mouse_down(1))
-         {
-            for (var i = 0; i < 100; i++)
-            {
-                 bunny(mouseX(), mouseY());
+    switch(a) {
+        case 1: {
+            print("Outer case 1");
+            
+            switch(b) {  // Se OP_DUP: funciona ✅
+                case 2: {
+                    print("Inner case 2");
+                }
+                case 3: {
+                    print("Inner case 3");
+                }
             }
-         }
-         
-        x+=1;
-        if (x > 800) x = 0;
-         
-        
-        frame(1);
+            
+            print("Back to outer");
+        }
+        case 2: {
+            print("Outer case 2");
+        }
     }
-}
- 
-flecha(100, 140);
-flecha(200, 190);
-flecha(400, 240);
-flecha(800, 290);
-main();
+    

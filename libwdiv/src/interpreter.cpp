@@ -570,6 +570,13 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             PUSH(Value::makeBool(false));
             break;
 
+        case OP_DUP:
+        {
+            Value top = PEEK();
+            PUSH(top);
+            break;
+        }
+
             // ========== STACK MANIPULATION ==========
 
         case OP_POP:
@@ -1002,18 +1009,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     // Os argumentos viram locals[0], locals[1]...
                 }
 
-                
                 // Remove callee + args da stack atual
                 fiber->stackTop -= (argCount + 1);
-                
-                
-        
-                
+
                 // Push ID do processo criado
                 PUSH(Value::makeInt(instance->id));
-
-
-
             }
             else
             {
@@ -1085,10 +1085,10 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     currentProcess->state = FiberState::DEAD;
 
                     // Chama hook onDestroy
-                    if (hooks.onDestroy)
-                    {
-                        hooks.onDestroy(currentProcess, currentProcess->exitCode);
-                    }
+                    // if (hooks.onDestroy)
+                    // {
+                    //     hooks.onDestroy(currentProcess, currentProcess->exitCode);
+                    // }
                 }
 
                 STORE_FRAME();
@@ -1170,7 +1170,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
-        
             int funcIndex = callee.asFunctionId();
             Function *func = functions[funcIndex];
 

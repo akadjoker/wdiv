@@ -270,14 +270,8 @@ void Interpreter::update(float deltaTime)
         {
             // remove sem manter ordem
             aliveProcesses[i] = aliveProcesses.back();
-
-           // Warning(" Process %s (id=%u) is dead. Cleaning up. ", proc->name->chars(), proc->id);
-
-            if (hooks.onDestroy)
-                hooks.onDestroy(proc, proc->exitCode);
             cleanProcesses.push(proc);
             aliveProcesses.pop();
-             i++;
             continue;
         }
 
@@ -298,6 +292,10 @@ void Interpreter::update(float deltaTime)
         {
             Process *proc = cleanProcesses[j];
             //Warning(" Releasing process %s (id=%u) ", proc->name->chars(), proc->id);
+
+            if (hooks.onDestroy)
+                hooks.onDestroy(proc, proc->exitCode);
+       
             proc->release();
             arena.Free(proc, sizeof(Process));
         }
