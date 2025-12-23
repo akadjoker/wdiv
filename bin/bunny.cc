@@ -6,7 +6,7 @@ process bunny(startX, startY)
     var vx = (rand(200) - 100) / 10.0;
     var vy = (rand(200) - 100) / 10.0;
     var gravity = 0.5;
-    var live = (rand(1000) + 500);
+    var live = (rand(100) + 200);
     
     loop 
     {
@@ -43,7 +43,7 @@ process flecha(delay, ly)
 {
 	
     y=ly;
-    	
+ 
 	loop
     {
 		x += 5; 

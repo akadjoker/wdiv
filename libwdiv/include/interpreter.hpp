@@ -36,25 +36,28 @@ typedef Value (*NativeFunction)(Interpreter *vm, int argCount, Value *args);
 
 struct NativeDef
 {
-    String *name;
+    String *name{nullptr};
     NativeFunction func;
-    int arity;
-    uint32 index;
+    int arity{0};
+    uint32 index{0};
 };
 
 struct Function
 {
-    int arity;
-    Code *chunk;
-    String *name;
-    bool hasReturn;
+    int arity{-1};
+    Code *chunk {nullptr};
+    String *name{nullptr};
+    bool hasReturn{false};
+    ~Function();
 };
+
+
 
 struct CallFrame
 {
-    Function *func;
-    uint8 *ip;
-    Value *slots;
+    Function *func {nullptr};
+    uint8 *ip {nullptr};
+    Value *slots {nullptr};
 };
 
 struct VMHooks
@@ -115,17 +118,20 @@ enum class PrivateIndex : uint8
 
 struct ProcessDef
 {
+    Vector<uint8> argsNames;
     String *name{nullptr};
     Fiber fibers[MAX_FIBERS];
     Fiber *current;
     Value privates[MAX_PRIVATES];
+    int nextFiberIndex;
+    void finalize() ;
+    void release();
  
 };
 
 struct Process
 {
-    Process *next{nullptr};
-    Process *prev{nullptr};
+ 
 
     String *name{nullptr};
     uint32 id;
@@ -146,6 +152,7 @@ struct Process
     bool initialized =false;
 
     void release();
+    void finalize() ;
 };
 
 struct IntEq
@@ -173,24 +180,23 @@ struct StringHasher
 class Interpreter
 {
 
-    Vector<Function *> functions;
     HashMap<String *, Function *, StringHasher, StringEq> functionsMap;
-
-    Vector<Process *> processes;
-    HashMap<String *, Process *, StringHasher, StringEq> processesMap;
-
-    Vector<NativeDef> natives;
+    HashMap<String *, ProcessDef *, StringHasher, StringEq> processesMap;
     HashMap<String *, NativeDef, StringHasher, StringEq> nativesMap;
-
-    HashMap<String *, Value, StringHasher, StringEq> globals;
+    
+    Vector<Function *> functions;
+    Vector<ProcessDef *> processes;
+    Vector<NativeDef> natives;
     Vector<Value> globalList;
 
-    BlockAllocator arena;
+    HashMap<String *, Value, StringHasher, StringEq> globals;
+
+    HeapAllocator arena;
+
 
     Vector<Process *> aliveProcesses;
     Vector<Process *> cleanProcesses;
  
-    BlockAllocator processArena;
 
     float currentTime;
     float lastFrameTime;
@@ -222,10 +228,11 @@ public:
     ~Interpreter();
     void update(float deltaTime);
   
+    int getProcessPrivateIndex(const char *name);
     
-    Process *addProcess(const char *name, Function *func);
+    ProcessDef *addProcess(const char *name, Function *func);
     void destroyProcess(Process *proc);
-    Process* spawnProcess(Process *proc);
+    Process* spawnProcess(ProcessDef *proc);
     
     uint32 getTotalProcesses() const ;
     uint32 getTotalAliveProcesses() const ;

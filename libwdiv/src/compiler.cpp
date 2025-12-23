@@ -1,5 +1,6 @@
 #include "compiler.hpp"
 #include "interpreter.hpp"
+#include "pool.hpp"
 #include "code.hpp"
 #include "value.hpp"
 #include "opcode.hpp"
@@ -102,11 +103,10 @@ void Compiler::initRules()
 // ============================================
 // MAIN ENTRY POINT
 // ============================================
- 
 
-Process *Compiler::compile(const std::string &source)
+ProcessDef *Compiler::compile(const std::string &source)
 {
-   clear();
+    clear();
 
     lexer = new Lexer(source);
 
@@ -129,12 +129,12 @@ Process *Compiler::compile(const std::string &source)
         return nullptr;
     }
 
+    currentProcess->finalize();
+
     return currentProcess;
 }
 
- 
-
-Process *Compiler::compileExpression(const std::string &source)
+ProcessDef *Compiler::compileExpression(const std::string &source)
 {
     clear();
 
@@ -159,13 +159,11 @@ Process *Compiler::compileExpression(const std::string &source)
 
     emitByte(OP_RETURN);
 
-    Function *result = function;
-    function = nullptr;
-
     if (hadError)
     {
         return nullptr;
     }
+    currentProcess->finalize();
 
     return currentProcess;
 }
@@ -727,36 +725,6 @@ uint8 Compiler::identifierConstant(Token &name)
     return makeConstant(Value::makeString(name.lexeme.c_str()));
 }
 
-int Compiler::getPrivateIndex(const char *name)
-{
-    // Mapeamento fixo
-    struct
-    {
-        const char *name;
-        int index;
-    } privates[] = {
-        {"x", 0},      // PrivateIndex::X
-        {"y", 1},      // PrivateIndex::Y
-        {"z", 2},      // PrivateIndex::Z
-        {"graph", 3},  // PrivateIndex::GRAPH
-        {"angle", 4},  // PrivateIndex::ANGLE
-        {"size", 5},   // PrivateIndex::SIZE
-        {"flags", 6},  // PrivateIndex::FLAGS
-        {"id", 7},     // PrivateIndex::ID
-        {"father", 8}, // PrivateIndex::FATHER
-    };
-
-    for (int i = 0; i < 9; i++)
-    {
-        if (strcmp(name, privates[i].name) == 0)
-        {
-            return privates[i].index;
-        }
-    }
-
-    return -1;
-}
-
 void Compiler::handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssign)
 {
 
@@ -833,7 +801,7 @@ void Compiler::namedVariable(Token &name, bool canAssign)
     // === 1. SE estamos em PROCESS e é private conhecido ===
     if (isProcess_)
     {
-        arg = getPrivateIndex(name.lexeme.c_str());
+        arg = (int)vm_->getProcessPrivateIndex(name.lexeme.c_str());
         if (arg != -1)
         {
             getOp = OP_GET_PRIVATE;
@@ -1182,66 +1150,70 @@ void Compiler::loopStatement()
     // Patch dos breaks (única forma de sair!)
     endLoop();
 }
- 
 
-void Compiler::switchStatement() {
+void Compiler::switchStatement()
+{
     consume(TOKEN_LPAREN, "Expect '(' after 'switch'");
     expression(); // [value]
     consume(TOKEN_RPAREN, "Expect ')' after switch expression");
     consume(TOKEN_LBRACE, "Expect '{' before switch body");
-    
+
     std::vector<int> endJumps;
     std::vector<int> caseFailJumps;
-    
+
     // Parse cases
-    while (match(TOKEN_CASE)) {
-        emitByte(OP_DUP);     // [value, value]
-        expression();          // [value, value, case_val]
+    while (match(TOKEN_CASE))
+    {
+        emitByte(OP_DUP); // [value, value]
+        expression();     // [value, value, case_val]
         consume(TOKEN_COLON, "Expect ':' after case value");
-        emitByte(OP_EQUAL);   // [value, bool]
-        
+        emitByte(OP_EQUAL); // [value, bool]
+
         int caseJump = emitJump(OP_JUMP_IF_FALSE);
-        emitByte(OP_POP);     // [value] - Pop comparison result
-        
-        
-        emitByte(OP_POP);     // []
-        
+        emitByte(OP_POP); // [value] - Pop comparison result
+
+        emitByte(OP_POP); // []
+
         // Case body
         while (!check(TOKEN_CASE) && !check(TOKEN_DEFAULT) &&
-               !check(TOKEN_RBRACE) && !check(TOKEN_EOF)) {
+               !check(TOKEN_RBRACE) && !check(TOKEN_EOF))
+        {
             statement();
         }
-        
+
         endJumps.push_back(emitJump(OP_JUMP));
- 
+
         patchJump(caseJump);
-        emitByte(OP_POP);     // [value] - Pop comparison result
-        
+        emitByte(OP_POP); // [value] - Pop comparison result
+
         // ← switch value ainda no stack para próximo case
     }
-    
+
     // Default (opcional)
-    if (match(TOKEN_DEFAULT)) {
+    if (match(TOKEN_DEFAULT))
+    {
         consume(TOKEN_COLON, "Expect ':' after 'default'");
-        
-    
-        emitByte(OP_POP);     // []
-        
-        while (!check(TOKEN_CASE) && !check(TOKEN_RBRACE) && !check(TOKEN_EOF)) {
+
+        emitByte(OP_POP); // []
+
+        while (!check(TOKEN_CASE) && !check(TOKEN_RBRACE) && !check(TOKEN_EOF))
+        {
             statement();
         }
-    } else {
- 
-        emitByte(OP_POP);     // []
     }
-    
+    else
+    {
+
+        emitByte(OP_POP); // []
+    }
+
     consume(TOKEN_RBRACE, "Expect '}' after switch body");
- 
-    for (int jump : endJumps) {
+
+    for (int jump : endJumps)
+    {
         patchJump(jump);
     }
 }
- 
 
 void Compiler::breakStatement()
 {
@@ -1426,6 +1398,7 @@ void Compiler::processDeclaration()
     consume(TOKEN_IDENTIFIER, "Expect process name");
     Token nameToken = previous;
     isProcess_ = true;
+    argNames.clear();
 
     // Warning("Compiling process '%s'", nameToken.lexeme.c_str());
 
@@ -1435,7 +1408,7 @@ void Compiler::processDeclaration()
 
     if (!func)
     {
-        error("Process already exists");
+        error("Function already exists");
         return;
     }
 
@@ -1443,7 +1416,24 @@ void Compiler::processDeclaration()
     compileFunction(func, true); // true = É PROCESS!
 
     // Cria blueprint (process não vai para globals como callable)
-    vm_->addProcess(nameToken.lexeme.c_str(), func);
+    ProcessDef *proc = vm_->addProcess(nameToken.lexeme.c_str(), func);
+
+    for (uint32 i = 0; i < argNames.size(); i++)
+    {
+        int privateIndex = vm_->getProcessPrivateIndex(argNames[i]->chars());
+
+        if (privateIndex >= 0)
+        {
+            proc->argsNames.push((uint8)privateIndex);
+        }
+        else
+        {
+
+            proc->argsNames.push(255); // Marcador "sem private"
+        }
+        destroyString(argNames[i]);
+    }
+    argNames.clear();
 
     uint32 index = vm_->getTotalProcesses() - 1;
     // Warning("Process '%s' registered with index %d", nameToken.lexeme.c_str(), index);
@@ -1451,6 +1441,8 @@ void Compiler::processDeclaration()
     emitConstant(Value::makeProcess(index));
     uint8 nameConstant = identifierConstant(nameToken);
     defineVariable(nameConstant);
+
+    proc->finalize();
 
     isProcess_ = false;
 }
@@ -1471,6 +1463,18 @@ void Compiler::compileFunction(Function *func, bool isProcess)
     this->localCount_ = 0;
     this->isProcess_ = isProcess;
 
+    if (!func)
+    {
+        Error("Error in funcion");
+        return;
+    }
+
+    if (!func->chunk)
+    {
+        Error("Error in funcion code");
+        return;
+    }
+
     // Parse parâmetros
     beginScope();
     consume(TOKEN_LPAREN, "Expect '(' after name");
@@ -1487,6 +1491,10 @@ void Compiler::compileFunction(Function *func, bool isProcess)
             }
 
             consume(TOKEN_IDENTIFIER, "Expect parameter name");
+            if (isProcess)
+            {
+                argNames.push(std::move(createString(previous.lexeme.c_str())));
+            }
             addLocal(previous);
             markInitialized();
 

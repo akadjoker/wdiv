@@ -155,7 +155,7 @@ Value native_clock(Interpreter *vm, int argCount, Value *args)
 
 void onStart(Process *proc)
 {
-    // printf("[start] %s id=%u\n", proc->name->chars(), proc->id);
+   //  printf("[start] %s id=%u\n", proc->name->chars(), proc->id);
 }
 
 void onUpdate(Process *proc, float dt)
@@ -173,12 +173,12 @@ void onUpdate(Process *proc, float dt)
 
 void onDestroy(Process *proc, int exitCode)
 {
-    printf("[destroy] %s exit=%d\n", proc->name->chars(), proc->exitCode);
+   // printf("[destroy] %s exit=%d\n", proc->name->chars(), proc->exitCode);
 }
 
 void onRender(Process *proc)
 {
-    printf("[render] %s rendering...\n", proc->name->chars());
+   // printf("[render] %s rendering...\n", proc->name->chars());
 }
 
 int main()
@@ -211,7 +211,7 @@ int main()
     }
 
     int stapes = 0;
-    while (stapes < 50)
+    while (stapes < 5000)
     {
         stapes++;
         vm.update(0.016f); // Simula um frame de 16ms

@@ -3,27 +3,105 @@
 
 static uint64_t PROCESS_IDS = 0;
 
-Process *Interpreter::addProcess(const char *name, Function *func)
+void ProcessDef::finalize()
+{
+    for (int i = 0; i < MAX_FIBERS; i++)
+    {
+        Fiber *fiber = &fibers[i];
+
+        if (fiber->frameCount > 0)
+        {
+            for (int j = 0; j < fiber->frameCount; j++)
+            {
+                CallFrame *frame = &fiber->frames[j];
+                if (frame->func && frame->ip == nullptr)
+                {
+                    frame->ip = frame->func->chunk->code;
+                }
+            }
+
+            if (fiber->ip == nullptr && fiber->frames[0].func)
+            {
+                fiber->ip = fiber->frames[0].func->chunk->code;
+            }
+        }
+    }
+}
+void ProcessDef::release()
+{
+    // for (int i = 0; i < argsNames.size(); i++)
+    // {
+    //     destroyString(argsNames[i]);
+    // }
+}
+void Process::finalize()
+{
+    for (int i = 0; i < MAX_FIBERS; i++)
+    {
+        Fiber *fiber = &fibers[i];
+
+        if (fiber->frameCount > 0)
+        {
+            for (int j = 0; j < fiber->frameCount; j++)
+            {
+                CallFrame *frame = &fiber->frames[j];
+                if (frame->func && frame->ip == nullptr)
+                {
+                    frame->ip = frame->func->chunk->code;
+                }
+            }
+
+            if (fiber->ip == nullptr && fiber->frames[0].func)
+            {
+                fiber->ip = fiber->frames[0].func->chunk->code;
+            }
+        }
+    }
+}
+
+int Interpreter::getProcessPrivateIndex(const char *name)
+{
+    // Mapeamento fixo
+    struct
+    {
+        const char *name;
+        int index;
+    } privates[] = {
+        {"x", 0},      // PrivateIndex::X
+        {"y", 1},      // PrivateIndex::Y
+        {"z", 2},      // PrivateIndex::Z
+        {"graph", 3},  // PrivateIndex::GRAPH
+        {"angle", 4},  // PrivateIndex::ANGLE
+        {"size", 5},   // PrivateIndex::SIZE
+        {"flags", 6},  // PrivateIndex::FLAGS
+        {"id", 7},     // PrivateIndex::ID
+        {"father", 8}, // PrivateIndex::FATHER
+    };
+
+    for (uint8 i = 0; i < 9; i++)
+    {
+        if (strcmp(name, privates[i].name) == 0)
+        {
+            return privates[i].index;
+        }
+    }
+
+    return -1;
+}
+
+ProcessDef *Interpreter::addProcess(const char *name, Function *func)
 {
     String *pName = createString(name);
-    Process *existing = nullptr;
+    ProcessDef *existing = nullptr;
     if (processesMap.get(pName, &existing))
     {
         destroyString(pName);
         return existing;
     }
 
-    Process *proc = new Process();
+    ProcessDef *proc = new ProcessDef();
 
     proc->name = pName;
-    proc->id = PROCESS_IDS++;
-    proc->state = FiberState::RUNNING;
-    proc->resumeTime = 0;
-    proc->nextFiberIndex = 1;
-    proc->current = nullptr;
-    proc->next = nullptr;
-    proc->prev = nullptr;
-
     for (int i = 0; i < MAX_FIBERS; i++)
     {
         proc->fibers[i].state = FiberState::DEAD;
@@ -48,20 +126,19 @@ Process *Interpreter::addProcess(const char *name, Function *func)
     return proc;
 }
 
-Process *Interpreter::spawnProcess(Process *blueprint)
+Process *Interpreter::spawnProcess(ProcessDef *blueprint)
 {
-    Process *instance = (Process *)arena.Allocate(sizeof(Process));
+    Process *instance = ProcessPool::instance().create();
 
     instance->name = blueprint->name;
     instance->id = PROCESS_IDS++;
     instance->state = FiberState::RUNNING;
     instance->resumeTime = 0;
-    instance->nextFiberIndex = blueprint->nextFiberIndex;
+    instance->nextFiberIndex = 1;
     instance->currentFiberIndex = 0;
     instance->current = nullptr;
-    instance->next = nullptr;
-    instance->prev = nullptr;
     instance->initialized = false;
+    instance->exitCode = 0;
 
     // Clona privates
     for (int i = 0; i < MAX_PRIVATES; i++)
@@ -75,6 +152,10 @@ Process *Interpreter::spawnProcess(Process *blueprint)
         Fiber *srcFiber = &blueprint->fibers[i];
         Fiber *dstFiber = &instance->fibers[i];
 
+        if (srcFiber->state == FiberState::DEAD)
+        {
+            dstFiber->state = FiberState::DEAD;
+        }
         // Copia estado
         dstFiber->state = srcFiber->state;
         dstFiber->resumeTime = srcFiber->resumeTime;
@@ -88,7 +169,6 @@ Process *Interpreter::spawnProcess(Process *blueprint)
         }
         dstFiber->stackTop = dstFiber->stack + stackSize;
 
-       
         dstFiber->ip = srcFiber->ip;
 
         // Copia frames
@@ -159,39 +239,6 @@ Value Interpreter::getGlobal(uint32 index)
     if (index >= globalList.size())
         return Value::makeNil();
     return globalList[index];
-}
-
-void Interpreter::destroyProcess(Process *proc)
-{
-    if (!proc)
-        return;
-
-    for (size_t i = 0; i < aliveProcesses.size(); i++)
-    {
-        if (aliveProcesses[i] == proc)
-        {
-            // Swap-and-pop
-            aliveProcesses[i] = aliveProcesses.back();
-            aliveProcesses.pop();
-            break;
-        }
-    }
-
-    if (proc->name)
-    {
-        destroyString(proc->name);
-        proc->name = nullptr;
-    }
-
-    for (size_t i = 0; i < processes.size(); i++)
-    {
-        if (processes[i] == proc)
-        {
-            processes[i] = processes.back();
-            processes.pop();
-            break;
-        }
-    }
 }
 
 void Interpreter::addFiber(Process *proc, Function *func)
@@ -277,7 +324,7 @@ void Interpreter::update(float deltaTime)
         }
 
         currentProcess = proc;
-        // run_process_step(proc);
+        run_process_step(proc);
         if (hooks.onUpdate)
             hooks.onUpdate(proc, deltaTime);
 
@@ -297,7 +344,7 @@ void Interpreter::update(float deltaTime)
                 hooks.onDestroy(proc, proc->exitCode);
 
             proc->release();
-            arena.Free(proc, sizeof(Process));
+            ProcessPool::instance().destory(proc);
         }
         cleanProcesses.clear();
     }

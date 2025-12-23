@@ -10,6 +10,18 @@ const size_t chunkArrayIncrement = 128UL;
 const size_t stackSize = 100UL * 1024UL; // 100k
 const size_t maxStackEntries = 32UL;
 
+struct AllocationStats
+{
+	size_t totalReserved;		// Memória total reservada (chunks)
+	size_t totalAllocated;		// Memória atualmente em uso
+	size_t totalFree;			// Memória disponível nas freeLists
+	size_t chunkCount;			// Número de chunks alocados
+	size_t largeAllocations;	// Número de alocações > maxBlockSize
+	size_t largeAllocatedBytes; // Bytes em alocações grandes
+
+	size_t blockStats[blockSizes]; // Alocações ativas por tamanho
+};
+
 struct StackEntry
 {
 	char *data;
@@ -18,8 +30,7 @@ struct StackEntry
 };
 
 struct Block;
-struct Chunk;
-
+struct Heap;
 
 //  StringObject *str = strings[i];
 // str->~StringObject();
@@ -27,35 +38,42 @@ struct Chunk;
 // void *p = ARENA_ALLOC(sizeof(StringObject));
 // StringObject *obj = new (p) StringObject(value);
 
-class BlockAllocator
+class HeapAllocator
 {
 public:
-	BlockAllocator();
-	~BlockAllocator();
+	HeapAllocator();
+	~HeapAllocator();
 
-	BlockAllocator(const BlockAllocator &) = delete;
-	BlockAllocator &operator=(const BlockAllocator &) = delete;
-	BlockAllocator(BlockAllocator &&) = delete;
-	BlockAllocator &operator=(BlockAllocator &&) = delete;
+	HeapAllocator(const HeapAllocator &) = delete;
+	HeapAllocator &operator=(const HeapAllocator &) = delete;
+	HeapAllocator(HeapAllocator &&) = delete;
+	HeapAllocator &operator=(HeapAllocator &&) = delete;
 
-	/// Allocate memory. This will use b2::Alloc if the size is larger than maxBlockSize.
+	/// Allocate memory. if the size is larger than maxBlockSize.
 	void *Allocate(size_t size);
 
-	/// Free memory. This will use b2::Free if the size is larger than maxBlockSize.
 	void Free(void *p, size_t size);
 
 	void Clear();
 
-	static BlockAllocator &instance()
-	{
-		static BlockAllocator allocator;
-		return allocator;
-	}
+	void Stats();
+
+
+
+	void GetStats(AllocationStats &stats) const;
+	size_t GetTotalAllocated() const { return m_totalAllocated; }
+	size_t GetTotalReserved() const { return m_totalReserved; }
 
 private:
-	Chunk *m_chunks;
+	Heap *m_chunks;
 	size_t m_chunkCount;
 	size_t m_chunkSpace;
+
+	size_t m_totalAllocated;			   // Bytes atualmente alocados
+	size_t m_totalReserved;				   // Bytes reservados em chunks
+	size_t m_largeAllocations;			   // Count de malloc direto
+	size_t m_largeAllocatedBytes;		   // Bytes em malloc direto
+	size_t m_blockAllocations[blockSizes]; // Count por block size
 
 	Block *m_freeLists[blockSizes];
 

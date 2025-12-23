@@ -35,32 +35,40 @@ Interpreter::~Interpreter()
     for (size_t i = 0; i < functions.size(); i++)
     {
         Function *func = functions[i];
-        if (func->name)
-        {
-            destroyString(func->name);
-        }
-        func->chunk->clear();
-
-        // arena.Free(func, sizeof(Function));
         delete func;
     }
+    functions.clear();
 
     for (size_t j = 0; j < processes.size(); j++)
     {
-        Process *proc = processes[j];
+        ProcessDef *proc = processes[j];
         proc->release();
         delete proc;
     }
 
     processes.clear();
+    Info("Clear process pool");
+    ProcessPool::instance().clear();
+
+    Info("Clean  arena");
+    arena.Stats();
 
     for (size_t j = 0; j < cleanProcesses.size(); j++)
     {
         Process *proc = cleanProcesses[j];
         proc->release();
-        arena.Free(proc, sizeof(Process));
+        ProcessPool::instance().free(proc);
     }
     cleanProcesses.clear();
+
+    for (size_t i = 0; i < aliveProcesses.size(); i++)
+    {
+        Process *process = aliveProcesses[i];
+        process->release();
+        ProcessPool::instance().free(process);
+    }
+
+    aliveProcesses.clear();
 
     for (size_t i = 0; i < natives.size(); i++)
     {
@@ -70,17 +78,10 @@ Interpreter::~Interpreter()
             destroyString(native.name);
         }
     }
+    natives.clear();
 
-    for (size_t i = 0; i < aliveProcesses.size(); i++)
-    {
-        Process *process = aliveProcesses[i];
-        process->release();
-        arena.Free(process, sizeof(Process));
-    }
-
-    aliveProcesses.clear();
-
-    arena.Clear();
+    // arena.Clear();
+    StringPool::instance().clear();
 }
 
 void Interpreter::disassemble()
@@ -131,12 +132,12 @@ void Interpreter::disassemble()
 
     for (size_t i = 1; i < processes.size(); i++)
     {
-        Process *proc = processes[i];
+        ProcessDef *proc = processes[i];
         if (!proc)
             continue;
 
         printf("----------------------------------------\n");
-        printf("Process #%zu: %s (id=%u)\n", i, proc->name->chars(), proc->id);
+        printf("Process #%zu: %s \n", i, proc->name->chars());
         printf("----------------------------------------\n");
 
         if (proc->fibers[0].frameCount > 0)
@@ -304,14 +305,14 @@ bool Interpreter::isFalsey(Value value)
 
 Function *Interpreter::compile(const char *source)
 {
-    Process *proc = compiler->compile(source);
+    ProcessDef *proc = compiler->compile(source);
     Function *mainFunc = proc->fibers[0].frames[0].func;
     return mainFunc;
 }
 
 Function *Interpreter::compileExpression(const char *source)
 {
-    Process *proc = compiler->compileExpression(source);
+    ProcessDef *proc = compiler->compileExpression(source);
     Function *mainFunc = proc->fibers[0].frames[0].func;
     return mainFunc;
 }
@@ -319,34 +320,21 @@ Function *Interpreter::compileExpression(const char *source)
 bool Interpreter::run(const char *source, bool _dump)
 {
     hasFatalError_ = false;
-    Process *proc = compiler->compile(source);
+    ProcessDef *proc = compiler->compile(source);
     if (!proc)
     {
         return false;
     }
 
-    for (int i = 0; i < MAX_FIBERS; i++)
-    {
-        Fiber *fiber = &proc->fibers[i];
-        if (fiber->frameCount > 0)
-        {
-            CallFrame *frame = &fiber->frames[0];
-            frame->ip = frame->func->chunk->code; // ← AQUI!
-        }
-    }
+    functionsMap.destroy();
+    processesMap.destroy();
+    nativesMap.destroy();
 
     if (_dump)
     {
-        //  disassemble();
+        disassemble();
         // Function *mainFunc = proc->fibers[0].frames[0].func;
         // Debug::dumpFunction(mainFunc);
-    }
-    for (size_t i = 0; i < functions.size(); i++)
-    {
-        Function *func = functions[i];
-        if (!func)
-            continue;
-        func->chunk->freeze();
     }
 
     mainProcess = spawnProcess(proc);
@@ -354,7 +342,6 @@ bool Interpreter::run(const char *source, bool _dump)
 
     Fiber *fiber = &mainProcess->fibers[0];
 
-    Info("Execute");
     run_fiber(fiber);
 
     return !hasFatalError_;
@@ -601,11 +588,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 #define PUSH(value) (*fiber->stackTop++ = value)
 #define NPEEK(n) (fiber->stackTop[-1 - (n)])
 
-    if (frame->ip == nullptr)
-    {
-        runtimeError("FATAL: frame->ip is NULL! Code was not initialized properly.");
-        return {FiberResult::FIBER_DONE, 0, 0, 0};
-    }
+    // if (frame->ip == nullptr)
+    // {
+    //     runtimeError("FATAL: frame->ip is NULL! Code was not initialized properly.");
+    //     return {FiberResult::FIBER_DONE, 0, 0, 0};
+    // }
 
 #define READ_BYTE() (*ip++)
 #define READ_SHORT() (ip += 2, (uint16)((ip[-2] << 8) | ip[-1]))
@@ -761,7 +748,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             if (a.isString() && b.isString())
             {
-                String *result = concatString(a.asString(), b.asString());
+                String *result = StringPool::instance().concat(a.asString(), b.asString());
                 PUSH(Value::makeString(result));
                 break;
             }
@@ -1161,7 +1148,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             {
 
                 int index = callee.asProcessId();
-                Process *blueprint = processes[index];
+                ProcessDef *blueprint = processes[index];
 
                 if (!blueprint)
                 {
@@ -1190,6 +1177,14 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     for (int i = 0; i < argCount; i++)
                     {
                         procFiber->stack[i] = fiber->stackTop[-(argCount - i)];
+                        if (blueprint->argsNames.size() > 0)
+                        {
+                            uint8 index = blueprint->argsNames[i];
+                            if (index != 255) 
+                            {
+                                instance->privates[index] = procFiber->stack[i];
+                            }
+                        }
                     }
 
                     procFiber->stackTop = procFiber->stack + argCount;

@@ -44,7 +44,7 @@ void Code::clear()
     constants.destroy();
     m_capacity=0;
     count=0;
-    delete this;
+
 }
 
  
@@ -63,13 +63,12 @@ void Code::reserve(size_t capacity)
     if (capacity > m_capacity)
     {
         uint8 *newCode = (uint8*)aRealloc(code, capacity * sizeof(uint8));
-        if (!newCode) return;  // Falhou, code ainda é válido
+        if (!newCode) return;  
         
         int *newLine = (int*)aRealloc(lines, capacity * sizeof(int));
         if (!newLine)
         {
-            code = newCode;  // CRITICAL: Salva o novo ponteiro!
-            // lines ainda é o antigo (realloc não mudou)
+            code = newCode;   
             DEBUG_BREAK_IF(true);
             return;
         }
@@ -88,7 +87,6 @@ void Code::write(uint8 instruction, int line)
     if (m_capacity < count + 1)
     {
         size_t newCapacity = GROW_CAPACITY(m_capacity);
-        Warning("Reserv %ld to %ld",m_capacity,newCapacity);
         reserve(newCapacity);  
     }
     
@@ -98,9 +96,9 @@ void Code::write(uint8 instruction, int line)
 }
 
  
-// Corrige operator[]
+ 
 uint8 Code::operator[](size_t index)
 {
-    DEBUG_BREAK_IF(index >= count);  // count, não m_capacity
+    DEBUG_BREAK_IF(index >= count);   
     return code[index];
 }

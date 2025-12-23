@@ -1,5 +1,7 @@
 #include "pool.hpp"
 #include "value.hpp"
+#include "arena.hpp"
+#include "interpreter.hpp"
 #include <ctype.h>
 
 String *StringPool::create(const char *str, uint32 len)
@@ -26,7 +28,30 @@ String *StringPool::create(const char *str, uint32 len)
         s->ptr[len] = '\0';
     }
 
+
+   // Warning(" Create string %s", s->chars());
     return s;
+}
+
+void StringPool::destroy(String *s)
+{
+    if (!s)
+        return;
+
+    //Warning(" Destroy string %s", s->chars());
+    if (s->isLong())
+    {
+
+        allocator.Free(s->ptr, s->length() + 1);
+        s->ptr=nullptr;
+    }
+
+    allocator.Free(s, sizeof(String));
+}
+
+String *StringPool::create(const char *str)
+{
+        return create(str, std::strlen(str));
 }
 
 String *StringPool::concat(String *a, String *b)
@@ -63,17 +88,17 @@ String *StringPool::concat(String *a, String *b)
     return s;
 }
 
-void StringPool::destroy(String *s)
+
+
+void StringPool::clear()
 {
-    if (!s)
-        return;
 
-    if (s->isLong())
-    {
-        allocator.Free(s->ptr, s->length() + 1);
-    }
+    Info("Clean string pool");
 
-    allocator.Free(s, sizeof(String));
+    
+    allocator.Stats();
+ 
+    allocator.Clear();
 }
 
 String *StringPool::upper(String *src)
@@ -335,14 +360,13 @@ int StringPool::indexOf(String *str, String *substr, int startIndex)
         return startIndex;
 
     int strLen = str->length();
-
-    // ✅ Clamp startIndex
+ 
     if (startIndex < 0)
         startIndex = 0;
     if (startIndex >= strLen)
         return -1;
 
-    // ✅ Procura a partir de startIndex
+ 
     const char *start = str->chars() + startIndex;
     const char *found = strstr(start, substr->chars());
 
@@ -352,8 +376,8 @@ int StringPool::indexOf(String *str, String *substr, int startIndex)
     return (int)(found - str->chars());
 }
 
-// Sobrecarga para facilitar
-int StringPool::indexOf(String *str, const char *substr, int startIndex )
+ 
+int StringPool::indexOf(String *str, const char *substr, int startIndex)
 {
     if (!str || !substr)
         return -1;
@@ -476,3 +500,45 @@ String *StringPool::repeat(String *str, int count)
 //         return result;
 //     }
 // };
+
+ProcessPool::ProcessPool()
+{
+    pool.reserve(512);
+}
+
+Process *ProcessPool::create()
+{
+    Process * proc=nullptr;
+    if (!pool.size())
+    {
+        proc = (Process*) aAlloc(sizeof(Process));
+        return proc;
+    }
+
+    proc = pool.back();
+    pool.pop();
+    return proc;
+}
+
+void ProcessPool::destory(Process *proc)
+{
+    pool.push(proc);
+}
+
+void ProcessPool::free(Process *proc)
+{
+        proc->release();
+        aFree(proc);
+}
+
+
+void ProcessPool::clear()
+{
+    for (size_t j = 0; j < pool.size(); j++)
+    {
+        Process *proc = pool[j];
+        proc->release();
+        aFree(proc);
+    }
+    pool.clear();
+}

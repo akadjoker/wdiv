@@ -3,6 +3,7 @@
 #include "config.hpp"
 #include "lexer.hpp"
 #include "token.hpp"
+#include "vector.hpp"
 #include <vector>
 #include <cstring>
 #include <string>
@@ -14,6 +15,8 @@ struct Function;
 struct CallFrame;
 struct Fiber;
 struct Process;
+struct String;
+struct ProcessDef;
 class Interpreter;
 
 
@@ -111,8 +114,8 @@ public:
     Compiler(Interpreter *vm);
     ~Compiler();
  
-    Process *compile(const std::string &source);
-    Process *compileExpression(const std::string &source);
+    ProcessDef *compile(const std::string &source);
+    ProcessDef *compileExpression(const std::string &source);
 
     void clear();
 
@@ -125,7 +128,8 @@ private:
     Function *function;
     Code *currentChunk;
     Fiber *currentFiber;
-    Process *currentProcess;
+    ProcessDef *currentProcess;
+    Vector<String*> argNames;
 
     bool hadError;
     bool panicMode;
@@ -208,7 +212,7 @@ private:
 
     void dot(bool canAssign);
 
-    int getPrivateIndex(const char *name);
+ 
     void handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssign);
 
     void prefixIncrement(bool canAssign);
