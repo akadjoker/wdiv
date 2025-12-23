@@ -27,6 +27,7 @@
 Interpreter::Interpreter()
 {
     compiler = new Compiler(this);
+    setPrivateTable();
 }
 
 Interpreter::~Interpreter()
@@ -368,6 +369,19 @@ void Interpreter::initFiber(Fiber *fiber, Function *func)
     fiber->frames[0].func = func;
     fiber->frames[0].ip = nullptr;
     fiber->frames[0].slots = fiber->stack; // Base da stack
+}
+
+void Interpreter::setPrivateTable()
+{
+    privateIndexMap.set("x", 0);
+    privateIndexMap.set("y", 1);
+    privateIndexMap.set("z", 2);
+    privateIndexMap.set("graph", 3);
+    privateIndexMap.set("angle", 4);
+    privateIndexMap.set("size", 5);
+    privateIndexMap.set("flags", 6);
+    privateIndexMap.set("id", 7);
+    privateIndexMap.set("father", 8);
 }
 
 bool toNumberPair(const Value &a, const Value &b, double &da, double &db)
@@ -1180,7 +1194,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                         if (blueprint->argsNames.size() > 0)
                         {
                             uint8 index = blueprint->argsNames[i];
-                            if (index != 255) 
+                            if (index != 255)
                             {
                                 instance->privates[index] = procFiber->stack[i];
                             }
@@ -1194,6 +1208,18 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
                 // Remove callee + args da stack atual
                 fiber->stackTop -= (argCount + 1);
+
+                if (currentProcess->id == 0)
+                {
+                }
+
+                instance->privates[(int)PrivateIndex::ID] = Value::makeInt(instance->id);
+                instance->privates[(int)PrivateIndex::FATHER] = Value::makeProcess(currentProcess->id);
+
+                if (hooks.onStart)
+                {
+                    hooks.onStart(instance);
+                }
 
                 // Push ID do processo criado
                 PUSH(Value::makeInt(instance->id));
@@ -1420,11 +1446,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             Value object = PEEK();
             Value nameValue = READ_CONSTANT();
 
-            printf("\nGet Object: '");
-            printValue(object);
-            printf("'\nName : '");
-            printValue(nameValue);
-            printf("'\n");
+            // printf("\nGet Object: '");
+            // printValue(object);
+            // printf("'\nName : '");
+            // printValue(nameValue);
+            // printf("'\n");
 
             if (!nameValue.isString())
             {
@@ -1452,44 +1478,39 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 }
             }
 
+ 
+
             // === PROCESS PRIVATES (external access) ===
             if (object.isProcess())
             {
-                // uint32 processId = object.asProcessId();
+                
+                int processId = object.asProcessId();
 
-                // // Busca processo na lista de vivos
-                // Process *proc = nullptr;
-                // for (size_t i = 0; i < aliveProcesses.size(); i++)
-                // {
-                //     if (aliveProcesses[i]->id == processId)
-                //     {
-                //         proc = aliveProcesses[i];
-                //         break;
-                //     }
-                // }
+                Process *proc = aliveProcesses[processId];
+                if (!proc)
+                {
+                    runtimeError("Process '%i' is dead or invalid", processId);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                int privateIdx = getProcessPrivateIndex(name);
+                if (privateIdx != -1)
+                {
+                    PUSH(proc->privates[privateIdx]);
+                } else
+                {
+                    runtimeError("Proces  does not support '%s' property access",name);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
 
-                // if (!proc || proc->state == FiberState::DEAD)
-                // {
-                //     runtimeError("Process is dead or invalid");
-                //     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                // }
-
-                // // Lookup private pelo nome
-                // int privateIdx = getPrivateIndex(name);
-                // if (privateIdx != -1)
-                // {
-                //     DROP(); // Remove process ID
-                //     PUSH(proc->privates[privateIdx]);
-                //     break;
-                // }
+                break;
 
                 // runtimeError("Process has no property '%s'", name);
                 // return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
             // === OUTROS TIPOS (futuro) ===
-            // runtimeError("Type does not support property access");
-            // return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            runtimeError("Type does not support property access");
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             break;
         }
         case OP_SET_PROPERTY:
@@ -1499,13 +1520,13 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             Value object = PEEK2();
             Value nameValue = READ_CONSTANT();
 
-            printf("Set Value: '");
-            printValue(value);
-            printf("'\nObject: '");
-            printValue(object);
-            printf("'\nName : '");
-            printValue(nameValue);
-            printf("'\n");
+            // printf("Set Value: '");
+            // printValue(value);
+            // printf("'\nObject: '");
+            // printValue(object);
+            // printf("'\nName : '");
+            // printValue(nameValue);
+            // printf("'\n");
 
             if (!nameValue.isString())
             {
@@ -1513,55 +1534,51 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
-            // String *propName = nameValue.asString();
-            // const char *name = propName->chars();
+            String *propName = nameValue.asString();
+            const char *name = propName->chars();
 
-            // // === STRINGS (read-only) ===
-            // if (object.isString())
-            // {
-            //     runtimeError("Cannot set property on string (immutable)");
-            //     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            // }
+            // === STRINGS (read-only) ===
+            if (object.isString())
+            {
+                runtimeError("Cannot set property on string (immutable)");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
 
-            // // === PROCESS PRIVATES (external write) ===
-            // if (object.isProcess())
-            // {
-            //     uint32 processId = object.asProcessId();
+            // === PROCESS PRIVATES (external write) ===
+            if (object.isProcess())
+            {
+                int processId = object.asProcessId();
+                Process *proc =   aliveProcesses[processId];
+       
 
-            //     // Busca processo
-            //     Process *proc = nullptr;
-            //     for (size_t i = 0; i < aliveProcesses.size(); i++)
-            //     {
-            //         if (aliveProcesses[i]->id == processId)
-            //         {
-            //             proc = aliveProcesses[i];
-            //             break;
-            //         }
-            //     }
+                if (!proc)// || proc->state == FiberState::DEAD)
+                {
+                    runtimeError("Process '%i' is dead or invalid",processId);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
 
-            //     if (!proc || proc->state == FiberState::DEAD)
-            //     {
-            //         runtimeError("Process is dead or invalid");
-            //         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            //     }
+                // Lookup private pelo nome
+                int privateIdx = getProcessPrivateIndex(name);
+                if (privateIdx != -1)
+                {
+                    if  ( (privateIdx==(int)PrivateIndex::ID) || (privateIdx==(int)PrivateIndex::FATHER))
+                    {
+                        runtimeError("Property '%s' is readonly",name);
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    } 
+                    proc->privates[privateIdx] = value;
+                    DROP();      // Remove value
+                    DROP();      // Remove process
+                    PUSH(value); // Assignment retorna valor
+                    break;
+                }
 
-            //     // Lookup private pelo nome
-            //     int privateIdx = getPrivateIndex(name);
-            //     if (privateIdx != -1)
-            //     {
-            //         proc->privates[privateIdx] = value;
-            //         DROP();      // Remove value
-            //         DROP();      // Remove process
-            //         PUSH(value); // Assignment retorna valor
-            //         break;
-            //     }
+                runtimeError("Process has no property '%s'", name);
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
 
-            //     runtimeError("Process has no property '%s'", name);
-            //     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            // }
-
-            // runtimeError("Cannot set property on this type");
-            // return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            runtimeError("Cannot set property on this type");
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
 
             break;
         }

@@ -61,32 +61,42 @@ void Process::finalize()
 
 int Interpreter::getProcessPrivateIndex(const char *name)
 {
-    // Mapeamento fixo
-    struct
-    {
-        const char *name;
-        int index;
-    } privates[] = {
-        {"x", 0},      // PrivateIndex::X
-        {"y", 1},      // PrivateIndex::Y
-        {"z", 2},      // PrivateIndex::Z
-        {"graph", 3},  // PrivateIndex::GRAPH
-        {"angle", 4},  // PrivateIndex::ANGLE
-        {"size", 5},   // PrivateIndex::SIZE
-        {"flags", 6},  // PrivateIndex::FLAGS
-        {"id", 7},     // PrivateIndex::ID
-        {"father", 8}, // PrivateIndex::FATHER
-    };
+    // int idx;
+    // if (privateIndexMap.get(name, &idx))
+    // {
+    //     return idx;
+    // }
+    // return -1;
 
-    for (uint8 i = 0; i < 9; i++)
+    switch (name[0])
     {
-        if (strcmp(name, privates[i].name) == 0)
-        {
-            return privates[i].index;
-        }
+    case 'x':
+        return (name[1] == '\0') ? 0 : -1;
+    case 'y':
+        return (name[1] == '\0') ? 1 : -1;
+    case 'z':
+        return (name[1] == '\0') ? 2 : -1;
+    case 'g':
+        return (strcmp(name, "graph") == 0) ? 3 : -1;
+    case 'a':
+        return (strcmp(name, "angle") == 0) ? 4 : -1;
+    case 's':
+        return (strcmp(name, "size") == 0) ? 5 : -1;
+    case 'f':
+        if (strcmp(name, "flags") == 0)
+            return 6;
+        if (strcmp(name, "father") == 0)
+            return 8;
+        return -1;
+    case 'i':
+        return (strcmp(name, "id") == 0) ? 7 : -1;
     }
-
     return -1;
+}
+
+uint32 Interpreter::liveProcess()
+{
+    return aliveProcesses.size();
 }
 
 ProcessDef *Interpreter::addProcess(const char *name, Function *func)
@@ -111,10 +121,15 @@ ProcessDef *Interpreter::addProcess(const char *name, Function *func)
         proc->fibers[i].ip = nullptr;
     }
 
-    for (int i = 0; i < MAX_PRIVATES; i++)
-    {
-        proc->privates[i] = Value::makeDouble(0);
-    }
+    proc->privates[0] = Value::makeDouble(0); // x
+    proc->privates[1] = Value::makeDouble(0); // y
+    proc->privates[2] = Value::makeDouble(0); // z
+    proc->privates[3] = Value::makeInt(0);    // graph
+    proc->privates[4] = Value::makeInt(0);    // angle
+    proc->privates[5] = Value::makeInt(100);  // size
+    proc->privates[6] = Value::makeInt(1);    // flags
+    proc->privates[7] = Value::makeInt(-1);   // id
+    proc->privates[8] = Value::makeInt(-1);   // father
 
     initFiber(&proc->fibers[0], func);
     proc->current = &proc->fibers[0];
@@ -187,11 +202,6 @@ Process *Interpreter::spawnProcess(ProcessDef *blueprint)
     instance->current = &instance->fibers[0];
 
     aliveProcesses.push(instance);
-
-    if (hooks.onStart)
-    {
-        hooks.onStart(instance);
-    }
 
     return instance;
 }

@@ -211,7 +211,8 @@ int main()
     }
 
     int stapes = 0;
-    while (stapes < 5000)
+    //while (vm.liveProcess()>0)
+    while (stapes<5000)
     {
         stapes++;
         vm.update(0.016f); // Simula um frame de 16ms

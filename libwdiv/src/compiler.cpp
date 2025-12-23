@@ -1424,7 +1424,17 @@ void Compiler::processDeclaration()
 
         if (privateIndex >= 0)
         {
-            proc->argsNames.push((uint8)privateIndex);
+            if (privateIndex==(int) PrivateIndex::ID)
+            {
+                Warning("Property 'ID' is readonly!");
+            } else if  (privateIndex==(int) PrivateIndex::FATHER)
+            {
+                Warning("Property 'FATHER' is readonly!");
+            }
+            else 
+            {
+                proc->argsNames.push((uint8)privateIndex);
+            }
         }
         else
         {
@@ -1702,7 +1712,6 @@ void Compiler::dot(bool canAssign)
     consume(TOKEN_IDENTIFIER, "Expect property name after '.'");
     Token propName = previous;
     uint8 nameIdx = identifierConstant(propName);
-
     if (canAssign && match(TOKEN_EQUAL))
     {
         // obj.prop = value
