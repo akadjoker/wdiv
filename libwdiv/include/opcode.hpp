@@ -23,6 +23,14 @@ enum Opcode : uint8
     OP_NEGATE,
     OP_MODULO,
 
+ // Bitwise
+    OP_BITWISE_AND,
+    OP_BITWISE_OR,
+    OP_BITWISE_XOR,
+    OP_BITWISE_NOT,
+    OP_SHIFT_LEFT,
+    OP_SHIFT_RIGHT,
+
     // Comparisons
     OP_EQUAL,
     OP_NOT_EQUAL,
@@ -56,6 +64,14 @@ enum Opcode : uint8
     OP_FRAME, 
     
     OP_EXIT,
+
+
+  
+    OP_GET_PROPERTY,    
+    OP_SET_PROPERTY,
+    OP_GET_INDEX,
+    OP_SET_INDEX,
+    OP_INVOKE,    
 
     // I/O
     OP_PRINT,

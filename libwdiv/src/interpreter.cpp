@@ -7,6 +7,9 @@
 #include <stdarg.h>
 #include <cmath> // std::fmod
 
+#define DEBUG_TRACE_EXECUTION 0 // 1 = ativa, 0 = desativa
+#define DEBUG_TRACE_STACK 0     // 1 = mostra stack, 0 = esconde
+
 #ifdef NDEBUG
 #define WDIV_ASSERT(condition, ...) ((void)0)
 #else
@@ -79,9 +82,142 @@ Interpreter::~Interpreter()
     arena.Clear();
 }
 
+void Interpreter::disassemble()
+{
+
+    printf("\n");
+    printf("========================================\n");
+    printf("         BYTECODE DUMP\n");
+    printf("========================================\n\n");
+
+    // ========== FUNCTIONS ==========
+    printf(">>> FUNCTIONS: %zu\n\n", functions.size());
+
+    for (size_t i = 0; i < functions.size(); i++)
+    {
+        Function *func = functions[i];
+        if (!func)
+            continue;
+
+        printf("----------------------------------------\n");
+        printf("Function #%zu: %s\n", i, func->name->chars());
+        printf("  Arity: %d\n", func->arity);
+        printf("  Has return: %s\n", func->hasReturn ? "yes" : "no");
+        printf("----------------------------------------\n");
+
+        // Constants
+        printf("\nConstants (%zu):\n", func->chunk.constants.size());
+        for (size_t j = 0; j < func->chunk.constants.size(); j++)
+        {
+            printf("  [%zu] = ", j);
+            printValue(func->chunk.constants[j]);
+            printf("\n");
+        }
+
+        // Bytecode usando Debug::disassembleInstruction
+        printf("\nBytecode:\n");
+        for (size_t offset = 0; offset < func->chunk.count;)
+        {
+            printf("  ");
+            offset = Debug::disassembleInstruction(func->chunk, offset);
+        }
+
+        printf("\n");
+    }
+
+    // ========== PROCESSES ==========
+    printf("\n>>> PROCESSES: %zu\n\n", processes.size());
+
+    for (size_t i = 1; i < processes.size(); i++)
+    {
+        Process *proc = processes[i];
+        if (!proc)
+            continue;
+
+        printf("----------------------------------------\n");
+        printf("Process #%zu: %s (id=%u)\n", i, proc->name->chars(), proc->id);
+        printf("----------------------------------------\n");
+
+        if (proc->fibers[0].frameCount > 0)
+        {
+            Function *func = proc->fibers[0].frames[0].func;
+
+            printf("  Function: %s\n", func->name->chars());
+            printf("  Arity: %d\n", func->arity);
+
+            // Constants
+            printf("\nConstants (%zu):\n", func->chunk.constants.size());
+            for (size_t j = 0; j < func->chunk.constants.size(); j++)
+            {
+                printf("  [%zu] = ", j);
+                printValue(func->chunk.constants[j]);
+                printf("\n");
+            }
+
+            // Bytecode usando Debug::disassembleInstruction
+            printf("\nBytecode:\n");
+            for (size_t offset = 0; offset < func->chunk.count;)
+            {
+                printf("  ");
+                offset = Debug::disassembleInstruction(func->chunk, offset);
+            }
+        }
+
+        printf("\n");
+    }
+
+    // ========== NATIVES ==========
+    printf("\n>>> NATIVE FUNCTIONS: %zu\n\n", natives.size());
+
+    for (size_t i = 0; i < natives.size(); i++)
+    {
+        printf("  [%2zu] %-20s (arity: %2d)\n",
+               i,
+               natives[i].name->chars(),
+               natives[i].arity);
+    }
+
+    printf("\n========================================\n");
+    printf("              END OF DUMP\n");
+    printf("========================================\n\n");
+}
+
 void Interpreter::print(Value value)
 {
     printValue(value);
+}
+
+bool Interpreter::string_operation(const char *name)
+{
+    struct MethodEntry
+    {
+        const char *methodName;
+        const char *nativeName;
+    };
+
+    static const MethodEntry methods[] = {
+        {"upper", "str_upper"},
+        {"lower", "str_lower"},
+        {"length", "str_length"},
+        {"contains", "str_contains"},
+        {"starts_with", "str_starts_with"},
+        {"ends_with", "str_ends_with"},
+        {"replace", "str_replace"},
+        {"substring", "str_substring"},
+    };
+
+    const int methodCount = sizeof(methods) / sizeof(methods[0]);
+
+    for (int i = 0; i < methodCount; i++)
+    {
+        if (strcmp(name, methods[i].methodName) == 0)
+        {
+
+            return true;
+        }
+    }
+
+    return false;
 }
 
 Fiber *Interpreter::get_ready_fiber(Process *proc)
@@ -92,7 +228,8 @@ Fiber *Interpreter::get_ready_fiber(Process *proc)
     if (totalFibers == 0)
         return nullptr;
 
-    // printf("[get_ready_fiber] Checking %d fibers, time=%.3f\n", totalFibers, currentTime);
+    // printf("[get_ready_fiber] Checking %d fibers, time=%.3f\n", totalFibers,
+    // currentTime);
 
     while (checked < totalFibers)
     {
@@ -101,7 +238,8 @@ Fiber *Interpreter::get_ready_fiber(Process *proc)
 
         Fiber *f = &proc->fibers[idx];
 
-        // printf("  Fiber %d: state=%d, resumeTime=%.3f\n", idx, (int)f->state, f->resumeTime);
+        // printf("  Fiber %d: state=%d, resumeTime=%.3f\n", idx, (int)f->state,
+        // f->resumeTime);
 
         checked++;
 
@@ -119,7 +257,8 @@ Fiber *Interpreter::get_ready_fiber(Process *proc)
                 f->state = FiberState::RUNNING;
                 return f;
             }
-            // printf("  -> Still suspended (wait %.3fms)\n", (f->resumeTime - currentTime) * 1000);
+            // printf("  -> Still suspended (wait %.3fms)\n", (f->resumeTime -
+            // currentTime) * 1000);
             continue;
         }
 
@@ -150,10 +289,13 @@ void Interpreter::runtimeError(const char *format, ...)
     va_end(args);
     fputs("\n", stderr);
 
-    // #ifdef WDIV_DEBUG
-    CallFrame *frame = &currentFiber->frames[currentFiber->frameCount - 1];
-    Debug::dumpFunction(frame->func);
-    // #endif
+#ifdef WDIV_DEBUG
+    if (currentFiber->frameCount > 0)
+    {
+        // CallFrame *frame = &currentFiber->frames[currentFiber->frameCount - 1];
+        // Debug::dumpFunction(frame->func);
+    }
+#endif
 
     resetFiber();
 }
@@ -238,7 +380,7 @@ Function *Interpreter::compileExpression(const char *source)
 {
     return compiler->compileExpression(source, this);
 }
-bool Interpreter::run(const char *source)
+bool Interpreter::run(const char *source, bool _dump)
 {
     hasFatalError_ = false;
     Process *proc = compiler->compile(source);
@@ -246,14 +388,20 @@ bool Interpreter::run(const char *source)
     {
         return false;
     }
-    mainProcess = spawnProcess(proc);
+
+    // if (_dump)
+    {
+        disassemble();
+        // Function *mainFunc = proc->fibers[0].frames[0].func;
+        // Debug::dumpFunction(mainFunc);
+    }
+
+    mainProcess = proc; // spawnProcess(proc);
     currentProcess = mainProcess;
 
     Fiber *fiber = &mainProcess->fibers[0];
 
     run_fiber(fiber);
-
-    //     Debug::dumpFunction(fiber->frames[0].func);
 
     return !hasFatalError_;
 }
@@ -530,24 +678,25 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
     for (;;)
     {
 
-        // Debug: mostra stack e instrução
-        // printf("          ");
-        // for (Value *slot = fiber->stack; slot < fiber->stackTop; slot++)
-        // {
-        //     printf("[ ");
-        //     printValue(*slot);
-        //     printf(" ]");
-        // }
-        // printf("\n");
+#if DEBUG_TRACE_STACK
+        // Mostra stack
+        printf("          ");
+        for (Value *slot = fiber->stack; slot < fiber->stackTop; slot++)
+        {
+            printf("[ ");
+            printValue(*slot);
+            printf(" ]");
+        }
+        printf("\n");
+#endif
 
-        //  size_t offset = ip - func->chunk.code;
-        //  printf("%04zu ", offset);
-        //  Debug::disassembleInstruction(func->chunk, offset);
+#if DEBUG_TRACE_EXECUTION
+        // Mostra instrução
+        size_t offset = ip - func->chunk.code;
+        Debug::disassembleInstruction(func->chunk, offset);
+#endif
 
         uint8 instruction = READ_BYTE();
-
-        // printf("[DEBUG] IP offset=%ld, opcode=%d\n",
-        //        (ip-1) - func->chunk.code, instruction);
 
         switch (instruction)
         {
@@ -752,6 +901,8 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             break;
         }
 
+            //===== MODULO =====
+
         case OP_MODULO:
         {
             BINARY_OP_PREP();
@@ -785,6 +936,8 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             PUSH(Value::makeDouble(std::fmod(da, db)));
             break;
         }
+
+            //======== LOGICAL =====
 
         case OP_NEGATE:
         {
@@ -882,6 +1035,81 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             PUSH(Value::makeBool(da <= db));
             break;
         }
+
+            // ======= BITWISE =====
+
+        case OP_BITWISE_AND:
+        {
+            BINARY_OP_PREP();
+            if (!a.isInt() || !b.isInt())
+            {
+                runtimeError("Bitwise AND requires integers");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+            PUSH(Value::makeInt(a.asInt() & b.asInt()));
+            break;
+        }
+
+        case OP_BITWISE_OR:
+        {
+            BINARY_OP_PREP();
+            if (!a.isInt() || !b.isInt())
+            {
+                runtimeError("Bitwise OR requires integers");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+            PUSH(Value::makeInt(a.asInt() | b.asInt()));
+            break;
+        }
+
+        case OP_BITWISE_XOR:
+        {
+            BINARY_OP_PREP();
+            if (!a.isInt() || !b.isInt())
+            {
+                runtimeError("Bitwise XOR requires integers");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+            PUSH(Value::makeInt(a.asInt() ^ b.asInt()));
+            break;
+        }
+
+        case OP_BITWISE_NOT:
+        {
+            Value a = POP();
+            if (!a.isInt())
+            {
+                runtimeError("Bitwise NOT requires integer");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+            PUSH(Value::makeInt(~a.asInt()));
+            break;
+        }
+
+        case OP_SHIFT_LEFT:
+        {
+            BINARY_OP_PREP();
+            if (!a.isInt() || !b.isInt())
+            {
+                runtimeError("Shift left requires integers");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+            PUSH(Value::makeInt(a.asInt() << b.asInt()));
+            break;
+        }
+
+        case OP_SHIFT_RIGHT:
+        {
+            BINARY_OP_PREP();
+            if (!a.isInt() || !b.isInt())
+            {
+                runtimeError("Shift right requires integers");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+            PUSH(Value::makeInt(a.asInt() >> b.asInt()));
+            break;
+        }
+
             // ========== CONTROL FLOW ==========
 
         case OP_JUMP:
@@ -1084,6 +1312,15 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     // Marca processo como morto
                     currentProcess->state = FiberState::DEAD;
 
+                    printf("          ");
+                    for (Value *slot = fiber->stack; slot < fiber->stackTop; slot++)
+                    {
+                        printf("[ ");
+                        printValue(*slot);
+                        printf(" ]");
+                    }
+                    printf("\n");
+
                     // Chama hook onDestroy
                     // if (hooks.onDestroy)
                     // {
@@ -1221,6 +1458,446 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             break;
         }
 
+            // ========== PROPERTY ACCESS ==========
+
+        case OP_GET_PROPERTY:
+        {
+            Value object = PEEK();
+            Value nameValue = READ_CONSTANT();
+
+            printf("\nGet Object: '");
+            printValue(object);
+            printf("'\nName : '");
+            printValue(nameValue);
+            printf("'\n");
+
+            if (!nameValue.isString())
+            {
+                runtimeError("Property name must be string");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            const char *name = nameValue.asStringChars();
+
+            // === STRING METHODS ===
+            if (object.isString())
+            {
+
+                if (strcmp(name, "length") == 0)
+                {
+
+                    DROP();
+                    PUSH(Value::makeInt(object.asString()->length()));
+                }
+                else
+                {
+
+                    runtimeError("String has no property '%s'", name);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+            }
+
+            // === PROCESS PRIVATES (external access) ===
+            if (object.isProcess())
+            {
+                // uint32 processId = object.asProcessId();
+
+                // // Busca processo na lista de vivos
+                // Process *proc = nullptr;
+                // for (size_t i = 0; i < aliveProcesses.size(); i++)
+                // {
+                //     if (aliveProcesses[i]->id == processId)
+                //     {
+                //         proc = aliveProcesses[i];
+                //         break;
+                //     }
+                // }
+
+                // if (!proc || proc->state == FiberState::DEAD)
+                // {
+                //     runtimeError("Process is dead or invalid");
+                //     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                // }
+
+                // // Lookup private pelo nome
+                // int privateIdx = getPrivateIndex(name);
+                // if (privateIdx != -1)
+                // {
+                //     DROP(); // Remove process ID
+                //     PUSH(proc->privates[privateIdx]);
+                //     break;
+                // }
+
+                // runtimeError("Process has no property '%s'", name);
+                // return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            // === OUTROS TIPOS (futuro) ===
+            // runtimeError("Type does not support property access");
+            // return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            break;
+        }
+        case OP_SET_PROPERTY:
+        {
+            // Stack: [object, value]
+            Value value = PEEK();
+            Value object = PEEK2();
+            Value nameValue = READ_CONSTANT();
+
+            printf("Set Value: '");
+            printValue(value);
+            printf("'\nObject: '");
+            printValue(object);
+            printf("'\nName : '");
+            printValue(nameValue);
+            printf("'\n");
+
+            if (!nameValue.isString())
+            {
+                runtimeError("Property name must be string");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            // String *propName = nameValue.asString();
+            // const char *name = propName->chars();
+
+            // // === STRINGS (read-only) ===
+            // if (object.isString())
+            // {
+            //     runtimeError("Cannot set property on string (immutable)");
+            //     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            // }
+
+            // // === PROCESS PRIVATES (external write) ===
+            // if (object.isProcess())
+            // {
+            //     uint32 processId = object.asProcessId();
+
+            //     // Busca processo
+            //     Process *proc = nullptr;
+            //     for (size_t i = 0; i < aliveProcesses.size(); i++)
+            //     {
+            //         if (aliveProcesses[i]->id == processId)
+            //         {
+            //             proc = aliveProcesses[i];
+            //             break;
+            //         }
+            //     }
+
+            //     if (!proc || proc->state == FiberState::DEAD)
+            //     {
+            //         runtimeError("Process is dead or invalid");
+            //         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            //     }
+
+            //     // Lookup private pelo nome
+            //     int privateIdx = getPrivateIndex(name);
+            //     if (privateIdx != -1)
+            //     {
+            //         proc->privates[privateIdx] = value;
+            //         DROP();      // Remove value
+            //         DROP();      // Remove process
+            //         PUSH(value); // Assignment retorna valor
+            //         break;
+            //     }
+
+            //     runtimeError("Process has no property '%s'", name);
+            //     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            // }
+
+            // runtimeError("Cannot set property on this type");
+            // return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+
+            break;
+        }
+        case OP_INVOKE:
+        {
+            Value nameValue = READ_CONSTANT();
+            uint8_t argCount = READ_BYTE();
+
+            if (!nameValue.isString())
+            {
+                runtimeError("Method name must be string");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            const char *name = nameValue.asStringChars();
+            Value receiver = NPEEK(argCount);
+
+            //             printf("\n=== OP_INVOKE DEBUG ===\n");
+            // printf("Method: %s\n", name);
+            // printf("ArgCount: %d\n", argCount);
+            // printf("Stack size: %d\n", (int)(fiber->stackTop - fiber->stack));
+            // printf("Receiver (NPEEK(%d)): ", argCount);
+            // printValue(receiver);
+            // printf("\n");
+            // printf("Type: ");
+            // if (receiver.isString()) printf("STRING");
+            // else if (receiver.isInt()) printf("INT");
+            // else if (receiver.isDouble()) printf("DOUBLE");
+            // else if (receiver.isNil()) printf("NIL");
+            // else printf("UNKNOWN");
+            // printf("\n");
+
+            // // Mostra o stack todo
+            // printf("Full stack:\n");
+            // for (int i = 0; i < (fiber->stackTop - fiber->stack); i++) {
+            //     printf("  [%d] ", i);
+            //     printValue(fiber->stack[i]);
+            //     printf("\n");
+            // }
+            // printf("=======================\n");
+#define ARGS_CLEANUP() fiber->stackTop -= (argCount + 1)
+
+            // === STRING METHODS ===
+            if (receiver.isString())
+            {
+                String *str = receiver.asString();
+
+                if (strcmp(name, "length") == 0)
+                {
+                    int len = str->length();
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeInt(len));
+                }
+                else if (strcmp(name, "upper") == 0)
+                {
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeString(StringPool::instance().upper(str)));
+                }
+                else if (strcmp(name, "lower") == 0)
+                {
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeString(StringPool::instance().lower(str)));
+                }
+                else if (strcmp(name, "concat") == 0)
+                {
+                    if (argCount != 1)
+                    {
+                        runtimeError("concat() expects 1 argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    Value arg = PEEK();
+                    if (!arg.isString())
+                    {
+                        runtimeError("concat() expects string argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    String *result = StringPool::instance().concat(str, arg.asString());
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeString(result));
+                }
+                else if (strcmp(name, "sub") == 0)
+                {
+                    if (argCount != 2)
+                    {
+                        runtimeError("sub() expects 2 arguments");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    Value start = PEEK2();
+                    Value end = PEEK();
+
+                    if (!start.isNumber() || !end.isNumber())
+                    {
+                        runtimeError("sub() expects 2 number arguments");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    String *result = StringPool::instance().substring(
+                        str,
+                        (uint32_t)start.asNumber(),
+                        (uint32_t)end.asNumber());
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeString(result));
+                }
+                else if (strcmp(name, "replace") == 0)
+                {
+                    if (argCount != 2)
+                    {
+                        runtimeError("replace() expects 2 arguments");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    Value oldStr = PEEK2();
+                    Value newStr = PEEK();
+
+                    if (!oldStr.isString() || !newStr.isString())
+                    {
+                        runtimeError("replace() expects 2 string arguments");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    String *result = StringPool::instance().replace(
+                        str,
+                        oldStr.asStringChars(),
+                        newStr.asStringChars());
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeString(result));
+                }
+                else if (strcmp(name, "at") == 0)
+                {
+                    if (argCount != 1)
+                    {
+                        runtimeError("at() expects 1 argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    Value index = PEEK();
+                    if (!index.isNumber())
+                    {
+                        runtimeError("at() expects number argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    String *result = StringPool::instance().at(str, (int)index.asNumber());
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeString(result));
+                }
+
+                else if (strcmp(name, "contains") == 0)
+                {
+                    if (argCount != 1)
+                    {
+                        runtimeError("contains() expects 1 argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    Value substr = PEEK();
+                    if (!substr.isString())
+                    {
+                        runtimeError("contains() expects string argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    bool result = StringPool::instance().contains(str, substr.asString());
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeBool(result));
+                }
+
+                else if (strcmp(name, "trim") == 0)
+                {
+                    String *result = StringPool::instance().trim(str);
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeString(result));
+                }
+
+                else if (strcmp(name, "starts_with") == 0 || strcmp(name, "startsWith") == 0)
+                {
+                    if (argCount != 1)
+                    {
+                        runtimeError("starts_with() expects 1 argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    Value prefix = PEEK();
+                    if (!prefix.isString())
+                    {
+                        runtimeError("starts_with() expects string argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    bool result = StringPool::instance().startsWith(str, prefix.asString());
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeBool(result));
+                }
+
+                else if (strcmp(name, "ends_with") == 0 || strcmp(name, "endsWith") == 0)
+                {
+                    if (argCount != 1)
+                    {
+                        runtimeError("ends_with() expects 1 argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    Value suffix = PEEK();
+                    if (!suffix.isString())
+                    {
+                        runtimeError("ends_with() expects string argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    bool result = StringPool::instance().endsWith(str, suffix.asString());
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeBool(result));
+                }
+
+                else if (strcmp(name, "index_of") == 0 || strcmp(name, "indexOf") == 0)
+                {
+                    if (argCount < 1 || argCount > 2)
+                    {
+                        runtimeError("index_of() expects 1 or 2 arguments");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    Value substr;
+                    int startIndex = 0;
+
+                    if (argCount == 1)
+                    {
+                        // index_of(substr)
+                        substr = PEEK();
+                    }
+                    else
+                    {
+                        // index_of(substr, startIndex)
+                        Value startVal = PEEK();
+                        substr = PEEK2();
+
+                        if (!startVal.isNumber())
+                        {
+                            runtimeError("index_of() startIndex must be number");
+                            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                        }
+
+                        startIndex = (int)startVal.asNumber();
+                    }
+
+                    if (!substr.isString())
+                    {
+                        runtimeError("index_of() expects string argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    int result = StringPool::instance().indexOf(
+                        str,
+                        substr.asString(),
+                        startIndex);
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeInt(result));
+                }
+                else if (strcmp(name, "repeat") == 0)
+                {
+                    if (argCount != 1)
+                    {
+                        runtimeError("repeat() expects 1 argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    Value count = PEEK();
+                    if (!count.isNumber())
+                    {
+                        runtimeError("repeat() expects number argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    String *result = StringPool::instance().repeat(str, (int)count.asNumber());
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeString(result));
+                }
+                else
+                {
+                    runtimeError("String has no method '%s'", name);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                break;
+            }
+
+            runtimeError("Type does not support method calls");
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+        }
         default:
         {
             runtimeError("Unknown opcode %d", instruction);

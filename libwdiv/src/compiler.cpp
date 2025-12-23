@@ -52,6 +52,8 @@ void Compiler::initRules()
     rules[TOKEN_COMMA] = {nullptr, nullptr, PREC_NONE};
     rules[TOKEN_SEMICOLON] = {nullptr, nullptr, PREC_NONE};
 
+    rules[TOKEN_DOT] = {nullptr, &Compiler::dot, PREC_CALL};
+
     // Arithmetic
     rules[TOKEN_PLUS] = {nullptr, &Compiler::binary, PREC_TERM};
     rules[TOKEN_MINUS] = {&Compiler::unary, &Compiler::binary, PREC_TERM};
@@ -75,6 +77,13 @@ void Compiler::initRules()
     rules[TOKEN_AND_AND] = {nullptr, &Compiler::and_, PREC_AND};
     rules[TOKEN_OR_OR] = {nullptr, &Compiler::or_, PREC_OR};
     rules[TOKEN_BANG] = {&Compiler::unary, nullptr, PREC_NONE};
+
+    rules[TOKEN_PIPE] = {nullptr, &Compiler::binary, PREC_BITWISE_OR};
+    rules[TOKEN_CARET] = {nullptr, &Compiler::binary, PREC_BITWISE_XOR};
+    rules[TOKEN_AMPERSAND] = {nullptr, &Compiler::binary, PREC_BITWISE_AND};
+    rules[TOKEN_TILDE] = {&Compiler::unary, nullptr, PREC_NONE};
+    rules[TOKEN_LEFT_SHIFT] = {nullptr, &Compiler::binary, PREC_SHIFT};
+    rules[TOKEN_RIGHT_SHIFT] = {nullptr, &Compiler::binary, PREC_SHIFT};
 
     // Literals
     rules[TOKEN_INT] = {&Compiler::number, nullptr, PREC_NONE};
@@ -125,10 +134,10 @@ Function *Compiler::compile(const std::string &source, Interpreter *vm)
     return result;
 }
 
-Process *Compiler::compile(const std::string &source )
+Process *Compiler::compile(const std::string &source)
 {
     clear();
- 
+
     lexer = new Lexer(source);
 
     function = vm_->addFunction("__main__", 0);
@@ -144,8 +153,6 @@ Process *Compiler::compile(const std::string &source )
     }
 
     emitReturn();
-
- 
 
     if (hadError)
     {
@@ -191,10 +198,10 @@ Function *Compiler::compileExpression(const std::string &source, Interpreter *vm
     return result;
 }
 
-Process *Compiler::compileExpression(const std::string &source )
+Process *Compiler::compileExpression(const std::string &source)
 {
     clear();
-    
+
     lexer = new Lexer(source);
 
     function = vm_->addFunction("__expr__", 0);
@@ -534,6 +541,9 @@ void Compiler::unary(bool canAssign)
     case TOKEN_BANG:
         emitByte(OP_NOT);
         break;
+    case TOKEN_TILDE:
+        emitByte(OP_BITWISE_NOT);
+        break;
     default:
         return;
     }
@@ -584,7 +594,21 @@ void Compiler::binary(bool canAssign)
         emitByte(OP_LESS);
         emitByte(OP_NOT);
         break;
-
+    case TOKEN_PIPE:
+        emitByte(OP_BITWISE_OR);
+        break;
+    case TOKEN_AMPERSAND:
+        emitByte(OP_BITWISE_AND);
+        break;
+    case TOKEN_CARET:
+        emitByte(OP_BITWISE_XOR);
+        break;
+    case TOKEN_LEFT_SHIFT:
+        emitByte(OP_SHIFT_LEFT);
+        break;
+    case TOKEN_RIGHT_SHIFT:
+        emitByte(OP_SHIFT_RIGHT);
+        break;
     default:
         return;
     }
@@ -624,10 +648,12 @@ void Compiler::statement()
     if (match(TOKEN_FRAME))
     {
         frameStatement();
-    } else if (match(TOKEN_YIELD))
+    }
+    else if (match(TOKEN_YIELD))
     {
         yieldStatement();
-    } else if (match(TOKEN_FIBER))
+    }
+    else if (match(TOKEN_FIBER))
     {
         fiberStatement();
     }
@@ -1220,66 +1246,126 @@ void Compiler::loopStatement()
     // Patch dos breaks (única forma de sair!)
     endLoop();
 }
-void Compiler::switchStatement()
-{
+
+
+// void Compiler::switchStatement()
+// {
+//     consume(TOKEN_LPAREN, "Expect '(' after 'switch'");
+//     expression(); // Switch value na stack
+//     consume(TOKEN_RPAREN, "Expect ')' after switch expression");
+//     consume(TOKEN_LBRACE, "Expect '{' before switch body");
+
+//     std::vector<int> endJumps;
+//     int caseCount = 0;
+
+//     // Parse cases
+//     while (match(TOKEN_CASE))
+//     {
+//         emitByte(OP_DUP); // Duplica switch value
+//         expression();     // Case value
+//         consume(TOKEN_COLON, "Expect ':' after case value");
+
+//         emitByte(OP_EQUAL); // Compara
+//         int caseJump = emitJump(OP_JUMP_IF_FALSE);
+//         emitByte(OP_POP); // Pop resultado se TRUE
+
+//         // Case body (permite múltiplos statements)
+//         while (!check(TOKEN_CASE) && !check(TOKEN_DEFAULT) &&
+//                !check(TOKEN_RBRACE) && !check(TOKEN_EOF))
+//         {
+//             statement();
+//         }
+
+//         endJumps.push_back(emitJump(OP_JUMP)); // Jump para fim
+
+//         patchJump(caseJump);
+//         emitByte(OP_POP); // Pop resultado se FALSE
+//         caseCount++;
+//     }
+
+//     // Default (opcional)
+//     if (match(TOKEN_DEFAULT))
+//     {
+//         consume(TOKEN_COLON, "Expect ':' after 'default'");
+
+//         // Default body
+//         while (!check(TOKEN_CASE) && !check(TOKEN_RBRACE) && !check(TOKEN_EOF))
+//         {
+//             statement();
+//         }
+//     }
+
+//     consume(TOKEN_RBRACE, "Expect '}' after switch body");
+
+//     // Pop switch value (sempre, mesmo sem cases)
+//     emitByte(OP_POP);
+
+//     // Patch todos os end jumps
+//     for (int jump : endJumps)
+//     {
+//         patchJump(jump);
+//     }
+// }
+
+void Compiler::switchStatement() {
     consume(TOKEN_LPAREN, "Expect '(' after 'switch'");
-    expression(); // Switch value na stack
+    expression(); // [value]
     consume(TOKEN_RPAREN, "Expect ')' after switch expression");
     consume(TOKEN_LBRACE, "Expect '{' before switch body");
     
     std::vector<int> endJumps;
-    int caseCount = 0;
+    std::vector<int> caseFailJumps;
     
     // Parse cases
-    while (match(TOKEN_CASE))
-    {
-        emitByte(OP_DUP);  // Duplica switch value
-        expression();       // Case value
+    while (match(TOKEN_CASE)) {
+        emitByte(OP_DUP);     // [value, value]
+        expression();          // [value, value, case_val]
         consume(TOKEN_COLON, "Expect ':' after case value");
+        emitByte(OP_EQUAL);   // [value, bool]
         
-        emitByte(OP_EQUAL); // Compara
         int caseJump = emitJump(OP_JUMP_IF_FALSE);
-        emitByte(OP_POP);   // Pop resultado se TRUE
+        emitByte(OP_POP);     // [value] - Pop comparison result
         
-        // Case body (permite múltiplos statements)
-        while (!check(TOKEN_CASE) && !check(TOKEN_DEFAULT) && 
-               !check(TOKEN_RBRACE) && !check(TOKEN_EOF))
-        {
+        // ✅ Pop switch value (já matched!)
+        emitByte(OP_POP);     // []
+        
+        // Case body
+        while (!check(TOKEN_CASE) && !check(TOKEN_DEFAULT) &&
+               !check(TOKEN_RBRACE) && !check(TOKEN_EOF)) {
             statement();
         }
         
-        endJumps.push_back(emitJump(OP_JUMP)); // Jump para fim
+        endJumps.push_back(emitJump(OP_JUMP));
         
+        // ✅ Se FALSE, apenas pop comparison result
         patchJump(caseJump);
-        emitByte(OP_POP);  // Pop resultado se FALSE
-        caseCount++;
+        emitByte(OP_POP);     // [value] - Pop comparison result
+        
+        // ← switch value ainda no stack para próximo case
     }
     
     // Default (opcional)
-    if (match(TOKEN_DEFAULT))
-    {
+    if (match(TOKEN_DEFAULT)) {
         consume(TOKEN_COLON, "Expect ':' after 'default'");
         
-        // Default body
-        while (!check(TOKEN_CASE) && !check(TOKEN_RBRACE) && !check(TOKEN_EOF))
-        {
+        // ✅ Pop switch value antes de default body
+        emitByte(OP_POP);     // []
+        
+        while (!check(TOKEN_CASE) && !check(TOKEN_RBRACE) && !check(TOKEN_EOF)) {
             statement();
         }
+    } else {
+        // ✅ Se não tem default, pop switch value
+        emitByte(OP_POP);     // []
     }
     
     consume(TOKEN_RBRACE, "Expect '}' after switch body");
     
-    // Pop switch value (sempre, mesmo sem cases)
-    emitByte(OP_POP);
-    
     // Patch todos os end jumps
-    for (int jump : endJumps)
-    {
+    for (int jump : endJumps) {
         patchJump(jump);
     }
 }
-
-
 // void Compiler::switchStatement()
 // {
 //     consume(TOKEN_LPAREN, "Expect '(' after 'switch'");
@@ -1584,7 +1670,7 @@ void Compiler::processDeclaration()
     Token nameToken = previous;
     isProcess_ = true;
 
-    //Warning("Compiling process '%s'", nameToken.lexeme.c_str());
+    // Warning("Compiling process '%s'", nameToken.lexeme.c_str());
 
     // Cria função para o process
     int funcIndex;
@@ -1603,7 +1689,7 @@ void Compiler::processDeclaration()
     vm_->addProcess(nameToken.lexeme.c_str(), func);
 
     uint32 index = vm_->getTotalProcesses() - 1;
-    //Warning("Process '%s' registered with index %d", nameToken.lexeme.c_str(), index);
+    // Warning("Process '%s' registered with index %d", nameToken.lexeme.c_str(), index);
 
     emitConstant(Value::makeProcess(index));
     uint8 nameConstant = identifierConstant(nameToken);
@@ -1661,7 +1747,6 @@ void Compiler::compileFunction(Function *func, bool isProcess)
     {
         emitReturn();
     }
-
 
     // Restaura estado
     this->function = enclosing;
@@ -1753,7 +1838,7 @@ void Compiler::frameStatement()
         error("'frame' can only be used in process body");
         return;
     }
-    
+
     if (match(TOKEN_LPAREN))
     {
         // frame(expression)
@@ -1765,11 +1850,11 @@ void Compiler::frameStatement()
         // frame; = frame(100);
         emitBytes(OP_CONSTANT, makeConstant(Value::makeInt(100)));
     }
-    
+
     consume(TOKEN_SEMICOLON, "Expect ';' after frame");
     emitByte(OP_FRAME);
 }
- 
+
 void Compiler::exitStatement()
 {
     if (!isProcess_)
@@ -1777,7 +1862,7 @@ void Compiler::exitStatement()
         error("'exit' can only be used in process body");
         return;
     }
-    
+
     if (match(TOKEN_LPAREN))
     {
         // exit(expression)
@@ -1786,19 +1871,17 @@ void Compiler::exitStatement()
     }
     else
     {
-        // exit; 
+        // exit;
         emitConstant(Value::makeInt(0));
     }
-    
+
     consume(TOKEN_SEMICOLON, "Expect ';' after exit");
-    emitByte(OP_EXIT);   
-
+    emitByte(OP_EXIT);
 }
-
 
 void Compiler::yieldStatement()
 {
-       
+
     if (match(TOKEN_LPAREN))
     {
         expression(); // Percentagem vai para stack
@@ -1806,15 +1889,13 @@ void Compiler::yieldStatement()
     }
     else
     {
-        
+
         emitBytes(OP_CONSTANT, makeConstant(Value::makeDouble(1.0)));
     }
-    
+
     consume(TOKEN_SEMICOLON, "Expect ';' after yild");
     emitByte(OP_YIELD);
 }
-
- 
 
 void Compiler::fiberStatement()
 {
@@ -1823,19 +1904,16 @@ void Compiler::fiberStatement()
 
     namedVariable(nameToken, false); // empilha callee
 
-    
-    
     consume(TOKEN_LPAREN, "Expect '(' after fiber function name.");
 
-    
     uint8 argCount = 0;
-    
+
     if (!check(TOKEN_RPAREN))
     {
         do
         {
             expression();
-            
+
             if (argCount == 255)
             {
                 error("Can't have more than 255 arguments");
@@ -1846,14 +1924,35 @@ void Compiler::fiberStatement()
 
     consume(TOKEN_RPAREN, "Expect ')' after arguments");
     Warning("Compiling fiber call to '%s' with %d arguments", nameToken.lexeme.c_str(), argCount);
-    
-
-
 
     consume(TOKEN_SEMICOLON, "Expect ';' after fiber call.");
 
     emitByte(OP_SPAWN);
     emitByte(argCount);
-    //emitByte(OP_POP); // descarta o nil/handle se spawn devolver algo
-    
+    // emitByte(OP_POP); // descarta o nil/handle se spawn devolver algo
+}
+
+void Compiler::dot(bool canAssign)
+{
+    consume(TOKEN_IDENTIFIER, "Expect property name after '.'");
+    Token propName = previous;
+    uint8 nameIdx = identifierConstant(propName);
+
+    if (canAssign && match(TOKEN_EQUAL))
+    {
+        // obj.prop = value
+        expression();
+        emitBytes(OP_SET_PROPERTY, nameIdx);
+    }
+    else if (match(TOKEN_LPAREN))
+    {
+        uint8 argCount = argumentList(); // empilha args
+        emitBytes(OP_INVOKE, nameIdx);
+        emitByte(argCount);
+    }
+    else
+    {
+        // obj.prop
+        emitBytes(OP_GET_PROPERTY, nameIdx);
+    }
 }

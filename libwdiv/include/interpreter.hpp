@@ -198,8 +198,9 @@ class Interpreter
 
     Compiler* compiler;
 
-      VMHooks hooks;
+    VMHooks hooks;
 
+    bool string_operation(const char* name);
     
 
     // const Value &peek(int distance = 0);
@@ -212,39 +213,39 @@ public:
     Interpreter();
     ~Interpreter();
     void update(float deltaTime);
-    void run();
-
+  
+    
     Process *addProcess(const char *name, Function *func);
     void destroyProcess(Process *proc);
     Process* spawnProcess(Process *proc);
-
+    
     uint32 getTotalProcesses() const ;
     uint32 getTotalAliveProcesses() const ;
-
+    
     void destroyFunction(Function *func);
     void addFiber(Process* proc, Function* func);
     
     int registerNative(const char* name, NativeFunction func, int arity);
-
+    
     void print(Value value);
     
     Function *addFunction(const char *name, int arity = 0);
     Function *canRegisterFunction(const char *name,  int arity, int *index);
     bool functionExists(const char* name);
     int registerFunction(const char* name, Function* func);
-
+    
     void run_process_step(Process *proc );
     FiberResult run_fiber(Fiber *fiber );
-
+    
     float getCurrentTime() const;
-
+    
     void runtimeError(const char *format, ...);
-
+    
     bool callValue(Value callee, int argCount);
-
+    
     Function* compile(const char* source);
     Function* compileExpression(const char* source);
-    bool run(const char* source);
+    bool run(const char* source, bool dump=false);
     
     void reset();  
 
@@ -253,7 +254,7 @@ public:
 
     void render();  
 
-
+    void disassemble();
     
 
     int addGlobal(const char* name, Value value);

@@ -51,6 +51,7 @@ struct Value
   static Value makeProcess(int idx);
 
   // Type checks
+  bool isNumber() const ;
   bool isNil() const { return type == ValueType::NIL; }
   bool isBool() const { return type == ValueType::BOOL; }
   bool isInt() const { return type == ValueType::INT; }
@@ -71,7 +72,7 @@ struct Value
   int asNativeId() const;
   int asProcessId() const;
 
-
+long asNumber() const;
 
 
 };

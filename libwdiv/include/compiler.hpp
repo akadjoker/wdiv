@@ -19,20 +19,24 @@ class Interpreter;
 
 typedef void (Compiler::*ParseFn)(bool canAssign);
 
-enum Precedence
-{
+enum Precedence {
     PREC_NONE,
     PREC_ASSIGNMENT,
-    PREC_OR,
-    PREC_AND,
-    PREC_EQUALITY,
-    PREC_COMPARISON,
-    PREC_TERM,
-    PREC_FACTOR,
-    PREC_UNARY,
-    PREC_CALL,
+    PREC_OR,             // ||
+    PREC_AND,            // &&
+    PREC_BITWISE_OR,     // | 
+    PREC_BITWISE_XOR,    // ^ 
+    PREC_BITWISE_AND,    // & 
+    PREC_EQUALITY,       // == !=
+    PREC_COMPARISON,     // < > <= >=
+    PREC_SHIFT,          // << >> 
+    PREC_TERM,           // + -
+    PREC_FACTOR,         // * / %
+    PREC_UNARY,          // ! - ~ ++ --
+    PREC_CALL,           // ()
     PREC_PRIMARY
 };
+
 
 struct ParseRule
 {
@@ -203,6 +207,8 @@ private:
     void block();
     void yieldStatement();
     void fiberStatement();
+
+    void dot(bool canAssign);
 
     int getPrivateIndex(const char *name);
     void handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssign);

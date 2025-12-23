@@ -5,7 +5,9 @@
 #include <fstream>
 #include <cstdlib>
 #include "interpreter.hpp"
-#include "opcode.hpp"
+#include "token.hpp"
+#include "lexer.hpp"
+
 
 Value native_write(Interpreter *vm, int argCount, Value *args)
 {
@@ -151,35 +153,32 @@ Value native_clock(Interpreter *vm, int argCount, Value *args)
     return Value::makeDouble(static_cast<double>(clock()) / CLOCKS_PER_SEC);
 }
 
-void onStart(Process *proc) 
+void onStart(Process *proc)
 {
-   // printf("[start] %s id=%u\n", proc->name->chars(), proc->id);
+    // printf("[start] %s id=%u\n", proc->name->chars(), proc->id);
 }
 
-void onUpdate(Process *proc, float dt) 
+void onUpdate(Process *proc, float dt)
 {
     // ler posição vinda do script
     float x = (float)proc->privates[0].asDouble();
     float y = (float)proc->privates[1].asDouble();
 
-    // printf("[update] %s pos=(%.2f, %.2f) dt=%.3f\n", 
+    // printf("[update] %s pos=(%.2f, %.2f) dt=%.3f\n",
     //     proc->name->chars(), x, y, dt);
-
 
     // proc->privates[0] = Value::makeDouble(1);
     // proc->privates[1] = Value::makeDouble(1);
-    
 }
 
-void onDestroy(Process *proc, int exitCode) 
+void onDestroy(Process *proc, int exitCode)
 {
     printf("[destroy] %s exit=%d\n", proc->name->chars(), proc->exitCode);
 }
 
-void onRender(Process *proc) 
+void onRender(Process *proc)
 {
     printf("[render] %s rendering...\n", proc->name->chars());
-    
 }
 
 int main()
@@ -199,14 +198,13 @@ int main()
     hooks.onDestroy = onDestroy;
     hooks.onRender = onRender;
 
-
     vm.setHooks(hooks);
 
     std::ifstream file("main.cc");
     std::string code((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
 
-    if (!vm.run(code.c_str()))
+    if (!vm.run(code.c_str()),true)
     {
         std::cerr << "Error running code.\n";
         return 1;
@@ -218,6 +216,14 @@ int main()
         stapes++;
         vm.update(0.016f); // Simula um frame de 16ms
     }
+
+    // Lexer lex("3.14 name.upper() 3.method()");
+
+    // Token t;
+    // while ((t = lex.scanToken()).type != TOKEN_EOF)
+    // {
+    //     printf("[%d:%s] ", t.type, t.lexeme.c_str());
+    // }
 
     return 0;
 }

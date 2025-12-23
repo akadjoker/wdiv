@@ -48,6 +48,30 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset)
     case OP_FALSE:
         return simpleInstruction("OP_FALSE", offset);
 
+    // Bitwise (6 cases)
+    case OP_BITWISE_AND:
+        return simpleInstruction("OP_BITWISE_AND", offset);
+    case OP_BITWISE_OR:
+        return simpleInstruction("OP_BITWISE_OR", offset);
+    case OP_BITWISE_XOR:
+        return simpleInstruction("OP_BITWISE_XOR", offset);
+    case OP_BITWISE_NOT:
+        return simpleInstruction("OP_BITWISE_NOT", offset);
+    case OP_SHIFT_LEFT:
+        return simpleInstruction("OP_SHIFT_LEFT", offset);
+    case OP_SHIFT_RIGHT:
+        return simpleInstruction("OP_SHIFT_RIGHT", offset);
+
+    // Stack
+    case OP_DUP:
+        return simpleInstruction("OP_DUP", offset);
+
+    // Process control
+    case OP_SPAWN:
+        return byteInstruction("OP_SPAWN", chunk, offset);
+    case OP_EXIT:
+        return simpleInstruction("OP_EXIT", offset);
+
     // -------- Stack --------
     case OP_POP:
         return simpleInstruction("OP_POP", offset);
@@ -69,6 +93,11 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset)
         return simpleInstruction("OP_NEGATE", offset);
     case OP_MODULO:
         return simpleInstruction("OP_MODULO", offset);
+
+    case OP_GET_PROPERTY:
+        return constantInstruction("OP_GET_PROPERTY", chunk, offset);
+    case OP_SET_PROPERTY:
+        return constantInstruction("OP_SET_PROPERTY", chunk, offset);
 
     // -------- Comparisons --------
     case OP_EQUAL:
@@ -134,6 +163,25 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset)
 
         return offset + 3;
     }
+    case OP_INVOKE:
+    {
+        if (!hasBytes(chunk, offset, 2))
+        {
+            printf("OP_INVOKE <truncated>\n");
+            return chunk.count;
+        }
+
+        uint8_t nameIdx = chunk.code[offset + 1];
+        uint8_t argCount = chunk.code[offset + 2];
+
+        Value c = chunk.constants[nameIdx];
+        const char *nm = (c.isString() ? c.asString()->chars() : "<non-string>");
+
+        printf("%-16s %4u '%s' (%u args)\n",
+               "OP_INVOKE", (unsigned)nameIdx, nm, (unsigned)argCount);
+
+        return offset + 3;
+    }
 
     case OP_RETURN:
         return simpleInstruction("OP_RETURN", offset);
@@ -150,6 +198,21 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset)
     case OP_PRINT:
         return simpleInstruction("OP_PRINT", offset);
 
+//         // Arrays (futuros)
+// case OP_NEW_ARRAY:
+//     return byteInstruction("OP_NEW_ARRAY", chunk, offset);
+// case OP_GET_INDEX:
+//     return simpleInstruction("OP_GET_INDEX", offset);
+// case OP_SET_INDEX:
+//     return simpleInstruction("OP_SET_INDEX", offset);
+
+// // Structs (futuros)
+// case OP_NEW_STRUCT:
+//     return byteInstruction("OP_NEW_STRUCT", chunk, offset);
+
+// // Fibers
+// case OP_CREATE_FIBER:
+//     return simpleInstruction("OP_CREATE_FIBER", offset);
     default:
         printf("Unknown opcode %u\n", (unsigned)instruction);
         return offset + 1;

@@ -12,7 +12,7 @@ class Code
 {
     size_t m_capacity;
     public:
-    Code(size_t capacity = 128);
+    Code(size_t capacity = 1024);
     
     
     

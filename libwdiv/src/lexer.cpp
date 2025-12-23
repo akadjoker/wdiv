@@ -235,69 +235,54 @@ Token Lexer::number()
     return makeToken(type, numStr);
 }
 
-// Token Lexer::string()
-// {
-//     const size_t MAX_STRING_LENGTH = 10000;
-//     size_t startPos = current;
-
-//     while (peek() != '"' && !isAtEnd())
-//     {
-//         advance();
-
-//         if (current - startPos > MAX_STRING_LENGTH)
-//         {
-//             return errorToken("String too long (max 10000 chars)");
-//         }
-//     }
-
-//     if (isAtEnd())
-//     {
-//         return errorToken("Unterminated string");
-//     }
-
-//     advance(); // fecha "
-
-//     std::string value = source.substr(start + 1, current - start - 2);
-//     return makeToken(TOKEN_STRING, value);
-// }
-
 Token Lexer::string()
 {
     const size_t MAX_STRING_LENGTH = 10000;
     size_t startPos = current;
-    
-    std::string value;   
-    
+
+    std::string value;
+
     while (peek() != '"' && !isAtEnd())
     {
         if (current - startPos > MAX_STRING_LENGTH)
         {
             return errorToken("String too long (max 10000 chars)");
         }
-        
+
         char c = advance();
-        
- 
+
         if (c == '\\')
         {
             if (isAtEnd())
             {
                 return errorToken("Unterminated string");
             }
-            
+
             char next = advance();
             switch (next)
             {
-                case 'n':  value += '\n'; break;
-                case 't':  value += '\t'; break;
-                case 'r':  value += '\r'; break;
-                case '\\': value += '\\'; break;
-                case '"':  value += '"';  break;
-                case '0':  value += '\0'; break;
-                default:
-                    value += '\\';
-                    value += next;
-                    break;
+            case 'n':
+                value += '\n';
+                break;
+            case 't':
+                value += '\t';
+                break;
+            case 'r':
+                value += '\r';
+                break;
+            case '\\':
+                value += '\\';
+                break;
+            case '"':
+                value += '"';
+                break;
+            case '0':
+                value += '\0';
+                break;
+            default:
+                value += '\\';
+                value += next;
+                break;
             }
         }
         else
@@ -305,14 +290,14 @@ Token Lexer::string()
             value += c;
         }
     }
-    
+
     if (isAtEnd())
     {
         return errorToken("Unterminated string");
     }
-    
+
     advance(); // fecha "
-    
+
     return makeToken(TOKEN_STRING, value);
 }
 
@@ -350,26 +335,26 @@ Token Lexer::scanToken()
     skipWhitespace();
     start = current;
     tokenColumn = column;
-    
+
     if (isAtEnd())
     {
         return makeToken(TOKEN_EOF, "");
     }
-    
+
     char c = advance();
-    
+
     // Numbers
     if (isdigit(c))
     {
         return number();
     }
-    
+
     // Identifiers and keywords
     if (isalpha(c) || c == '_')
     {
         return identifier();
     }
-    
+
     switch (c)
     {
     // Single-char tokens
@@ -387,7 +372,9 @@ Token Lexer::scanToken()
         return makeToken(TOKEN_SEMICOLON, ";");
     case ':':
         return makeToken(TOKEN_COLON, ":");
-    
+    case '.':
+        return makeToken(TOKEN_DOT, ".");
+
     // Operators com compound assignment e increment/decrement
     case '+':
         if (match('+'))
@@ -395,29 +382,29 @@ Token Lexer::scanToken()
         if (match('='))
             return makeToken(TOKEN_PLUS_EQUAL, "+=");
         return makeToken(TOKEN_PLUS, "+");
-    
+
     case '-':
         if (match('-'))
             return makeToken(TOKEN_MINUS_MINUS, "--");
         if (match('='))
             return makeToken(TOKEN_MINUS_EQUAL, "-=");
         return makeToken(TOKEN_MINUS, "-");
-    
+
     case '*':
         if (match('='))
             return makeToken(TOKEN_STAR_EQUAL, "*=");
         return makeToken(TOKEN_STAR, "*");
-    
+
     case '/':
         if (match('='))
             return makeToken(TOKEN_SLASH_EQUAL, "/=");
         return makeToken(TOKEN_SLASH, "/");
-    
+
     case '%':
         if (match('='))
             return makeToken(TOKEN_PERCENT_EQUAL, "%=");
         return makeToken(TOKEN_PERCENT, "%");
-    
+
     // Two-char tokens
     case '=':
         if (match('='))
@@ -425,46 +412,48 @@ Token Lexer::scanToken()
             return makeToken(TOKEN_EQUAL_EQUAL, "==");
         }
         return makeToken(TOKEN_EQUAL, "=");
-    
+
     case '!':
         if (match('='))
         {
             return makeToken(TOKEN_BANG_EQUAL, "!=");
         }
         return makeToken(TOKEN_BANG, "!");
-    
-    case '<':
-        if (match('='))
-        {
-            return makeToken(TOKEN_LESS_EQUAL, "<=");
-        }
-        return makeToken(TOKEN_LESS, "<");
-    
-    case '>':
-        if (match('='))
-        {
-            return makeToken(TOKEN_GREATER_EQUAL, ">=");
-        }
-        return makeToken(TOKEN_GREATER, ">");
-    
+
     case '&':
         if (match('&'))
-        {
             return makeToken(TOKEN_AND_AND, "&&");
-        }
-        return errorToken("Expected '&&' for logical AND");
-    
+        return makeToken(TOKEN_AMPERSAND, "&");
+
     case '|':
         if (match('|'))
-        {
             return makeToken(TOKEN_OR_OR, "||");
-        }
-        return errorToken("Expected '||' for logical OR");
-    
+        return makeToken(TOKEN_PIPE, "|");
+
+    case '^':
+        return makeToken(TOKEN_CARET, "^");
+
+    case '~':
+        return makeToken(TOKEN_TILDE, "~");
+
+    case '<':
+        if (match('<'))
+            return makeToken(TOKEN_LEFT_SHIFT, "<<");
+        if (match('='))
+            return makeToken(TOKEN_LESS_EQUAL, "<=");
+        return makeToken(TOKEN_LESS, "<");
+
+    case '>':
+        if (match('>'))
+            return makeToken(TOKEN_RIGHT_SHIFT, ">>");
+        if (match('='))
+            return makeToken(TOKEN_GREATER_EQUAL, ">=");
+        return makeToken(TOKEN_GREATER, ">");
+
     // String literals
     case '"':
         return string();
-    
+
     default:
         return errorToken("Unexpected character");
     }
@@ -495,7 +484,6 @@ Token Lexer::nextToken()
 
     return scanToken();
 }
-
 
 // ============================================
 // BATCH API: For tools/debugging
