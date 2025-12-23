@@ -187,38 +187,7 @@ void Interpreter::print(Value value)
     printValue(value);
 }
 
-bool Interpreter::string_operation(const char *name)
-{
-    struct MethodEntry
-    {
-        const char *methodName;
-        const char *nativeName;
-    };
-
-    static const MethodEntry methods[] = {
-        {"upper", "str_upper"},
-        {"lower", "str_lower"},
-        {"length", "str_length"},
-        {"contains", "str_contains"},
-        {"starts_with", "str_starts_with"},
-        {"ends_with", "str_ends_with"},
-        {"replace", "str_replace"},
-        {"substring", "str_substring"},
-    };
-
-    const int methodCount = sizeof(methods) / sizeof(methods[0]);
-
-    for (int i = 0; i < methodCount; i++)
-    {
-        if (strcmp(name, methods[i].methodName) == 0)
-        {
-
-            return true;
-        }
-    }
-
-    return false;
-}
+ 
 
 Fiber *Interpreter::get_ready_fiber(Process *proc)
 {
@@ -334,42 +303,7 @@ bool Interpreter::isFalsey(Value value)
     return value.isNil() || (value.isBool() && !value.asBool());
 }
 
-bool Interpreter::callValue(Value callee, int argCount)
-{
-    if (!callee.isFunction())
-    {
-        runtimeError("Can only call functions");
-        return false;
-    }
-
-    int index = callee.asFunctionId();
-
-    Function *func = functions[index];
-    if (!func)
-        return false;
-
-    if (argCount != func->arity)
-    {
-        runtimeError("Expected %d arguments but got %d",
-                     func->arity, argCount);
-        return false;
-    }
-
-    if (currentFiber->frameCount >= FRAMES_MAX)
-    {
-        runtimeError("Stack overflow");
-        return false;
-    }
-
-    CallFrame *frame = &currentFiber->frames[currentFiber->frameCount++];
-    frame->func = func;
-    frame->ip = func->chunk.code;
-    frame->slots = currentFiber->stackTop - argCount - 1;
-
-    currentFiber->ip = func->chunk.code;
-
-    return true;
-}
+ 
 
 Function *Interpreter::compile(const char *source)
 {
@@ -389,19 +323,28 @@ bool Interpreter::run(const char *source, bool _dump)
         return false;
     }
 
-    // if (_dump)
+     if (_dump)
     {
-        disassemble();
+      //  disassemble();
         // Function *mainFunc = proc->fibers[0].frames[0].func;
         // Debug::dumpFunction(mainFunc);
     }
+ for (size_t i = 0; i < functions.size(); i++)
+    {
+        Function *func = functions[i];
+        if (!func)
+            continue;
+        func->chunk.freeze();
+    }
 
-    mainProcess = proc; // spawnProcess(proc);
+    mainProcess =  spawnProcess(proc);
     currentProcess = mainProcess;
 
     Fiber *fiber = &mainProcess->fibers[0];
 
-    run_fiber(fiber);
+    
+    Info("Execute");
+   // run_fiber(fiber);
 
     return !hasFatalError_;
 }

@@ -200,8 +200,7 @@ class Interpreter
 
     VMHooks hooks;
 
-    bool string_operation(const char* name);
-    
+ 
 
     // const Value &peek(int distance = 0);
 

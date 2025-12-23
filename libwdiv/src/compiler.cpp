@@ -136,7 +136,7 @@ Function *Compiler::compile(const std::string &source, Interpreter *vm)
 
 Process *Compiler::compile(const std::string &source)
 {
-    clear();
+   clear();
 
     lexer = new Lexer(source);
 

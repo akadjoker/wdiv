@@ -204,7 +204,7 @@ int main()
     std::string code((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
 
-    if (!vm.run(code.c_str()),true)
+    if (!vm.run(code.c_str()),false)
     {
         std::cerr << "Error running code.\n";
         return 1;
