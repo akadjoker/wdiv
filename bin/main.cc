@@ -1,36 +1,75 @@
+process teste() {
+    print("A");
+    gosub sub;
+    print("C");
+    exit;
 
-process tiro(x,y)
+sub:
+    print("B");
+    return;
+}
+
+process teste2() 
 {
-
-    print("Tiro");
-    print(father.x);
-    print(father.y);
-
-    father.x=1000;
-
+    print("start");
+    gosub sub;
+    print("after gosub");
+sub:
+    print("in sub");
+    return;
 }
 
 
-process tmp()
-{
+process teste3() {
+    var i = 0;
 
+loop_start:
+    write("loop {} \n",i);
+    gosub sub;
+    i += 1;
+    if (i < 3) goto loop_start;
+    exit;
+
+sub:
+    print("  in sub");
+    return;
 }
 
-process nave(x,y,size,z)
-{
-  
-    tiro(100,100);
-    tiro(100,100);
- 
- 
+
+process teste4() {
+    print("start");
+    gosub a;
+    print("end");
+    exit;
+
+a:
+    print("A");
+    gosub b;
+    print("A return");
+    return;
+
+b:
+    print("B");
+    return;
 }
 
-tmp();
-tmp();
-tmp();
+process loop_test() 
+{
+    var i = 0;
 
-nave(200,4000,32,-1);
+mainloop:
+    gosub body;
+    i += 1;
+    if (i < 5) goto mainloop;
+    exit;
 
- tmp();
+body:
+    write("i = {} \n", i);
+    return;
+}
 
-print("byby");
+
+loop_test();
+teste2();
+teste3();
+teste4();

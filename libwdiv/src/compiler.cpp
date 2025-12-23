@@ -6,6 +6,7 @@
 #include "opcode.hpp"
 #include <cstdio>
 #include <cstdlib>
+#include <stdarg.h>
 
 // ============================================
 // PARSE RULE TABLE - DEFINIÇÃO
@@ -27,6 +28,7 @@ Compiler::Compiler(Interpreter *vm)
 {
 
     initRules();
+    cursor = 0;
 }
 Compiler::~Compiler()
 {
@@ -109,6 +111,7 @@ ProcessDef *Compiler::compile(const std::string &source)
     clear();
 
     lexer = new Lexer(source);
+    tokens = lexer->scanAll();
 
     function = vm_->addFunction("__main__", 0);
     currentProcess = vm_->addProcess("__main_process__", function);
@@ -117,7 +120,7 @@ ProcessDef *Compiler::compile(const std::string &source)
 
     advance();
 
-    while (!match(TOKEN_EOF))
+    while (!match(TOKEN_EOF) && !hadError)
     {
         declaration();
     }
@@ -139,6 +142,8 @@ ProcessDef *Compiler::compileExpression(const std::string &source)
     clear();
 
     lexer = new Lexer(source);
+
+    tokens = lexer->scanAll();
 
     function = vm_->addFunction("__expr__", 0);
     currentProcess = vm_->addProcess("__main_process__", function);
@@ -171,6 +176,7 @@ ProcessDef *Compiler::compileExpression(const std::string &source)
 void Compiler::clear()
 {
     delete lexer;
+    tokens.clear();
     lexer = nullptr;
     function = nullptr;
     currentChunk = nullptr;
@@ -181,6 +187,7 @@ void Compiler::clear()
     scopeDepth = 0;
     localCount_ = 0;
     loopDepth_ = 0;
+    cursor = 0;
 }
 
 // ============================================
@@ -189,16 +196,30 @@ void Compiler::clear()
 
 void Compiler::advance()
 {
+
     previous = current;
-
-    for (;;)
+    if (cursor >= tokens.size())
     {
-        current = lexer->scanToken();
-        if (current.type != TOKEN_ERROR)
-            break;
-
-        errorAtCurrent(current.lexeme.c_str());
+        current.type = TOKEN_EOF;
+        return;
     }
+
+    current = tokens[cursor++];
+}
+
+Token Compiler::peek(int offset)
+{
+    size_t index = cursor + offset;
+    if (index >= tokens.size())
+    {
+        return tokens.back(); // EOF
+    }
+    return tokens[index];
+}
+
+bool Compiler::checkNext(TokenType t)
+{
+    return peek(0).type == t;
 }
 
 bool Compiler::check(TokenType type)
@@ -228,6 +249,17 @@ void Compiler::consume(TokenType type, const char *message)
 // ============================================
 // ERROR HANDLING
 // ============================================
+
+void Compiler::fail(const char *fmt, ...)
+{
+    char buffer[1024];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+
+    errorAt(previous, buffer);
+}
 
 void Compiler::error(const char *message)
 {
@@ -341,6 +373,7 @@ int Compiler::emitJump(uint8 instruction)
     return currentChunk->count - 2;
 }
 
+ 
 void Compiler::patchJump(int offset)
 {
     int jump = currentChunk->count - offset - 2;
@@ -366,6 +399,31 @@ void Compiler::emitLoop(int loopStart)
 
     emitByte((offset >> 8) & 0xff);
     emitByte(offset & 0xff);
+}
+
+void Compiler::patchJumpTo(int operandOffset, int targetOffset)
+{
+    int jump = targetOffset - (operandOffset + 2);  // target - after operand
+    if (jump < 0) { error("Backward goto must use OP_LOOP"); return; }
+    if (jump > UINT16_MAX) { error("Jump distance too large"); return; }
+
+    currentChunk->code[operandOffset]     = (jump >> 8) & 0xff;
+    currentChunk->code[operandOffset + 1] = jump & 0xff;
+}
+
+
+void Compiler::emitGosubTo(int targetOffset)
+{
+    emitByte(OP_GOSUB);
+    int from = (int)currentChunk->count + 2;
+    int delta = targetOffset - from;
+    if (delta < -32768 || delta > 32767)
+    {
+        error("gosub jump out of range");
+    }
+
+    emitByte((delta >> 8) & 0xff);
+    emitByte(delta & 0xff);
 }
 
 // ============================================
@@ -420,6 +478,7 @@ ParseRule *Compiler::getRule(TokenType type)
 
 void Compiler::number(bool canAssign)
 {
+    (void)canAssign;
     if (previous.type == TOKEN_INT)
     {
         int value = std::atoi(previous.lexeme.c_str());
@@ -434,11 +493,13 @@ void Compiler::number(bool canAssign)
 
 void Compiler::string(bool canAssign)
 {
+    (void)canAssign;
     emitConstant(Value::makeString(previous.lexeme.c_str()));
 }
 
 void Compiler::literal(bool canAssign)
 {
+    (void)canAssign;
     switch (previous.type)
     {
     case TOKEN_TRUE:
@@ -457,12 +518,14 @@ void Compiler::literal(bool canAssign)
 
 void Compiler::grouping(bool canAssign)
 {
+    (void)canAssign;
     expression();
     consume(TOKEN_RPAREN, "Expect ')' after expression");
 }
 
 void Compiler::unary(bool canAssign)
 {
+    (void)canAssign;
     TokenType operatorType = previous.type;
 
     parsePrecedence(PREC_UNARY);
@@ -484,6 +547,7 @@ void Compiler::unary(bool canAssign)
 }
 void Compiler::binary(bool canAssign)
 {
+    (void)canAssign;
     TokenType operatorType = previous.type;
     ParseRule *rule = getRule(operatorType);
 
@@ -554,6 +618,7 @@ void Compiler::binary(bool canAssign)
 
 void Compiler::declaration()
 {
+
     if (match(TOKEN_DEF))
     {
         funDeclaration();
@@ -579,7 +644,17 @@ void Compiler::declaration()
 
 void Compiler::statement()
 {
-    if (match(TOKEN_FRAME))
+
+    if (check(TOKEN_IDENTIFIER) && peek(0).type == TOKEN_COLON)
+    {
+        labelStatement();
+    }
+
+    //  Info(" Prev : %s", previous.toString().c_str());
+    //  Info(" Current : %s", current.toString().c_str());
+    //  Info(" next : %s", peek(0).toString().c_str());
+
+    else if (match(TOKEN_FRAME))
     {
         frameStatement();
     }
@@ -606,6 +681,14 @@ void Compiler::statement()
     else if (match(TOKEN_WHILE))
     {
         whileStatement();
+    }
+    else if (match(TOKEN_GOTO))
+    {
+        gotoStatement();
+    }
+    else if (match(TOKEN_GOSUB))
+    {
+        gosubStatement();
     }
     else if (match(TOKEN_DO))
     {
@@ -656,8 +739,10 @@ void Compiler::printStatement()
 
 void Compiler::expressionStatement()
 {
+
+    // Expressão normal
     expression();
-    consume(TOKEN_SEMICOLON, "Expect ';' after expression");
+    consume(TOKEN_SEMICOLON, "Expresion statemnt Expect ';'");
     emitByte(OP_POP);
 }
 
@@ -1318,6 +1403,13 @@ void Compiler::forStatement()
 void Compiler::returnStatement()
 {
 
+    if (isProcess_)
+    {
+        consume(TOKEN_SEMICOLON, "Expect ';'");
+        emitByte(OP_RETURN_SUB);
+        return;
+    }
+
     if (function == nullptr)
     {
         error("Can't return from top-level code");
@@ -1424,14 +1516,15 @@ void Compiler::processDeclaration()
 
         if (privateIndex >= 0)
         {
-            if (privateIndex==(int) PrivateIndex::ID)
+            if (privateIndex == (int)PrivateIndex::ID)
             {
                 Warning("Property 'ID' is readonly!");
-            } else if  (privateIndex==(int) PrivateIndex::FATHER)
+            }
+            else if (privateIndex == (int)PrivateIndex::FATHER)
             {
                 Warning("Property 'FATHER' is readonly!");
             }
-            else 
+            else
             {
                 proc->argsNames.push((uint8)privateIndex);
             }
@@ -1472,6 +1565,9 @@ void Compiler::compileFunction(Function *func, bool isProcess)
     this->scopeDepth = 0;
     this->localCount_ = 0;
     this->isProcess_ = isProcess;
+    labels.clear();
+    pendingGotos.clear();
+    pendingGosubs.clear();
 
     if (!func)
     {
@@ -1518,6 +1614,13 @@ void Compiler::compileFunction(Function *func, bool isProcess)
     block();
     endScope();
 
+    resolveGotos();
+    resolveGosubs();
+
+    labels.clear();
+    pendingGotos.clear();
+    pendingGosubs.clear();
+
     if (!function->hasReturn)
     {
         emitReturn();
@@ -1533,6 +1636,7 @@ void Compiler::compileFunction(Function *func, bool isProcess)
 
 void Compiler::prefixIncrement(bool canAssign)
 {
+    (void)canAssign;
     // ++i
     // previous = '++', current deve ser identifier
 
@@ -1729,4 +1833,120 @@ void Compiler::dot(bool canAssign)
         // obj.prop
         emitBytes(OP_GET_PROPERTY, nameIdx);
     }
+}
+
+void Compiler::labelStatement()
+{
+    consume(TOKEN_IDENTIFIER, "Expect label");
+    Token name = previous;
+    consume(TOKEN_COLON, "Expect ':'");
+
+    Label label;
+    label.name = name.lexeme;
+    label.offset = currentChunk->count;
+    for (auto &l : labels)
+    {
+        if (l.name == name.lexeme)
+        {
+            fail("Duplicate '%s' label", name.lexeme.c_str());
+        }
+    }
+    labels.push_back(label);
+}
+
+void Compiler::gotoStatement()
+{
+    consume(TOKEN_IDENTIFIER, "Expect label");
+    Token target = previous;
+    consume(TOKEN_SEMICOLON, "Expect ';'");
+
+    // Backward
+    for (const Label &l : labels)
+    {
+        if (l.name == target.lexeme)
+        {
+            emitLoop(l.offset);
+            return;
+        }
+    }
+
+    // Forward
+    GotoJump jump;
+    jump.target = target.lexeme;
+    jump.jumpOffset = emitJump(OP_JUMP);
+    pendingGotos.push_back(jump);
+}
+
+void Compiler::resolveGotos()
+{
+    for (const GotoJump &jump : pendingGotos)
+    {
+        int targetOffset = -1;
+
+        for (const Label &l : labels)
+        {
+            if (l.name == jump.target)
+            {
+                targetOffset = l.offset;
+                break;
+            }
+        }
+
+        if (targetOffset == -1)
+        {
+            error("Undefined label");
+            continue;
+        }
+
+        patchJumpTo(jump.jumpOffset, targetOffset);
+    }
+
+    pendingGotos.clear();
+}
+
+void Compiler::gosubStatement()
+{
+    consume(TOKEN_IDENTIFIER, "Expect label");
+    Token target = previous;
+    consume(TOKEN_SEMICOLON, "Expect ';'");
+
+    // se já existe label (pode ser backward)
+    for (const Label &l : labels)
+    {
+        if (l.name == target.lexeme)
+        {
+            emitGosubTo(l.offset);
+            return;
+        }
+    }
+
+    // forward: placeholder
+    GotoJump j;
+    j.target = target.lexeme;
+    j.jumpOffset = emitJump(OP_GOSUB); // devolve offset do OPERANDO
+    pendingGosubs.push_back(j);
+}
+
+
+void Compiler::resolveGosubs()
+{
+    for (const auto &j : pendingGosubs)
+    {
+        int targetOffset = -1;
+        for (const auto &l : labels)
+            if (l.name == j.target)
+            {
+                targetOffset = l.offset;
+                break;
+            }
+
+        if (targetOffset < 0)
+        {
+            error("Undefined label");
+            continue;
+        }
+
+        patchJumpTo(j.jumpOffset, targetOffset); // signed int16
+    }
+    pendingGosubs.clear();
 }

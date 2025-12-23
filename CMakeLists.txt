@@ -21,7 +21,7 @@ endif()
 add_subdirectory(libwdiv)
 add_subdirectory(main)
 add_subdirectory(game)
-
+add_subdirectory(tests)
 
 add_subdirectory(testStructs)
 

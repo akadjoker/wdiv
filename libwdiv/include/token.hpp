@@ -74,8 +74,12 @@ enum TokenType
     TOKEN_MINUS_MINUS,     // --
 
     TOKEN_COLON,           // :
+ 
 
     TOKEN_DOT, //.
+    TOKEN_LABEL,
+    TOKEN_GOTO,
+    TOKEN_GOSUB,
 
 
     // Built-ins

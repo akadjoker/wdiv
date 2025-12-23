@@ -10,6 +10,7 @@ static constexpr int MAX_PRIVATES = 16;
 static constexpr int MAX_FIBERS = 8;
 static constexpr int STACK_MAX = 256;
 static constexpr int FRAMES_MAX = 32;
+static constexpr int GOSUB_MAX = 16;
 
 enum class InterpretResult : uint8
 {
@@ -92,6 +93,8 @@ struct Fiber
     Value *stackTop;
     CallFrame frames[FRAMES_MAX];
     int frameCount;
+    uint8_t* gosubStack[GOSUB_MAX]; 
+    int gosubTop{0};
 
     Fiber()
         : state(FiberState::DEAD), resumeTime(0), ip(nullptr), stackTop(stack), frameCount(0)

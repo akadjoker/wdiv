@@ -52,6 +52,8 @@ enum Opcode : uint8
     OP_JUMP,
     OP_JUMP_IF_FALSE,
     OP_LOOP,
+    OP_GOSUB, 
+    OP_RETURN_SUB  ,
 
     // Functions
     OP_CALL,

@@ -19,27 +19,26 @@ struct String;
 struct ProcessDef;
 class Interpreter;
 
-
 typedef void (Compiler::*ParseFn)(bool canAssign);
 
-enum Precedence {
+enum Precedence
+{
     PREC_NONE,
     PREC_ASSIGNMENT,
-    PREC_OR,             // ||
-    PREC_AND,            // &&
-    PREC_BITWISE_OR,     // | 
-    PREC_BITWISE_XOR,    // ^ 
-    PREC_BITWISE_AND,    // & 
-    PREC_EQUALITY,       // == !=
-    PREC_COMPARISON,     // < > <= >=
-    PREC_SHIFT,          // << >> 
-    PREC_TERM,           // + -
-    PREC_FACTOR,         // * / %
-    PREC_UNARY,          // ! - ~ ++ --
-    PREC_CALL,           // ()
+    PREC_OR,          // ||
+    PREC_AND,         // &&
+    PREC_BITWISE_OR,  // |
+    PREC_BITWISE_XOR, // ^
+    PREC_BITWISE_AND, // &
+    PREC_EQUALITY,    // == !=
+    PREC_COMPARISON,  // < > <= >=
+    PREC_SHIFT,       // << >>
+    PREC_TERM,        // + -
+    PREC_FACTOR,      // * / %
+    PREC_UNARY,       // ! - ~ ++ --
+    PREC_CALL,        // ()
     PREC_PRIMARY
 };
-
 
 struct ParseRule
 {
@@ -107,13 +106,23 @@ struct LoopContext
     }
 };
 
+struct Label {
+    std::string name;
+    int offset;
+};
+
+struct GotoJump {
+    std::string target;
+    int jumpOffset;
+};
+
 #define MAX_LOCALS 256
 class Compiler
 {
 public:
     Compiler(Interpreter *vm);
     ~Compiler();
- 
+
     ProcessDef *compile(const std::string &source);
     ProcessDef *compileExpression(const std::string &source);
 
@@ -124,12 +133,16 @@ private:
     Lexer *lexer;
     Token current;
     Token previous;
+    Token next;
+
+    int cursor;
 
     Function *function;
     Code *currentChunk;
     Fiber *currentFiber;
     ProcessDef *currentProcess;
-    Vector<String*> argNames;
+    Vector<String *> argNames;
+     std::vector<Token> tokens;
 
     bool hadError;
     bool panicMode;
@@ -141,8 +154,17 @@ private:
     LoopContext loopContexts_[MAX_LOOP_DEPTH];
     int loopDepth_;
     bool isProcess_;
+
+    std::vector<Label> labels;
+    std::vector<GotoJump> pendingGotos;
+    std::vector<GotoJump> pendingGosubs;
+
     // Token management
     void advance();
+    Token peek(int offset = 0);
+
+    bool checkNext(TokenType t) ;
+    
     bool check(TokenType type);
     bool match(TokenType type);
     void consume(TokenType type, const char *message);
@@ -159,6 +181,7 @@ private:
     void error(const char *message);
     void errorAt(Token &token, const char *message);
     void errorAtCurrent(const char *message);
+    void fail(const char *format, ...);
     void synchronize();
 
     // Bytecode emission
@@ -170,6 +193,7 @@ private:
 
     int emitJump(uint8 instruction);
     void patchJump(int offset);
+ 
     void emitLoop(int loopStart);
 
     // Pratt parser
@@ -212,7 +236,14 @@ private:
 
     void dot(bool canAssign);
 
- 
+    void labelStatement();
+    void gotoStatement();
+    void gosubStatement();
+    void resolveGotos();
+    void resolveGosubs();
+    void emitGosubTo(int targetOffset);
+    void patchJumpTo(int operandOffset, int targetOffset);
+
     void handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssign);
 
     void prefixIncrement(bool canAssign);
@@ -229,7 +260,7 @@ private:
 
     uint8 argumentList();
 
-    void compileFunction(Function* func, bool isProcess);
+    void compileFunction(Function *func, bool isProcess);
     void compileProcess(const std::string &name);
 
     bool isProcessFunction(const char *name) const;

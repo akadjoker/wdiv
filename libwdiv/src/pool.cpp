@@ -93,10 +93,10 @@ String *StringPool::concat(String *a, String *b)
 void StringPool::clear()
 {
 
-    Info("Clean string pool");
+   
 
     
-    allocator.Stats();
+ //   allocator.Stats();
  
     allocator.Clear();
 }

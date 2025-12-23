@@ -1,0 +1,13 @@
+// Básico
+assert_eq(2 + 3, 5, "addition");
+assert_eq(10 - 3, 7, "subtraction");
+assert_eq(4 * 3, 12, "multiplication");
+assert_eq(10 / 2, 5, "division");
+assert_eq(10 % 3, 1, "modulo");
+
+// Negativo
+assert_eq(-5 + 3, -2, "negative numbers");
+
+// Precedência
+assert_eq(2 + 3 * 4, 14, "operator precedence");
+assert_eq((2 + 3) * 4, 20, "parentheses");

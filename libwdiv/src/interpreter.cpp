@@ -46,13 +46,13 @@ Interpreter::~Interpreter()
         proc->release();
         delete proc;
     }
+    const bool showStats = false;
 
     processes.clear();
-    Info("Clear process pool");
     ProcessPool::instance().clear();
 
-    Info("Clean  arena");
-    arena.Stats();
+    if (showStats)
+        arena.Stats();
 
     for (size_t j = 0; j < cleanProcesses.size(); j++)
     {
@@ -1293,20 +1293,14 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     // Marca processo como morto
                     currentProcess->state = FiberState::DEAD;
 
-                    printf("          ");
-                    for (Value *slot = fiber->stack; slot < fiber->stackTop; slot++)
-                    {
-                        printf("[ ");
-                        printValue(*slot);
-                        printf(" ]");
-                    }
-                    printf("\n");
-
-                    // Chama hook onDestroy
-                    // if (hooks.onDestroy)
+                    // printf("          ");
+                    // for (Value *slot = fiber->stack; slot < fiber->stackTop; slot++)
                     // {
-                    //     hooks.onDestroy(currentProcess, currentProcess->exitCode);
+                    //     printf("[ ");
+                    //     printValue(*slot);
+                    //     printf(" ]");
                     // }
+                    // printf("\n");
                 }
 
                 STORE_FRAME();
@@ -1478,12 +1472,10 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 }
             }
 
- 
-
             // === PROCESS PRIVATES (external access) ===
             if (object.isProcess())
             {
-                
+
                 int processId = object.asProcessId();
 
                 Process *proc = aliveProcesses[processId];
@@ -1496,9 +1488,10 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 if (privateIdx != -1)
                 {
                     PUSH(proc->privates[privateIdx]);
-                } else
+                }
+                else
                 {
-                    runtimeError("Proces  does not support '%s' property access",name);
+                    runtimeError("Proces  does not support '%s' property access", name);
                     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                 }
 
@@ -1548,12 +1541,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             if (object.isProcess())
             {
                 int processId = object.asProcessId();
-                Process *proc =   aliveProcesses[processId];
-       
+                Process *proc = aliveProcesses[processId];
 
-                if (!proc)// || proc->state == FiberState::DEAD)
+                if (!proc) // || proc->state == FiberState::DEAD)
                 {
-                    runtimeError("Process '%i' is dead or invalid",processId);
+                    runtimeError("Process '%i' is dead or invalid", processId);
                     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                 }
 
@@ -1561,11 +1553,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 int privateIdx = getProcessPrivateIndex(name);
                 if (privateIdx != -1)
                 {
-                    if  ( (privateIdx==(int)PrivateIndex::ID) || (privateIdx==(int)PrivateIndex::FATHER))
+                    if ((privateIdx == (int)PrivateIndex::ID) || (privateIdx == (int)PrivateIndex::FATHER))
                     {
-                        runtimeError("Property '%s' is readonly",name);
+                        runtimeError("Property '%s' is readonly", name);
                         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                    } 
+                    }
                     proc->privates[privateIdx] = value;
                     DROP();      // Remove value
                     DROP();      // Remove process
@@ -1870,6 +1862,26 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             runtimeError("Type does not support method calls");
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
+        case OP_GOSUB:
+        {
+            int16 off = (int16)READ_SHORT(); // lê u16 mas cast para signed
+            if (fiber->gosubTop >= GOSUB_MAX)
+                runtimeError("gosub stack overflow");
+            fiber->gosubStack[fiber->gosubTop++] = ip; // retorno
+            ip += off;                                 // forward/back
+            break;
+        }
+
+        case OP_RETURN_SUB:
+        {
+            if (fiber->gosubTop > 0)
+            {
+                ip = fiber->gosubStack[--fiber->gosubTop];
+                break;
+            }
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+        }
+
         default:
         {
             runtimeError("Unknown opcode %d", instruction);

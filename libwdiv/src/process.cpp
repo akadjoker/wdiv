@@ -186,6 +186,12 @@ Process *Interpreter::spawnProcess(ProcessDef *blueprint)
 
         dstFiber->ip = srcFiber->ip;
 
+        dstFiber->gosubTop=0;
+        for (int j = 0; j < GOSUB_MAX; j++)
+        {
+            dstFiber->gosubStack[j]= srcFiber->gosubStack[j];
+        }
+
         // Copia frames
         for (int j = 0; j < srcFiber->frameCount; j++)
         {
