@@ -45,7 +45,7 @@ struct NativeDef
 struct Function
 {
     int arity;
-    Code chunk;
+    Code *chunk;
     String *name;
     bool hasReturn;
 };
@@ -111,6 +111,15 @@ enum class PrivateIndex : uint8
     ID = 7,
     FATHER = 8,
 
+};
+
+struct ProcessDef
+{
+    String *name{nullptr};
+    Fiber fibers[MAX_FIBERS];
+    Fiber *current;
+    Value privates[MAX_PRIVATES];
+ 
 };
 
 struct Process

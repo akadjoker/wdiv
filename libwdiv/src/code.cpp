@@ -44,6 +44,7 @@ void Code::clear()
     constants.destroy();
     m_capacity=0;
     count=0;
+    delete this;
 }
 
  

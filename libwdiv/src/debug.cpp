@@ -299,16 +299,16 @@ void Debug::dumpFunction(const Function *func)
     printf("==============================\n\n");
 
     // ---- CONSTANTS ----
-    printf("Constants (%zu):\n", func->chunk.constants.size());
-    for (size_t i = 0; i < func->chunk.constants.size(); i++)
+    printf("Constants (%zu):\n", func->chunk->constants.size());
+    for (size_t i = 0; i < func->chunk->constants.size(); i++)
     {
         printf("%4zu = ", i);
-        printValue(func->chunk.constants[i]);
+        printValue(func->chunk->constants[i]);
         printf("\n");
     }
 
     printf("\n");
 
     // ---- BYTECODE ----
-    disassembleChunk(func->chunk, name);
+    disassembleChunk(*func->chunk, name);
 }

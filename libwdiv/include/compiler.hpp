@@ -110,9 +110,7 @@ class Compiler
 public:
     Compiler(Interpreter *vm);
     ~Compiler();
-
-    Function *compile(const std::string &source, Interpreter *vm);
-    Function *compileExpression(const std::string &source, Interpreter *vm);
+ 
     Process *compile(const std::string &source);
     Process *compileExpression(const std::string &source);
 

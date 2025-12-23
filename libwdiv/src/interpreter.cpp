@@ -39,7 +39,8 @@ Interpreter::~Interpreter()
         {
             destroyString(func->name);
         }
-        func->chunk.clear();
+        func->chunk->clear();
+
         // arena.Free(func, sizeof(Function));
         delete func;
     }
@@ -106,20 +107,20 @@ void Interpreter::disassemble()
         printf("----------------------------------------\n");
 
         // Constants
-        printf("\nConstants (%zu):\n", func->chunk.constants.size());
-        for (size_t j = 0; j < func->chunk.constants.size(); j++)
+        printf("\nConstants (%zu):\n", func->chunk->constants.size());
+        for (size_t j = 0; j < func->chunk->constants.size(); j++)
         {
             printf("  [%zu] = ", j);
-            printValue(func->chunk.constants[j]);
+            printValue(func->chunk->constants[j]);
             printf("\n");
         }
 
         // Bytecode usando Debug::disassembleInstruction
         printf("\nBytecode:\n");
-        for (size_t offset = 0; offset < func->chunk.count;)
+        for (size_t offset = 0; offset < func->chunk->count;)
         {
             printf("  ");
-            offset = Debug::disassembleInstruction(func->chunk, offset);
+            offset = Debug::disassembleInstruction(*func->chunk, offset);
         }
 
         printf("\n");
@@ -146,20 +147,20 @@ void Interpreter::disassemble()
             printf("  Arity: %d\n", func->arity);
 
             // Constants
-            printf("\nConstants (%zu):\n", func->chunk.constants.size());
-            for (size_t j = 0; j < func->chunk.constants.size(); j++)
+            printf("\nConstants (%zu):\n", func->chunk->constants.size());
+            for (size_t j = 0; j < func->chunk->constants.size(); j++)
             {
                 printf("  [%zu] = ", j);
-                printValue(func->chunk.constants[j]);
+                printValue(func->chunk->constants[j]);
                 printf("\n");
             }
 
             // Bytecode usando Debug::disassembleInstruction
             printf("\nBytecode:\n");
-            for (size_t offset = 0; offset < func->chunk.count;)
+            for (size_t offset = 0; offset < func->chunk->count;)
             {
                 printf("  ");
-                offset = Debug::disassembleInstruction(func->chunk, offset);
+                offset = Debug::disassembleInstruction(*func->chunk, offset);
             }
         }
 
@@ -186,8 +187,6 @@ void Interpreter::print(Value value)
 {
     printValue(value);
 }
-
- 
 
 Fiber *Interpreter::get_ready_fiber(Process *proc)
 {
@@ -303,17 +302,20 @@ bool Interpreter::isFalsey(Value value)
     return value.isNil() || (value.isBool() && !value.asBool());
 }
 
- 
-
 Function *Interpreter::compile(const char *source)
 {
-    return compiler->compile(source, this);
+    Process *proc = compiler->compile(source);
+    Function *mainFunc = proc->fibers[0].frames[0].func;
+    return mainFunc;
 }
 
 Function *Interpreter::compileExpression(const char *source)
 {
-    return compiler->compileExpression(source, this);
+    Process *proc = compiler->compileExpression(source);
+    Function *mainFunc = proc->fibers[0].frames[0].func;
+    return mainFunc;
 }
+
 bool Interpreter::run(const char *source, bool _dump)
 {
     hasFatalError_ = false;
@@ -323,28 +325,37 @@ bool Interpreter::run(const char *source, bool _dump)
         return false;
     }
 
-     if (_dump)
+    for (int i = 0; i < MAX_FIBERS; i++)
     {
-      //  disassemble();
+        Fiber *fiber = &proc->fibers[i];
+        if (fiber->frameCount > 0)
+        {
+            CallFrame *frame = &fiber->frames[0];
+            frame->ip = frame->func->chunk->code; // ← AQUI!
+        }
+    }
+
+    if (_dump)
+    {
+        //  disassemble();
         // Function *mainFunc = proc->fibers[0].frames[0].func;
         // Debug::dumpFunction(mainFunc);
     }
- for (size_t i = 0; i < functions.size(); i++)
+    for (size_t i = 0; i < functions.size(); i++)
     {
         Function *func = functions[i];
         if (!func)
             continue;
-        func->chunk.freeze();
+        func->chunk->freeze();
     }
 
-    mainProcess =  spawnProcess(proc);
+    mainProcess = spawnProcess(proc);
     currentProcess = mainProcess;
 
     Fiber *fiber = &mainProcess->fibers[0];
 
-    
     Info("Execute");
-   // run_fiber(fiber);
+    run_fiber(fiber);
 
     return !hasFatalError_;
 }
@@ -364,11 +375,11 @@ void Interpreter::initFiber(Fiber *fiber, Function *func)
 
     fiber->stackTop = fiber->stack;
 
-    fiber->ip = func->chunk.code;
+    fiber->ip = func->chunk->code;
 
     fiber->frameCount = 1;
     fiber->frames[0].func = func;
-    fiber->frames[0].ip = func->chunk.code;
+    fiber->frames[0].ip = nullptr;
     fiber->frames[0].slots = fiber->stack; // Base da stack
 }
 
@@ -590,6 +601,12 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 #define PUSH(value) (*fiber->stackTop++ = value)
 #define NPEEK(n) (fiber->stackTop[-1 - (n)])
 
+    if (frame->ip == nullptr)
+    {
+        runtimeError("FATAL: frame->ip is NULL! Code was not initialized properly.");
+        return {FiberResult::FIBER_DONE, 0, 0, 0};
+    }
+
 #define READ_BYTE() (*ip++)
 #define READ_SHORT() (ip += 2, (uint16)((ip[-2] << 8) | ip[-1]))
 
@@ -610,11 +627,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         func = frame->func;                            \
     } while (false)
 
-#define READ_CONSTANT() (func->chunk.constants[READ_BYTE()])
+#define READ_CONSTANT() (func->chunk->constants[READ_BYTE()])
     LOAD_FRAME();
 
     // printf("[DEBUG] Starting run_fiber: ip=%p, func=%s, offset=%ld\n",
-    //        (void*)ip, func->name->chars(), ip - func->chunk.code);
+    //        (void*)ip, func->name->chars(), ip - func->chunk->code);
 
     // ===== LOOP PRINCIPAL =====
 
@@ -635,7 +652,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
 #if DEBUG_TRACE_EXECUTION
         // Mostra instrução
-        size_t offset = ip - func->chunk.code;
+        size_t offset = ip - func->chunk->code;
         Debug::disassembleInstruction(func->chunk, offset);
 #endif
 
@@ -1118,7 +1135,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
                 CallFrame *newFrame = &fiber->frames[fiber->frameCount++];
                 newFrame->func = func;
-                newFrame->ip = func->chunk.code;
+                newFrame->ip = func->chunk->code;
                 newFrame->slots = fiber->stackTop - argCount; // Argumentos começam aqui
             }
             else if (callee.isNative())
@@ -1381,7 +1398,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             CallFrame *frame = &newFiber->frames[newFiber->frameCount++];
             frame->func = func;
-            frame->ip = func->chunk.code;
+            frame->ip = func->chunk->code;
             frame->slots = newFiber->stack; // Argumentos começam aqui
 
             fiber->stackTop -= (argCount + 1);

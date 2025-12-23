@@ -30,6 +30,7 @@ Process *Interpreter::addProcess(const char *name, Function *func)
         proc->fibers[i].resumeTime = 0;
         proc->fibers[i].stackTop = proc->fibers[i].stack;
         proc->fibers[i].frameCount = 0;
+        proc->fibers[i].ip = nullptr;
     }
 
     for (int i = 0; i < MAX_PRIVATES; i++)
@@ -49,12 +50,10 @@ Process *Interpreter::addProcess(const char *name, Function *func)
 
 Process *Interpreter::spawnProcess(Process *blueprint)
 {
-    // Process* instance = new Process();
-
     Process *instance = (Process *)arena.Allocate(sizeof(Process));
 
-    instance->name = blueprint->name; // Compartilha nome
-    instance->id = PROCESS_IDS++;     // ID único
+    instance->name = blueprint->name;
+    instance->id = PROCESS_IDS++;
     instance->state = FiberState::RUNNING;
     instance->resumeTime = 0;
     instance->nextFiberIndex = blueprint->nextFiberIndex;
@@ -62,22 +61,21 @@ Process *Interpreter::spawnProcess(Process *blueprint)
     instance->current = nullptr;
     instance->next = nullptr;
     instance->prev = nullptr;
-    instance->initialized=false;
- 
+    instance->initialized = false;
 
-    // CLONA PRIVATES (estado da entidade)
+    // Clona privates
     for (int i = 0; i < MAX_PRIVATES; i++)
     {
         instance->privates[i] = blueprint->privates[i];
     }
 
-    // CLONA FIBERS
+    // Clona fibers
     for (int i = 0; i < MAX_FIBERS; i++)
     {
         Fiber *srcFiber = &blueprint->fibers[i];
         Fiber *dstFiber = &instance->fibers[i];
 
-        // Copia estado da fiber
+        // Copia estado
         dstFiber->state = srcFiber->state;
         dstFiber->resumeTime = srcFiber->resumeTime;
         dstFiber->frameCount = srcFiber->frameCount;
@@ -90,26 +88,30 @@ Process *Interpreter::spawnProcess(Process *blueprint)
         }
         dstFiber->stackTop = dstFiber->stack + stackSize;
 
-        // Copia frames (call stack)
+       
+        dstFiber->ip = srcFiber->ip;
+
+        // Copia frames
         for (int j = 0; j < srcFiber->frameCount; j++)
         {
-            dstFiber->frames[j].func = srcFiber->frames[j].func; // Compartilha código
+            dstFiber->frames[j].func = srcFiber->frames[j].func;
+
             dstFiber->frames[j].ip = srcFiber->frames[j].ip;
 
-            // Ajusta slots para apontar para a nova stack
+            // Ajusta slots para nova stack
             ptrdiff_t offset = srcFiber->frames[j].slots - srcFiber->stack;
             dstFiber->frames[j].slots = dstFiber->stack + offset;
         }
-
-        // Ajusta IP
-        dstFiber->ip = srcFiber->ip;
     }
 
     instance->current = &instance->fibers[0];
+
     aliveProcesses.push(instance);
 
     if (hooks.onStart)
+    {
         hooks.onStart(instance);
+    }
 
     return instance;
 }
@@ -244,8 +246,7 @@ void Interpreter::update(float deltaTime)
     //     run_process_step(proc);
     //     if (hooks.onUpdate)
     //         hooks.onUpdate(proc, deltaTime);
-   
-      
+
     // }
 
     size_t i = 0;
@@ -276,26 +277,25 @@ void Interpreter::update(float deltaTime)
         }
 
         currentProcess = proc;
-        run_process_step(proc);
+        // run_process_step(proc);
         if (hooks.onUpdate)
-             hooks.onUpdate(proc, deltaTime);
-
+            hooks.onUpdate(proc, deltaTime);
 
         i++;
     }
 
     if (cleanProcesses.size() >= 1)
     {
-        //Warning(" Cleaning up %zu processes ", cleanProcesses.size());
+        // Warning(" Cleaning up %zu processes ", cleanProcesses.size());
 
         for (size_t j = 0; j < cleanProcesses.size(); j++)
         {
             Process *proc = cleanProcesses[j];
-            //Warning(" Releasing process %s (id=%u) ", proc->name->chars(), proc->id);
+            // Warning(" Releasing process %s (id=%u) ", proc->name->chars(), proc->id);
 
             if (hooks.onDestroy)
                 hooks.onDestroy(proc, proc->exitCode);
-       
+
             proc->release();
             arena.Free(proc, sizeof(Process));
         }
@@ -342,7 +342,7 @@ void Interpreter::run_process_step(Process *proc)
         {
             proc->initialized = true;
         }
- 
+
         return;
     }
 
@@ -354,17 +354,16 @@ void Interpreter::run_process_step(Process *proc)
     }
 }
 
-
 void Interpreter::render()
 {
-    if (!hooks.onRender) return;
+    if (!hooks.onRender)
+        return;
     for (size_t i = 0; i < aliveProcesses.size(); i++)
     {
-        Process* proc = aliveProcesses[i];
-        if (proc->state != FiberState::DEAD &&  proc->initialized )
+        Process *proc = aliveProcesses[i];
+        if (proc->state != FiberState::DEAD && proc->initialized)
         {
             hooks.onRender(proc);
         }
     }
-    
 }

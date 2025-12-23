@@ -19,6 +19,7 @@ Function *Interpreter::addFunction(const char *name,int arity )
     func->arity = arity;
     func->hasReturn = false;
     func->name = pName; 
+    func->chunk= new Code(212);
 
     functionsMap.set(pName, func);  
     functions.push(func);
@@ -114,11 +115,13 @@ void Interpreter::destroyFunction(Function *func)
     String *funcName = func->name;
     if (funcName)
     {
+        Warning(" Remove Function %s", funcName->chars());
        
         destroyString(funcName);
     }
 
-    func->chunk.clear();
+
+    func->chunk->clear();
 
     delete func;
 
