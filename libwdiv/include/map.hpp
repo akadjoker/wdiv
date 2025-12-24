@@ -151,6 +151,30 @@ struct HashMap
     return isNew;
   }
 
+  bool set_get(const K &key, const V &value, V* out )
+  {
+    maybeGrow();
+    size_t h = Hasher{}(key);
+    Entry *e = findSlot(key, h);
+
+    bool isNew = (e->state != FILLED);
+    if (isNew)
+    {
+      if (e->state == TOMBSTONE)
+        tombstones--;
+      e->key = key;
+      e->hash = h;
+      e->state = FILLED;
+      count++;
+    }
+    if(!isNew)
+    {
+      *out = e->value;
+    }
+    e->value = value;
+    return isNew;
+  }
+
   bool get(const K &key, V *out) const
   {
     if (count == 0)

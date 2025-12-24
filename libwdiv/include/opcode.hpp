@@ -68,6 +68,10 @@ enum Opcode : uint8
     OP_EXIT,
 
 
+    OP_DEFINE_STRUCT,
+    OP_DEFINE_ARRAY,
+    OP_DEFINE_MAP,
+
   
     OP_GET_PROPERTY,    
     OP_SET_PROPERTY,

@@ -270,6 +270,10 @@ private:
 
     bool isProcessFunction(const char *name) const;
 
+    void structDeclaration() ;
+    void arrayLiteral(bool canAssign);
+    void subscript(bool canAssign) ;
+
     // Scope
     void beginScope();
     void endScope();

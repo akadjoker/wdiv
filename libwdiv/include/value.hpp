@@ -2,6 +2,10 @@
 #include "config.hpp"
 #include "string.hpp"
 
+struct StructInstance;
+struct ArrayInstance;
+struct MapInstance;
+
 enum class ValueType : uint8
 {
   NIL,
@@ -11,9 +15,12 @@ enum class ValueType : uint8
   STRING,
   ARRAY,
   MAP,
+  STRUCT,
+  STRUCTINSTANCE,
   FUNCTION,
   NATIVE,
-  PROCESS
+  PROCESS,
+  PROC_NATIVES,
 };
 
 struct Value
@@ -25,9 +32,14 @@ struct Value
     long integer;
     double number;
     String *string;
+    int structId;
+    StructInstance *sInstance;
+    ArrayInstance  *array;
+    MapInstance    *map;
     int functionId;
     int nativeId;
     int processId;
+    int procNativesId;
   } as;
 
   Value();
@@ -35,7 +47,7 @@ struct Value
   Value(Value &&other) noexcept = default;
   Value &operator=(const Value &other) = default;
   Value &operator=(Value &&other) noexcept = default;
-  //~Value() ;
+  // ~Value() ;
 
   static Value makeNil();
   static Value makeBool(bool b);
@@ -49,9 +61,14 @@ struct Value
   static Value makeFunction(int idx);
   static Value makeNative(int idx);
   static Value makeProcess(int idx);
+  static Value makeStruct(int idx);
+  static Value makeStructInstance(String *name);
+  static Value makeMap( );
+  static Value makeArray();
+  static Value makeProcNative(int idx);
 
   // Type checks
-  bool isNumber() const ;
+  bool isNumber() const;
   bool isNil() const { return type == ValueType::NIL; }
   bool isBool() const { return type == ValueType::BOOL; }
   bool isInt() const { return type == ValueType::INT; }
@@ -60,6 +77,11 @@ struct Value
   bool isFunction() const { return type == ValueType::FUNCTION; }
   bool isNative() const { return type == ValueType::NATIVE; }
   bool isProcess() const { return type == ValueType::PROCESS; }
+  bool isStruct() const { return type == ValueType::STRUCT; }
+  bool isStructInstance() const { return type == ValueType::STRUCTINSTANCE; }
+  bool isMap() const { return type == ValueType::MAP; }
+  bool isArray() const { return type == ValueType::ARRAY; }
+  bool isProcNative() const { return type == ValueType::PROC_NATIVES; }
 
   // Conversions
   bool asBool() const;
@@ -67,15 +89,19 @@ struct Value
   double asDouble() const;
   float asFloat() const;
   const char *asStringChars() const;
-  String *asString() const;
   int asFunctionId() const;
   int asNativeId() const;
   int asProcessId() const;
+  int asStructId() const;
+ 
+  String *asString() const;
+  StructInstance* asStructInstance() const;
+  ArrayInstance* asArray() const;
+  MapInstance* asMap() const;
 
-long asNumber() const;
-
-
+  long asNumber() const;
 };
 
 void printValue(const Value &value);
-bool valuesEqual(const Value& a, const Value& b);
+bool valuesEqual(const Value &a, const Value &b);
+void printValueNl(const Value &value);

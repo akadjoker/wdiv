@@ -1,5 +1,6 @@
 #include "interpreter.hpp"
 #include "compiler.hpp"
+#include "instances.hpp"
 #include "pool.hpp"
 #include "opcode.hpp"
 #include "debug.hpp"
@@ -7,22 +8,7 @@
 #include <stdarg.h>
 
 
-#define DEBUG_TRACE_EXECUTION 0 // 1 = ativa, 0 = desativa
-#define DEBUG_TRACE_STACK 0     // 1 = mostra stack, 0 = esconde
 
-#ifdef NDEBUG
-#define WDIV_ASSERT(condition, ...) ((void)0)
-#else
-#define WDIV_ASSERT(condition, ...)                                            \
-    do                                                                         \
-    {                                                                          \
-        if (!(condition))                                                      \
-        {                                                                      \
-            Error("ASSERT FAILED: %s:%d: %s", __FILE__, __LINE__, #condition); \
-            assert(false);                                                     \
-        }                                                                      \
-    } while (0)
-#endif
 
 Interpreter::Interpreter()
 {
@@ -32,6 +18,9 @@ Interpreter::Interpreter()
 
 Interpreter::~Interpreter()
 {
+    functionsMap.destroy();
+    processesMap.destroy();
+    nativesMap.destroy();
     delete compiler;
     for (size_t i = 0; i < functions.size(); i++)
     {
@@ -51,8 +40,6 @@ Interpreter::~Interpreter()
     processes.clear();
     ProcessPool::instance().clear();
 
-    if (showStats)
-        arena.Stats();
 
     for (size_t j = 0; j < cleanProcesses.size(); j++)
     {
@@ -81,8 +68,33 @@ Interpreter::~Interpreter()
     }
     natives.clear();
 
-    // arena.Clear();
+    for (size_t i = 0; i < structs.size(); i++)
+    {
+        StructDef *a =structs[i];
+        destroyString(a->name);
+        delete a;
+    }
+    structs.clear();
+
+    for (size_t i = 0; i < structInstances.size(); i++)
+    {
+        StructInstance *a =structInstances[i];
+        InstancePool::instance().freeStruct(a);
+    }
+    structInstances.clear();
+
+    for (size_t i = 0; i < arrayInstances.size(); i++)
+    {
+        ArrayInstance *a =arrayInstances[i];
+        InstancePool::instance().freeArray(a);
+    }
+    arrayInstances.clear();
+
+   
+
+     
     StringPool::instance().clear();
+    InstancePool::instance().clear();
 }
 
 void Interpreter::setFileLoader(FileLoaderCallback loader, void *userdata)
@@ -332,15 +344,15 @@ bool Interpreter::run(const char *source, bool _dump)
         return false;
     }
 
-    functionsMap.destroy();
-    processesMap.destroy();
-    nativesMap.destroy();
+    // functionsMap.destroy();
+    // processesMap.destroy();
+    // nativesMap.destroy();
 
     if (_dump)
     {
         disassemble();
         // Function *mainFunc = proc->fibers[0].frames[0].func;
-        // Debug::dumpFunction(mainFunc);
+      //   Debug::dumpFunction(mainFunc);
     }
 
     mainProcess = spawnProcess(proc);
@@ -348,12 +360,15 @@ bool Interpreter::run(const char *source, bool _dump)
 
     Fiber *fiber = &mainProcess->fibers[0];
 
+  //  Debug::disassembleChunk(*fiber->frames[0].func->chunk,"#main");
+
     run_fiber(fiber);
 
     return !hasFatalError_;
 }
 void Interpreter::reset()
 {
+
     compiler->clear();
 }
 void Interpreter::setHooks(const VMHooks &h)
@@ -389,190 +404,83 @@ void Interpreter::setPrivateTable()
     privateIndexMap.set("father", 8);
 }
 
-
-
-// ===== STACK API =====
-
-const Value &Interpreter::peek(int index)
+StructDef *Interpreter::addStruct(String* name,int* id)
 {
-    WDIV_ASSERT(currentFiber != nullptr, "No current fiber");
-
-    int top = getTop();
-    int realIndex;
-
-    if (index < 0)
-        realIndex = top + index; // -1 → top-1, -2 → top-2
-    else
-        realIndex = index; // 0 → 0, 1 → 1
-
-    if (realIndex < 0 || realIndex >= top)
+    
+    if (structsMap.exist(name))
     {
-        runtimeError("Stack index %d out of bounds (size=%d)", index, top);
-        static Value null = Value::makeNil();
-        return null;
+        return nullptr;
     }
-
-    return currentFiber->stack[realIndex];
+    StructDef *proc = new StructDef();
+    structsMap.set(name, proc);
+    *id =(int) structs.size();
+    structs.push(proc);
+    return proc;
 }
 
-int Interpreter::getTop()
+StructDef *Interpreter::registerStruct(String *name, int *id)
 {
-    WDIV_ASSERT(currentFiber != nullptr, "No current fiber");
-    return static_cast<int>(currentFiber->stackTop - currentFiber->stack);
-}
-
-void Interpreter::setTop(int index)
-{
-    WDIV_ASSERT(currentFiber != nullptr, "No current fiber");
-    if (index < 0 || index > STACK_MAX)
+     if (structsMap.exist(name))
     {
-        runtimeError("Invalid stack index");
-        return;
+        return nullptr;
     }
-    currentFiber->stackTop = currentFiber->stack + index;
+    
+    StructDef *proc = new StructDef();
+    
+    proc->name=name;
+    proc->argCount=0;
+    structsMap.set(name, proc);
+
+    *id =(int) structs.size();
+    
+    structs.push(proc);
+    
+    return proc;
 }
 
-void Interpreter::push(Value value)
+ 
+
+StructInstance::StructInstance():
+GCObject(), def(nullptr)
 {
 
-    if (currentFiber->stackTop >= currentFiber->stack + STACK_MAX)
-    {
-        runtimeError("Stack overflow");
-        return;
-    }
-    *currentFiber->stackTop++ = value;
 }
 
-Value Interpreter::pop()
+StructInstance::~StructInstance()
 {
-
-    if (currentFiber->stackTop <= currentFiber->stack)
-    {
-        runtimeError("Stack underflow");
-        return Value::makeNil();
-    }
-    return *--currentFiber->stackTop;
+    Info("destroy struct %d",refCount);
 }
 
-//  const Value &Interpreter::peek(int distance)
-// {
-
-//     //    int stackSize = currentFiber->stackTop - currentFiber->stack;
-//     ptrdiff_t stackSize = currentFiber->stackTop - currentFiber->stack;
-
-//     if (distance < 0 || distance >= stackSize)
-//     {
-//         runtimeError("Stack peek out of bounds: distance=%d, size=%d",
-//                      distance, stackSize);
-//         static const Value null = Value::makeNil();
-//         return null;
-//     }
-//     return currentFiber->stackTop[-1 - distance];
-// }
-
-// Type checking
-ValueType Interpreter::getType(int index)
+GCObject::GCObject():
+refCount(1)
 {
-    return peek(index).type;
 }
 
-bool Interpreter::isInt(int index)
+void GCObject::grab()
 {
-    return peek(index).type == ValueType::INT;
+    refCount++;
 }
 
-bool Interpreter::isDouble(int index)
+void GCObject::release()
 {
-    return peek(index).type == ValueType::DOUBLE;
+    refCount--;
 }
 
-bool Interpreter::isString(int index)
+ArrayInstance::ArrayInstance():
+GCObject()
 {
-    return peek(index).type == ValueType::STRING;
 }
 
-bool Interpreter::isBool(int index)
+ArrayInstance::~ArrayInstance()
 {
-    return peek(index).type == ValueType::BOOL;
+    
 }
 
-bool Interpreter::isNil(int index)
+MapInstance::MapInstance():
+GCObject()
 {
-    return peek(index).type == ValueType::NIL;
 }
 
-bool Interpreter::isFunction(int index)
+MapInstance::~MapInstance()
 {
-    return peek(index).type == ValueType::FUNCTION;
-}
-
-void Interpreter::pushInt(int n)
-{
-    push(Value::makeInt(n));
-}
-
-void Interpreter::pushDouble(double d)
-{
-    push(Value::makeDouble(d));
-}
-
-void Interpreter::pushString(const char *s)
-{
-    push(Value::makeString(s));
-}
-
-void Interpreter::pushBool(bool b)
-{
-    push(Value::makeBool(b));
-}
-
-void Interpreter::pushNil()
-{
-    push(Value::makeNil());
-}
-
-// Type conversions
-int Interpreter::toInt(int index)
-{
-    Value v = peek(index);
-    if (!v.isInt())
-    {
-        runtimeError("Expected int at index %d", index);
-        return 0;
-    }
-    return v.asInt();
-}
-
-double Interpreter::toDouble(int index)
-{
-    Value v = peek(index);
-
-    if (v.isDouble())
-    {
-        return v.asDouble();
-    }
-    else if (v.isInt())
-    {
-        return (double)v.asInt();
-    }
-
-    runtimeError("Expected number at index %d", index);
-    return 0.0;
-}
-
-const char *Interpreter::toString(int index)
-{
-    const Value &v = peek(index);
-    if (!v.isString())
-    {
-        runtimeError("Expected string at index %d", index);
-        return "";
-    }
-    return v.asString()->chars();
-}
-
-bool Interpreter::toBool(int index)
-{
-    Value v = peek(index);
-    return isTruthy(v);
 }

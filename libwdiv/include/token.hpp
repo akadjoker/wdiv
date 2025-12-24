@@ -74,7 +74,9 @@ enum TokenType
     TOKEN_MINUS_MINUS,     // --
 
     TOKEN_COLON,           // :
- 
+    TOKEN_RBRACKET,        //[
+    TOKEN_LBRACKET,        //]
+
 
     TOKEN_DOT, //.
     TOKEN_LABEL,
@@ -91,6 +93,13 @@ enum TokenType
     TOKEN_EXIT,
     TOKEN_FIBER,
     TOKEN_YIELD,
+
+    TOKEN_STRUCT,
+    TOKEN_ENUM,
+    TOKEN_CLASS,
+    TOKEN_SELF,
+    TOKEN_THIS,
+    TOKEN_SUPER,
 
 
     TOKEN_AMPERSAND,      // &

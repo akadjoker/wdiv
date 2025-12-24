@@ -1,81 +1,64 @@
-include "strings.cc";
+ 
 
 
-process teste() {
-    print("A");
-    gosub sub;
-    print("C");
-    exit;
-
-sub:
-    print("B");
-    return;
-}
-
-process teste2() 
+struct Vec2 
 {
-    print("start");
-    gosub sub;
-    print("after gosub");
-sub:
-    print("in sub");
-    return;
-}
+    x, y,name,age
+};
+
+ 
 
 
-process teste3() {
-    var i = 0;
-
-loop_start:
-    write("loop {} \n",i);
-    gosub sub;
-    i += 1;
-    if (i < 3) goto loop_start;
-    exit;
-
-sub:
-    print("  in sub");
-    return;
-}
-
-
-process teste4() {
-    print("start");
-    gosub a;
-    print("end");
-    exit;
-
-a:
-    print("A");
-    gosub b;
-    print("A return");
-    return;
-
-b:
-    print("B");
-    return;
-}
-
-process loop_test() 
+process enemy(x,y)
 {
-    var i = 0;
-
-mainloop:
-    gosub body;
-    i += 1;
-    if (i < 5) goto mainloop;
-    exit;
-
-body:
-    write("i = {} \n", i);
-    return;
+    print("create process");
+ 
+ 
 }
 
 
-loop_test();
-teste2();
-teste3();
-teste4();
+enemy(1,1);
 
-print("external");
-print(add(2, 3));
+
+var v = Vec2(1,2,1,23);
+print(v);
+
+
+var arr = [1, 2, 3];
+var empty = [];
+var mixed = [1, "hello", true, nil,v];
+
+print(mixed);
+
+// Acesso
+print(arr[0]);     // 1
+print(arr[-1]);    // 3 (Python-style!)
+
+// Modificar
+arr[1] = 10;
+print(arr[1]);     // 10
+
+// Métodos
+arr.push(4);
+print(arr.len());  // 4
+
+var x = arr.pop();
+print(x);          // 4
+
+arr.clear();
+print(arr.len());  // 0
+
+// Loop
+var nums = [10, 20, 30];
+for (var i = 0; i < nums.len(); i++) {
+    print(nums[i]);
+}
+
+// 2D arrays
+var matrix = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9]
+];
+
+print(matrix[1][2]);  // 6

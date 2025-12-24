@@ -214,7 +214,6 @@ const char *multiPathFileLoader(const char *filename, size_t *outSize, void *use
 {
     FileLoaderContext *ctx = (FileLoaderContext *)userdata;
 
- 
     for (int i = 0; i < ctx->pathCount; i++)
     {
         snprintf(ctx->fullPath, sizeof(ctx->fullPath),
@@ -325,6 +324,36 @@ int main()
         std::cerr << "Error running code.\n";
         return 1;
     }
+
+//     vm.pushInt(10);
+//     vm.pushInt(20);
+
+//  if (vm.callFunction("add", 2)) {
+//     printf("Stack size: %d\n", vm.getTop());  // Deve ser 1
+    
+//     if (vm.getTop() > 0) {
+//         int result = vm.toInt(-1);
+//         printf("Result: %d\n", result);  //  Deve dar 30!
+//         vm.pop();
+//     }
+// } else {
+//     printf("Call failed!\n");
+// }
+
+
+// vm.pushInt(100);
+// vm.pushInt(200);
+// vm.callProcess("enemy", 2);
+
+
+// vm.pushInt(100);
+// vm.pushInt(200);
+// vm.callProcess("enemy", 2);
+
+
+// vm.pushInt(100);
+// vm.pushInt(200);
+// vm.callProcess("enemy", 2);
 
     int stapes = 0;
     // while (vm.liveProcess()>0)

@@ -7,6 +7,19 @@
 #include "code.hpp"
 #include "types.hpp"
 
+#ifdef NDEBUG
+#define WDIV_ASSERT(condition, ...) ((void)0)
+#else
+#define WDIV_ASSERT(condition, ...)                                            \
+    do                                                                         \
+    {                                                                          \
+        if (!(condition))                                                      \
+        {                                                                      \
+            Error("ASSERT FAILED: %s:%d: %s", __FILE__, __LINE__, #condition); \
+            assert(false);                                                     \
+        }                                                                      \
+    } while (0)
+#endif
 
 struct Function;
 struct CallFrame;
@@ -14,6 +27,52 @@ struct Fiber;
 struct Process;
 class Interpreter;
 class Compiler;
+
+struct IntEq
+{
+    bool operator()(int a, int b) const { return a == b; }
+};
+
+struct StringEq
+{
+    bool operator()(String *a, String *b) const
+    {
+        if (a == b)
+            return true;
+        if (a->length() != b->length())
+            return false;
+        return memcmp(a->chars(), b->chars(), a->length()) == 0;
+    }
+};
+
+struct StringHasher
+{
+    size_t operator()(String *x) const { return x->hash; }
+};
+
+struct CStringHash
+{
+    size_t operator()(const char *str) const
+    {
+        // FNV-1a hash
+        size_t hash = 2166136261u;
+        while (*str)
+        {
+            hash ^= (unsigned char)*str++;
+            hash *= 16777619u;
+        }
+        return hash;
+    }
+};
+
+// Eq para const char*
+struct CStringEq
+{
+    bool operator()(const char *a, const char *b) const
+    {
+        return strcmp(a, b) == 0;
+    }
+};
 
 typedef Value (*NativeFunction)(Interpreter *vm, int argCount, Value *args);
 
@@ -34,6 +93,49 @@ struct Function
     ~Function();
 };
 
+struct StructDef
+{
+    String *name;
+    HashMap<String*, uint8, StringHasher, StringEq> names;
+    uint8 argCount;
+};
+
+
+struct GCObject
+{
+    int refCount; 
+    GCObject();
+    void grab();
+    void release();
+};
+
+
+struct StructInstance: public GCObject
+{
+     StructDef *def;
+     Vector<Value> values;
+     StructInstance();
+    ~StructInstance();
+};
+
+
+struct ArrayInstance: public GCObject 
+{
+    Vector<Value> values;
+    ArrayInstance();
+    ~ArrayInstance();
+
+};
+
+struct MapInstance: public GCObject 
+{
+    HashMap<String*, Value, StringHasher, StringEq> table;
+    MapInstance();
+    ~MapInstance();
+
+};
+
+
 struct CallFrame
 {
     Function *func{nullptr};
@@ -48,6 +150,9 @@ struct VMHooks
     void (*onRender)(Process *p) = nullptr;
     void (*onDestroy)(Process *p, int exitCode) = nullptr;
 };
+
+
+
 
 struct FiberResult
 {
@@ -76,7 +181,7 @@ struct Fiber
     Value *stackTop;
     CallFrame frames[FRAMES_MAX];
     int frameCount;
-    uint8_t* gosubStack[GOSUB_MAX]; 
+    uint8_t *gosubStack[GOSUB_MAX];
     int gosubTop{0};
 
     Fiber()
@@ -134,51 +239,6 @@ struct Process
     void finalize();
 };
 
-struct IntEq
-{
-    bool operator()(int a, int b) const { return a == b; }
-};
-
-struct StringEq
-{
-    bool operator()(String *a, String *b) const
-    {
-        if (a == b)
-            return true;
-        if (a->length() != b->length())
-            return false;
-        return memcmp(a->chars(), b->chars(), a->length()) == 0;
-    }
-};
-
-struct StringHasher
-{
-    size_t operator()(String *x) const { return x->hash; }
-};
-
-struct CStringHash
-{
-    size_t operator()(const char *str) const
-    {
-        // FNV-1a hash
-        size_t hash = 2166136261u;
-        while (*str)
-        {
-            hash ^= (unsigned char)*str++;
-            hash *= 16777619u;
-        }
-        return hash;
-    }
-};
-
-// Eq para const char*
-struct CStringEq
-{
-    bool operator()(const char *a, const char *b) const
-    {
-        return strcmp(a, b) == 0;
-    }
-};
 
 class Interpreter
 {
@@ -186,16 +246,21 @@ class Interpreter
     HashMap<String *, Function *, StringHasher, StringEq> functionsMap;
     HashMap<String *, ProcessDef *, StringHasher, StringEq> processesMap;
     HashMap<String *, NativeDef, StringHasher, StringEq> nativesMap;
-    HashMap<const char*, int, CStringHash, CStringEq> privateIndexMap;
+    HashMap<String *, StructDef *, StringHasher, StringEq> structsMap;
+    HashMap<const char *, int, CStringHash, CStringEq> privateIndexMap;
 
     Vector<Function *> functions;
     Vector<ProcessDef *> processes;
     Vector<NativeDef> natives;
+    Vector<StructDef *> structs;
     Vector<Value> globalList;
+
+    Vector<StructInstance*> structInstances;
+    Vector<ArrayInstance*> arrayInstances;
 
     HashMap<String *, Value, StringHasher, StringEq> globals;
 
-    HeapAllocator arena;
+//    HeapAllocator arena;
 
     Vector<Process *> aliveProcesses;
     Vector<Process *> cleanProcesses;
@@ -217,13 +282,14 @@ class Interpreter
 
     VMHooks hooks;
 
- 
     // const Value &peek(int distance = 0);
 
     Fiber *get_ready_fiber(Process *proc);
     void resetFiber();
     void initFiber(Fiber *fiber, Function *func);
     void setPrivateTable();
+    void checkType(int index, ValueType expected, const char *funcName);
+
 public:
     Interpreter();
     ~Interpreter();
@@ -233,11 +299,17 @@ public:
 
     uint32 liveProcess();
 
-    void setFileLoader(FileLoaderCallback loader, void* userdata = nullptr);
+    void setFileLoader(FileLoaderCallback loader, void *userdata = nullptr);
 
     ProcessDef *addProcess(const char *name, Function *func);
     void destroyProcess(Process *proc);
     Process *spawnProcess(ProcessDef *proc);
+
+   
+
+    StructDef *addStruct(String *nam, int *id);
+
+    StructDef *registerStruct(String *nam, int *id);
 
     uint32 getTotalProcesses() const;
     uint32 getTotalAliveProcesses() const;
@@ -261,7 +333,11 @@ public:
 
     void runtimeError(const char *format, ...);
 
-    bool callValue(Value callee, int argCount);
+    bool callFunction(Function *func, int argCount);
+    bool callFunction(const char *name, int argCount);
+
+    Process *callProcess(ProcessDef *proc, int argCount);
+    Process *callProcess(const char *name, int argCount);
 
     Function *compile(const char *source);
     Function *compileExpression(const char *source);
@@ -285,6 +361,8 @@ public:
     void push(Value value);
     Value pop();
 
+    // ===== PUSH HELPERS =====
+
     void pushInt(int n);
     void pushDouble(double d);
     void pushString(const char *s);
@@ -299,6 +377,14 @@ public:
     // ===== STACK INFO =====
     int getTop();
     void setTop(int index);
+    bool checkStack(int extra);
+
+    // ===== STACK MANIPULATION =====
+    void insert(int index);      // Insere topo no index
+    void remove(int index);      // Remove index
+    void replace(int index);     // Substitui index pelo topo
+    void copy(int from, int to); // Copia from → to
+    void rotate(int idx, int n); // Roda n elementos
 
     // ===== TYPE CHECKING =====
     ValueType getType(int index);

@@ -3,6 +3,10 @@
 #include "opcode.hpp"
 #include "debug.hpp"
 #include <cmath> // std::fmod
+#include <new>
+
+#define DEBUG_TRACE_EXECUTION 0 // 1 = ativa, 0 = desativa
+#define DEBUG_TRACE_STACK 0     // 1 = mostra stack, 0 = esconde
 
 bool toNumberPair(const Value &a, const Value &b, double &da, double &db)
 {
@@ -124,8 +128,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             // ========== STACK MANIPULATION ==========
 
         case OP_POP:
+        {
             DROP();
+
             break;
+        }
 
             // ========== VARIABLES ==========
 
@@ -176,7 +183,13 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         {
 
             Value name = READ_CONSTANT();
-            globals.set(name.asString(), PEEK());
+            Value value = PEEK();
+            if (globals.set(name.asString(), value))
+            {
+            }
+            else
+            {
+            }
             break;
         }
 
@@ -207,10 +220,23 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 break;
             }
 
+            // if (a.isString() && b.isNumber())
+            // {
+            //     PUSH(Value::makeString(a.asInt() + b.asInt()));
+            //     break;
+            // }
+            // if (a.isString() && b.isInt())
+            // {
+            //     PUSH(Value::makeString(a.asInt() + b.asInt()));
+            //     break;
+            // }
+
             double da, db;
             if (!toNumberPair(a, b, da, db))
             {
-                runtimeError("Operands must be numbers or strings");
+                runtimeError("Operands  must be numbers or strings");
+                printValueNl(a);
+                printValueNl(b);
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
@@ -658,6 +684,31 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 // Push ID do processo criado
                 PUSH(Value::makeInt(instance->id));
             }
+            else if (callee.isStruct())
+            {
+                int index = callee.as.structId;
+
+                StructDef *def = structs[index];
+
+                if (argCount != def->argCount)
+                {
+                    runtimeError("Struct '%s' expects %zu arguments, got %d", def->name->chars(), def->argCount, argCount);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+
+                Value value = Value::makeStructInstance(def->name);
+                StructInstance *instance = value.as.sInstance;
+                instance->def = def;
+                structInstances.push(instance);
+                instance->values.reserve(argCount);
+                for (int i = argCount - 1; i >= 0; i--)
+                {
+                    instance->values[i] = POP();
+                }
+                POP();
+                PUSH(value);
+                break;
+            }
             else
             {
 
@@ -671,28 +722,87 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             break;
         }
 
+        case OP_RETURN:
+        {
+            Value result = POP();
+
+            fiber->frameCount--;
+
+            if (fiber->frameCount == 0)
+            {
+                fiber->stackTop = fiber->stack;
+                *fiber->stackTop++ = result;
+
+                fiber->state = FiberState::DEAD;
+
+                if (fiber == &currentProcess->fibers[0])
+                {
+                    for (int i = 0; i < currentProcess->nextFiberIndex; i++)
+                    {
+                        currentProcess->fibers[i].state = FiberState::DEAD;
+                    }
+                    currentProcess->state = FiberState::DEAD;
+                }
+
+                STORE_FRAME();
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            //  Função nested - retorna para onde estava a chamada
+            CallFrame *finished = &fiber->frames[fiber->frameCount];
+            fiber->stackTop = finished->slots - 1;
+            *fiber->stackTop++ = result;
+
+            LOAD_FRAME();
+            break;
+        }
+
             // case OP_RETURN:
             // {
             //     Value result = POP();
 
-            //     Warning("Function return");
-
-            //     // frame atual
             //     CallFrame *finished = &fiber->frames[fiber->frameCount - 1];
-
-            //     // slot do callee no caller
             //     Value *resultSlot = finished->slots - 1;
 
-            //     // remove frame
             //     fiber->frameCount--;
 
-            //     // coloca resultado exatamente onde estava o callee
+            //     printf("    RETURN      ");
+            //     for (Value *slot = fiber->stack; slot < fiber->stackTop; slot++)
+            //     {
+            //         printf("[ ");
+            //         printValue(*slot);
+            //         printf(" ]");
+            //     }
+            //     printf("\n");
             //     fiber->stackTop = resultSlot;
             //     *fiber->stackTop++ = result;
 
             //     if (fiber->frameCount == 0)
             //     {
             //         fiber->state = FiberState::DEAD;
+
+            //         if (fiber == &currentProcess->fibers[0])
+            //         {
+            //             // Mata TODAS as fibers do processo
+            //             for (int i = 0; i < currentProcess->nextFiberIndex; i++)
+            //             {
+            //                 currentProcess->fibers[i].state = FiberState::DEAD;
+            //             }
+
+            //             // Marca processo como morto
+            //             currentProcess->state = FiberState::DEAD;
+
+            //         }
+
+            //             //  printf("    EXIT      \n");
+            //             // for (Value *slot = fiber->stack; slot < fiber->stackTop; slot++)
+            //             // {
+            //             //     printf("[ ");
+            //             //     printValue(*slot);
+            //             //     printf(" ]");
+            //             // }
+            //             // printf("\n");
+
             //         STORE_FRAME();
             //         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             //     }
@@ -700,50 +810,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             //     LOAD_FRAME();
             //     break;
             // }
-        case OP_RETURN:
-        {
-            Value result = POP();
-
-            CallFrame *finished = &fiber->frames[fiber->frameCount - 1];
-            Value *resultSlot = finished->slots - 1;
-
-            fiber->frameCount--;
-
-            fiber->stackTop = resultSlot;
-            *fiber->stackTop++ = result;
-
-            if (fiber->frameCount == 0)
-            {
-                fiber->state = FiberState::DEAD;
-
-                if (fiber == &currentProcess->fibers[0])
-                {
-                    // Mata TODAS as fibers do processo
-                    for (int i = 0; i < currentProcess->nextFiberIndex; i++)
-                    {
-                        currentProcess->fibers[i].state = FiberState::DEAD;
-                    }
-
-                    // Marca processo como morto
-                    currentProcess->state = FiberState::DEAD;
-
-                    // printf("          ");
-                    // for (Value *slot = fiber->stack; slot < fiber->stackTop; slot++)
-                    // {
-                    //     printf("[ ");
-                    //     printValue(*slot);
-                    //     printf(" ]");
-                    // }
-                    // printf("\n");
-                }
-
-                STORE_FRAME();
-                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            }
-
-            LOAD_FRAME();
-            break;
-        }
             // ========== PROCESS/FIBER CONTROL ==========
 
         case OP_YIELD:
@@ -935,10 +1001,34 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 // return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
+            if (object.isStructInstance())
+            {
+
+                StructInstance *inst = object.asStructInstance();
+                if (!inst)
+                {
+                    runtimeError("Struct is null");
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                uint8 value = 0;
+                if (inst->def->names.get(nameValue.asString(), &value))
+                {
+
+                    DROP();
+                    PUSH(inst->values[value]);
+                }
+                else
+                {
+                    runtimeError("Struct '%s' has no field '%s'", inst->def->name->chars(), name);
+                    PUSH(Value::makeNil());
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                break;
+            }
+
             // === OUTROS TIPOS (futuro) ===
             runtimeError("Type does not support property access");
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            break;
         }
         case OP_SET_PROPERTY:
         {
@@ -1001,6 +1091,33 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
                 runtimeError("Process has no property '%s'", name);
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            if (object.isStructInstance())
+            {
+
+                StructInstance *inst = object.asStructInstance();
+                if (!inst)
+                {
+                    runtimeError("Struct is null ");
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+
+                uint8 valueIndex = 0;
+                if (inst->def->names.get(nameValue.asString(), &valueIndex))
+                {
+                    inst->values[valueIndex] = value;
+                }
+                else
+                {
+                    runtimeError("Struct '%s' has no field '%s'", inst->def->name->chars(), name);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+
+                // Pop object, keep value
+                DROP(); // object
+
+                break;
             }
 
             runtimeError("Cannot set property on this type");
@@ -1293,6 +1410,102 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 break;
             }
 
+            // === ARRAY METHODS ===
+            if (receiver.isArray())
+            {
+                ArrayInstance *arr = receiver.asArray();
+                uint32 size = arr->values.size();
+                if (strcmp(name, "push") == 0)
+                {
+                    if (argCount != 1)
+                    {
+                        runtimeError("push() expects 1 argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+                    Value item = PEEK();
+                    arr->values.push(item);
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeNil());
+                    break;
+                }
+                else if (strcmp(name, "pop") == 0)
+                {
+                    if (argCount != 0)
+                    {
+                        runtimeError("pop() expects 0 arguments");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    if (size == 0)
+                    {
+                        Warning("Cannot pop from empty array");
+                        ARGS_CLEANUP();
+                        PUSH(Value::makeNil());
+                        break;
+                    }
+                    else
+                    {
+                        Value result = arr->values.back();
+                        arr->values.pop();
+                        ARGS_CLEANUP();
+                        PUSH(result);
+                    }
+                    break;
+                }
+                else if (strcmp(name, "back") == 0)
+                {
+                    if (argCount != 0)
+                    {
+                        runtimeError("back() expects 0 arguments");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    if (size == 0)
+                    {
+                        Warning("Cannot pop from empty array");
+                        ARGS_CLEANUP();
+                        PUSH(Value::makeNil());
+                        break;
+                    }
+                    else
+                    {
+                        Value result = arr->values.back();
+                        ARGS_CLEANUP();
+                        PUSH(result);
+                    }
+                    break;
+                }
+                else if (strcmp(name, "len") == 0 || strcmp(name, "length") == 0)
+                {
+                    if (argCount != 0)
+                    {
+                        runtimeError("len() expects 0 arguments");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeInt(size));
+                    break;
+                }
+                else if (strcmp(name, "clear") == 0)
+                {
+                    if (argCount != 0)
+                    {
+                        runtimeError("clear() expects 0 arguments");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+                    arr->values.clear();
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeNil());
+                    break;
+                }
+                else
+                {
+                    runtimeError("Array has no method '%s'", name);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+            }
+
             runtimeError("Type does not support method calls");
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
@@ -1313,6 +1526,135 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 ip = fiber->gosubStack[--fiber->gosubTop];
                 break;
             }
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+        }
+        case OP_DEFINE_ARRAY:
+        {
+            uint8_t count = READ_BYTE();
+            Value array = Value::makeArray();
+            ArrayInstance *instance = array.asArray();
+            instance->values.resize(count);
+            for (int i = count - 1; i >= 0; i--)
+            {
+                instance->values[i] = POP();
+            }
+            PUSH(array);
+            break;
+        }
+        case OP_SET_INDEX:
+        {
+            Value value = POP();
+            Value index = POP();
+            Value container = POP();
+
+            // printValue(value);
+            // printf(" value \n");
+            // printValue(index);
+            // printf(" index \n");
+            // printValue(container);
+            // printf(" container \n");
+
+            if (container.isArray())
+            {
+                if (!index.isInt())
+                {
+                    runtimeError("Array index must be integer");
+                    PUSH(value);
+                    break;
+                }
+
+                ArrayInstance *arr = container.asArray();
+                int i = index.asInt();
+                uint32 size = arr->values.size();
+
+                // Negative index
+                if (i < 0)
+                    i += size;
+
+                if (i < 0 || i >= size)
+                {
+                    runtimeError("Array index %d out of bounds (size=%d)", i, size);
+                }
+                else
+                {
+                    arr->values[i] = value;
+                }
+
+                PUSH(value); // Assignment returns value
+                break;
+            }
+
+            // STRING é imutável!
+            if (container.isString())
+            {
+                runtimeError("Strings are immutable");
+                PUSH(value);
+                break;
+            }
+
+            runtimeError("Cannot index assign this type");
+            PUSH(value);
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            break;
+        }
+        case OP_GET_INDEX:
+        {
+            Value index = POP();
+            Value container = POP();
+
+            // printValue(index);
+            // printf("\n");
+            // printValue(container);
+            // printf("\n");
+
+            // === ARRAY ===
+            if (container.isArray())
+            {
+                if (!index.isInt())
+                {
+                    runtimeError("Array index must be integer");
+                    PUSH(Value::makeNil());
+                    break;
+                }
+
+                ArrayInstance *arr = container.asArray();
+                int i = index.asInt();
+                uint32 size = arr->values.size();
+
+                //  Negative index (Python-style)
+                if (i < 0)
+                    i += size;
+
+                if (i < 0 || i >= size)
+                {
+                    runtimeError("Array index %d out of bounds (size=%d)", i, size);
+                    PUSH(Value::makeNil());
+                }
+                else
+                {
+                    PUSH(arr->values[i]);
+                }
+                break;
+            }
+
+            // === STRING ===
+            if (container.isString())
+            {
+                if (!index.isInt())
+                {
+                    runtimeError("String index must be integer");
+                    PUSH(Value::makeNil());
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+
+                String *str = container.asString();
+                String *result = StringPool::instance().at(str, index.asInt());
+                PUSH(Value::makeString(result));
+                break;
+            }
+
+            runtimeError("Cannot index this type");
+            PUSH(Value::makeNil());
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
 

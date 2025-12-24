@@ -1,3 +1,9 @@
+struct Vec2 
+{
+    x, y
+};
+
+
 process bunny1(startX, startY) 
 {
     x = startX;
@@ -7,9 +13,11 @@ process bunny1(startX, startY)
     var vy = (rand(200) - 100) / 10.0;
     var gravity = 0.5;
     var live = (rand(100) + 200);
+    var speed = Vec2(vx,vy);
     
     loop 
     {
+        
         x = x + vx;
         y = y + vy;
         vy = vy + gravity;
@@ -30,7 +38,7 @@ process bunny1(startX, startY)
         
         if (live < 0) 
         {
-            break;
+           // break;
         }
         
     }
@@ -90,14 +98,14 @@ process main()
 
          if(mouse_down(0))
          {
-             bunny(400, 300);
+             bunny1(400, 300);
          }
 
          if(mouse_down(1))
          {
             for (var i = 0; i < 100; i++)
             {
-                 bunny(mouseX(), mouseY());
+                 bunny1(mouseX(), mouseY());
             }
          }
          
@@ -109,8 +117,8 @@ process main()
     }
 }
  
-flecha(100, 140);
+flecha(10, 140);
 flecha(200, 190);
 flecha(400, 240);
-flecha(800, 290);
+flecha(1800, 290);
 main();

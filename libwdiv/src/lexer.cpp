@@ -72,6 +72,11 @@ void Lexer::initKeywords()
         {"label", TOKEN_LABEL},
         {"goto", TOKEN_GOTO},
         {"gosub", TOKEN_GOSUB},
+        {"struct", TOKEN_STRUCT},
+        {"class", TOKEN_CLASS},
+        {"this", TOKEN_THIS},
+        {"self", TOKEN_SELF},
+        {"super", TOKEN_SUPER},
         {"include", TOKEN_INCLUDE},
         {"import", TOKEN_IMPORT},
     };
@@ -390,6 +395,10 @@ Token Lexer::scanToken()
         return makeToken(TOKEN_LBRACE, "{");
     case '}':
         return makeToken(TOKEN_RBRACE, "}");
+    case '[':
+        return makeToken(TOKEN_LBRACKET, "[");
+    case ']':
+        return makeToken(TOKEN_RBRACKET, "]");
     case ',':
         return makeToken(TOKEN_COMMA, ",");
     case ';':
