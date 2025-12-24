@@ -1,8 +1,20 @@
 #include "interpreter.hpp"
 #include "pool.hpp"
- 
 
-Function *Interpreter::addFunction(const char *name,int arity )
+Function::~Function()
+{
+    if (name)
+    {
+        destroyString(name);
+    }
+    if (chunk)
+    {
+        chunk->clear();
+        delete chunk;
+    }
+}
+
+Function *Interpreter::addFunction(const char *name, int arity)
 {
     String *pName = createString(name);
     Function *existing = nullptr;
@@ -13,21 +25,21 @@ Function *Interpreter::addFunction(const char *name,int arity )
         return nullptr;
     }
 
-    //Function *func = (Function *)arena.Allocate(sizeof(Function));
+ 
     Function *func = new Function();
 
     func->arity = arity;
     func->hasReturn = false;
-    func->name = pName; 
+    func->name = pName;
+    func->chunk = new Code(16);
 
-    functionsMap.set(pName, func);  
+    functionsMap.set(pName, func);
     functions.push(func);
 
-   
     return func;
 }
 
-Function *Interpreter::canRegisterFunction(const char *name, int arity,  int *index)
+Function *Interpreter::canRegisterFunction(const char *name, int arity, int *index)
 {
     String *pName = createString(name);
     if (functionsMap.exist(pName))
@@ -37,14 +49,15 @@ Function *Interpreter::canRegisterFunction(const char *name, int arity,  int *in
         return nullptr;
     }
 
-    //Function *func = (Function *)arena.Allocate(sizeof(Function));
+    // Function *func = (Function *)arena.Allocate(sizeof(Function));
     Function *func = new Function();
 
     func->arity = arity;
     func->hasReturn = false;
-    func->name = pName; 
+    func->name = pName;
+    func->chunk= new Code(16);
 
-    functionsMap.set(pName, func);  
+    functionsMap.set(pName, func);
     functions.push(func);
     *index = (int)(functions.size() - 1);
     return func;
@@ -71,10 +84,10 @@ int Interpreter::registerFunction(const char *name, Function *func)
         destroyString(pName);
         return -1;
     }
-    functionsMap.set(pName, func);  
+    functionsMap.set(pName, func);
     functions.push(func);
     uint32 index = (uint32)(functions.size() - 1);
-    return  index;
+    return index;
 }
 
 int Interpreter::registerNative(const char *name, NativeFunction func, int arity)
@@ -103,22 +116,20 @@ int Interpreter::registerNative(const char *name, NativeFunction func, int arity
     return def.index;
 }
 
-
 void Interpreter::destroyFunction(Function *func)
 {
     if (!func)
         return;
 
-     
-
     String *funcName = func->name;
     if (funcName)
     {
-       
+        Warning(" Remove Function %s", funcName->chars());
+
         destroyString(funcName);
     }
 
-    func->chunk.clear();
+    func->chunk->clear();
 
     delete func;
 

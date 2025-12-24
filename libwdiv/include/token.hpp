@@ -74,6 +74,14 @@ enum TokenType
     TOKEN_MINUS_MINUS,     // --
 
     TOKEN_COLON,           // :
+ 
+
+    TOKEN_DOT, //.
+    TOKEN_LABEL,
+    TOKEN_GOTO,
+    TOKEN_GOSUB,
+
+
     // Built-ins
     TOKEN_PRINT,
     TOKEN_TYPE,
@@ -83,6 +91,15 @@ enum TokenType
     TOKEN_EXIT,
     TOKEN_FIBER,
     TOKEN_YIELD,
+
+
+    TOKEN_AMPERSAND,      // &
+    TOKEN_PIPE,           // |
+    TOKEN_CARET,          // ^
+    TOKEN_TILDE,          // ~
+    TOKEN_LEFT_SHIFT,     // <<
+    TOKEN_RIGHT_SHIFT,    // >>
+
 
     // Special
     TOKEN_EOF,
