@@ -11,10 +11,11 @@ struct Value;
 class Code
 {
     size_t m_capacity;
+    bool m_frozen; 
     public:
-    Code(size_t capacity = 512);
+    Code(size_t capacity = 800);
     
-    
+     void freeze() ;
     
     Code(const Code& other) = delete;  
     Code& operator=(const Code& other) = delete;

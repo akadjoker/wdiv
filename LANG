@@ -1,0 +1,202 @@
+var x = 10;
+var name = "Luis";
+var flag = true;
+x = 20; // Assignment
+
+var n = 42;        // int
+var f = 3.14;      // double
+var s = "hello";   // string
+var b = true;      // bool
+var nothing = nil; // nil
+
+// Arithmetic
+x + y, x - y, x *y, x / y, x % y
+
+                                       // Comparison
+                                       x ==
+                               y,
+    x != y, x > y, x >= y, x < y, x <= y
+
+                                      // Logical
+                                      x &&y,
+    x || y, !x
+
+                // Bitwise
+                x &
+                y,
+    x | y, x ^ y, ~x, x << 2, x >> 2
+
+                                  // Assignment
+                                  x = y,
+                                  x += y, x -= y, x *= y, x /= y, x++, x--
+
+    // If
+    if (x > 10)
+{
+    print("big");
+}
+elif (x > 5)
+{
+    print("medium");
+}
+else
+{
+    print("small");
+}
+
+// While
+while (x < 100)
+{
+    x = x + 1;
+}
+
+// For
+for (var i = 0; i < 10; i++)
+{
+    print(i);
+}
+
+// Loop
+loop
+{
+    if (x > 100)
+        break;
+    x++;
+}
+
+// Switch
+switch (x)
+{
+case 1:
+    print("one");
+case 2:
+    print("two");
+default:
+    print("other");
+}
+
+def add(a, b)
+{
+    return a + b;
+}
+
+var result = add(5, 3);
+
+// Recursion
+def fib(n)
+{
+    if (n <= 1)
+        return n;
+    return fib(n - 1) + fib(n - 2);
+}
+
+process player(x, y)
+{
+    graph = 1;
+    size = 100;
+
+    loop
+    {
+        x += 1;
+        frame;
+    }
+}
+
+process bullet(x, y, angle)
+{
+    size = 50;
+
+    loop
+    {
+        x += cos(angle) * 5;
+        y += sin(angle) * 5;
+        frame;
+    }
+}
+
+// Spawn
+player(100, 200);
+var enemy_id = enemy(50, 50);
+
+// Access father
+process child()
+{
+    print(father.x);
+    print(father.y);
+}
+
+// Auto-declared em processes:
+x, y, z                              // Position
+          graph                      // Sprite ID
+              angle                  // Rotation
+                  size               // Scale
+                      flags          // Render flags
+                          id         // Process ID
+                              father // Parent ID
+
+                                  var s = "Hello World";
+
+s.length()         // 11
+    s.upper()      // "HELLO WORLD"
+    s.lower()      // "hello world"
+    s.at(0)        // "H"
+    s.at(-1)       // "d"
+    s.sub(0, 5)    // "Hello"
+    s.concat(" !") // "Hello World !"
+    s.replace("World", "Lua")
+        s.trim()
+            s.split(" ")
+                s.contains("World") // true
+    s.starts_with("Hello")          // true
+    s.ends_with("World")            // true
+    s.index_of("World")             // 6
+    s.index_of("o", 5)              // 7
+    s.repeat(3)
+
+        write("Player: {}, HP: {}\n", name, hp);
+var msg = format("Score: {}", score);
+
+// Single line comment
+
+/* Multi-line
+   comment */
+
+// Labels
+start : print("here");
+
+// goto (salta e não volta)
+goto start;
+
+// gosub (salta e volta com return;)
+// Estilo AMOS/BASIC: gosub guarda o ponto de retorno.
+// return; dentro da subrotina volta ao ponto após o gosub.
+print("A");
+gosub sub1;
+print("C");
+goto end;
+
+sub1 : print("B");
+return;
+
+end : exit;
+
+class Entity
+{
+    def init(x, y)
+    {
+        this.x = x;
+        this.y = y;
+    }
+}
+
+class Player : Entity
+{
+    def init(x, y, hp)
+    {
+        super.init(x, y);
+        this.hp = hp;
+    }
+}
+
+var p = Player(10, 20, 100);
+print(p.x, p.y, p.hp);

@@ -7,6 +7,15 @@ Value::Value() : type(ValueType::NIL)
     as.integer = 0;
 }
 
+// Value::~Value()
+// {
+//     if(type == ValueType::STRING)
+//     {
+//         Info("destroy value %p",as.string);
+//         destroyString(as.string);
+//     }
+// }
+
 Value Value::makeNil()
 {
     Value v;
@@ -86,6 +95,12 @@ Value Value::makeProcess(int idx)
     return v;
 }
 
+bool Value::isNumber() const 
+{ 
+    return  ((type == ValueType::INT) || (type==ValueType::DOUBLE));
+}
+
+
 bool Value::asBool() const { return as.boolean; }
 long Value::asInt() const 
 {
@@ -124,6 +139,19 @@ String *Value::asString() const { return as.string; }
 int Value::asFunctionId() const { return as.functionId; }
 int Value::asNativeId() const { return as.nativeId; }
 int Value::asProcessId() const { return as.processId; }
+
+long Value::asNumber() const 
+{ 
+    if (type==ValueType::DOUBLE)
+    {
+        return static_cast<long>(as.number); 
+    } else if (type==ValueType::INT)
+    {
+        return static_cast<long>(as.integer);
+    }
+    Warning("Wrong type conversion to number");
+    return 0;
+}
 
 void printValueNewLine(const Value &value)
 {

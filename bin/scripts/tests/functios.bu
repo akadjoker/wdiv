@@ -1,0 +1,16 @@
+def add(a, b) {
+    return a + b;
+}
+
+assert_eq(add(2, 3), 5, "function call");
+assert_eq(add(-1, 1), 0, "function with negatives");
+
+// Recursão
+def fib(n) {
+    if (n <= 1) return n;
+    return fib(n-1) + fib(n-2);
+}
+
+assert_eq(fib(0), 0, "fib(0)");
+assert_eq(fib(1), 1, "fib(1)");
+assert_eq(fib(7), 13, "fib(7)");

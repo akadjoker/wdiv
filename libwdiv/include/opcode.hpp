@@ -13,6 +13,7 @@ enum Opcode : uint8
     OP_POP,
     OP_HALT,
     OP_NOT,
+    OP_DUP,
 
     // Arithmetic
     OP_ADD,
@@ -21,6 +22,14 @@ enum Opcode : uint8
     OP_DIVIDE,
     OP_NEGATE,
     OP_MODULO,
+
+ // Bitwise
+    OP_BITWISE_AND,
+    OP_BITWISE_OR,
+    OP_BITWISE_XOR,
+    OP_BITWISE_NOT,
+    OP_SHIFT_LEFT,
+    OP_SHIFT_RIGHT,
 
     // Comparisons
     OP_EQUAL,
@@ -43,6 +52,8 @@ enum Opcode : uint8
     OP_JUMP,
     OP_JUMP_IF_FALSE,
     OP_LOOP,
+    OP_GOSUB, 
+    OP_RETURN_SUB  ,
 
     // Functions
     OP_CALL,
@@ -55,6 +66,14 @@ enum Opcode : uint8
     OP_FRAME, 
     
     OP_EXIT,
+
+
+  
+    OP_GET_PROPERTY,    
+    OP_SET_PROPERTY,
+    OP_GET_INDEX,
+    OP_SET_INDEX,
+    OP_INVOKE,    
 
     // I/O
     OP_PRINT,

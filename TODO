@@ -1,0 +1,427 @@
+// var list = [1, 2, 3]
+void Compiler::arrayLiteral() {
+    int count = 0;
+    
+    if (!check(TOKEN_RBRACKET)) {
+        do {
+            expression();  // Empilha elementos
+            count++;
+        } while (match(TOKEN_COMMA));
+    }
+    
+    consume(TOKEN_RBRACKET, "]");
+    
+    // ✅ Cria array INLINE!
+    Array* arr = new Array();
+    arr->count = count;
+    arr->capacity = count;
+    arr->elements = new Value[count];
+    
+    // Pop elementos (ordem reversa)
+    for (int i = count - 1; i >= 0; i--) {
+        arr->elements[i] = popValueFromCompiler();
+    }
+    
+    // ✅ Empilha como CONSTANT!
+    emitConstant(Value::makeArray(arr));
+}
+
+// var map = {name: "john", age: 30}
+void Compiler::mapLiteral() {
+    HashMap<String*, Value>* map = new HashMap<String*, Value>();
+    
+    if (!check(TOKEN_RBRACE)) {
+        do {
+            // Key
+            consume(TOKEN_IDENTIFIER, "map key");
+            String* key = stringPool.intern(previous.lexeme.c_str());
+            
+            consume(TOKEN_COLON, ":");
+            
+            // Value
+            Value val = evaluateConstantExpression();
+            
+            map->set(key, val);
+            
+        } while (match(TOKEN_COMMA));
+    }
+    
+    consume(TOKEN_RBRACE, "}");
+    
+    // ✅ Empilha como CONSTANT!
+    emitConstant(Value::makeMap(map));
+}
+
+// var e = Enemy(100, 50)
+void Compiler::structCall() {
+    // Similar a function call
+    String* structName = previous.lexeme;
+    StructDef* def = getStructDef(structName);
+    
+    uint8_t argCount = argumentList();
+    
+    if (argCount != def->fields.size()) {
+        error("Wrong number of arguments");
+    }
+    
+    // ✅ Cria struct INLINE!
+    StructInstance* inst = new StructInstance();
+    inst->def = def;
+    inst->fields = new Value[def->fields.size()];
+    
+    for (int i = argCount - 1; i >= 0; i--) {
+        inst->fields[i] = popValueFromCompiler();
+    }
+    
+    emitConstant(Value::makeStruct(inst));
+}
+
+// arr[i] ou map["key"]
+case OP_GET_INDEX: {
+    Value index = POP();
+    Value container = POP();
+    
+    // ✅ Verifica tipo em RUNTIME!
+    if (container.isArray()) {
+        Array* arr = container.asArray();
+        int i = index.asInt();
+        
+        if (i >= 0 && i < arr->count) {
+            PUSH(arr->elements[i]);
+        } else {
+            runtimeError("Index out of bounds");
+            PUSH(Value::makeNil());
+        }
+    }
+    else if (container.isMap()) {
+        if (!index.isString()) {
+            runtimeError("Map key must be string");
+            PUSH(Value::makeNil());
+            break;
+        }
+        
+        HashMap<String*, Value>* map = container.asMap();
+        Value* result = map->get(index.asString());
+        
+        PUSH(result ? *result : Value::makeNil());
+    }
+    else {
+        runtimeError("Cannot index this type");
+        PUSH(Value::makeNil());
+    }
+    break;
+}
+
+// arr[i] = x ou map["key"] = x
+case OP_SET_INDEX: {
+    Value value = POP();
+    Value index = POP();
+    Value container = PEEK(0);  // Deixa container no stack
+    
+    // ✅ Verifica tipo em RUNTIME!
+    if (container.isArray()) {
+        Array* arr = container.asArray();
+        int i = index.asInt();
+        
+        if (i >= 0 && i < arr->count) {
+            arr->elements[i] = value;
+        }
+    }
+    else if (container.isMap()) {
+        if (!index.isString()) {
+            runtimeError("Map key must be string");
+            break;
+        }
+        
+        HashMap<String*, Value>* map = container.asMap();
+        map->set(index.asString(), value);
+    }
+    else {
+        runtimeError("Cannot index this type");
+    }
+    break;
+}
+
+// obj.field ou proc.private
+case OP_GET_FIELD: {
+    uint8_t fieldIdx = READ_BYTE();
+    String* fieldName = READ_STRING(fieldIdx);
+    
+    Value object = POP();
+    
+    // ✅ Verifica tipo em RUNTIME!
+    if (object.isStruct()) {
+        StructInstance* inst = object.asStruct();
+        
+        for (int i = 0; i < inst->def->fields.size(); i++) {
+            if (inst->def->fields[i] == fieldName) {
+                PUSH(inst->fields[i]);
+                return;
+            }
+        }
+        
+        runtimeError("Unknown field");
+        PUSH(Value::makeNil());
+    }
+    else if (object.isInt()) {
+        // Process ID
+        Process* proc = getProcess(object.asInt());
+        
+        if (!proc) {
+            runtimeError("Invalid process");
+            PUSH(Value::makeNil());
+            return;
+        }
+        
+        int privateIdx = getPrivateIndex(fieldName);
+        if (privateIdx >= 0) {
+            PUSH(proc->privates[privateIdx]);
+        } else {
+            runtimeError("Unknown private");
+            PUSH(Value::makeNil());
+        }
+    }
+    else {
+        runtimeError("Not an object");
+        PUSH(Value::makeNil());
+    }
+    break;
+}
+
+
+// Compiler
+void Compiler::enumDeclaration() {
+    consume(TOKEN_IDENTIFIER, "enum name");
+    Token name = previous;
+    
+    consume(TOKEN_LBRACE, "{");
+    
+    int value = 0;
+    do {
+        consume(TOKEN_IDENTIFIER, "enum value");
+        Token valueName = previous;
+        
+        // Se tem = X
+        if (match(TOKEN_EQUAL)) {
+            consume(TOKEN_NUMBER, "enum value");
+            value = atoi(previous.lexeme.c_str());
+        }
+        
+        // Define como global constante
+        uint8_t constant = makeConstant(Value::makeInt(value));
+        emitBytes(OP_CONSTANT, constant);
+        defineVariable(identifierConstant(valueName));
+        
+        value++;
+        
+    } while (match(TOKEN_COMMA));
+    
+    consume(TOKEN_RBRACE, "}");
+}
+
+case OP_NEW_STRUCT: {
+    uint8_t argCount = READ_BYTE();
+    Value callee = NPEEK(argCount);
+    
+    if (!callee.isStruct()) {
+        runtimeError("Not a struct");
+        break;
+    }
+    
+    int structId = callee.asStructId();
+    StructDef* def = structs[structId];
+    
+    if (argCount != def->fields.size()) {
+        runtimeError("Wrong number of arguments");
+        break;
+    }
+    
+    // Cria instância
+    StructInstance* inst = new StructInstance();
+    inst->def = def;
+    inst->fields = new Value[def->fields.size()];
+    
+    // Preenche fields (ordem reversa)
+    for (int i = argCount - 1; i >= 0; i--) {
+        inst->fields[i] = POP();
+    }
+    
+    POP();  // callee
+    PUSH(Value::makeStruct(inst));
+    break;
+}
+
+case OP_GET_FIELD: {
+    uint8_t fieldIdx = READ_BYTE();
+    String* fieldName = READ_STRING(fieldIdx);
+    
+    Value object = POP();
+    
+    if (!object.isStruct()) {
+        runtimeError("Not a struct");
+        PUSH(Value::makeNil());
+        break;
+    }
+    
+    StructInstance* inst = object.asStruct();
+    
+    // Procura field
+    for (int i = 0; i < inst->def->fields.size(); i++) {
+        if (inst->def->fields[i] == fieldName) {  // Pointer comparison!
+            PUSH(inst->fields[i]);
+            return;
+        }
+    }
+    
+    runtimeError("Unknown field");
+    PUSH(Value::makeNil());
+    break;
+}
+
+case OP_SET_FIELD: {
+    uint8_t fieldIdx = READ_BYTE();
+    String* fieldName = READ_STRING(fieldIdx);
+    
+    Value value = POP();
+    Value object = PEEK(0);  // Deixa objeto no stack
+    
+    StructInstance* inst = object.asStruct();
+    
+    for (int i = 0; i < inst->def->fields.size(); i++) {
+        if (inst->def->fields[i] == fieldName) {
+            inst->fields[i] = value;
+            return;
+        }
+    }
+    
+    runtimeError("Unknown field");
+    break;
+}
+
+// struct Enemy { health, damage, speed; }
+void Compiler::structDeclaration() {
+    consume(TOKEN_IDENTIFIER, "struct name");
+    Token name = previous;
+    
+    consume(TOKEN_LBRACE, "{");
+    
+    Array<String*> fields;
+    do {
+        consume(TOKEN_IDENTIFIER, "field name");
+        fields.push(stringPool.intern(previous.lexeme.c_str()));
+    } while (match(TOKEN_COMMA));
+    
+    consume(TOKEN_RBRACE, "}");
+    
+    // Registra struct
+    StructDef* def = new StructDef{
+        stringPool.intern(name.lexeme.c_str()),
+        fields
+    };
+    
+    int structId = vm->registerStruct(def);
+    
+    emitByte(OP_DEFINE_STRUCT);
+    emitByte(structId);
+}
+
+// var e = Enemy(100, 50, 5)
+void Compiler::structCall() {
+    // Similar a function call, mas verifica se é struct
+    uint8_t argCount = argumentList();
+    emitByte(OP_NEW_STRUCT);
+    emitByte(argCount);
+}
+
+
+
+struct StructDef {
+    String* name;
+    Array<String*> fields;  // ["health", "damage", "speed"]
+};
+
+struct StructInstance {
+    StructDef* def;
+    Value* fields;  // Array de values
+};
+
+// Value
+enum ValueType {
+    VALUE_STRUCT,
+};
+
+struct Value {
+    union {
+        StructInstance* asStruct;
+        // ...
+    };
+};
+
+
+struct StructDef {
+    String* name;
+    Array<String*> fields;  // ["health", "damage", "speed"]
+};
+
+struct StructInstance {
+    StructDef* def;
+    Value* fields;  // Array de values
+};
+
+// Value
+enum ValueType {
+    VALUE_STRUCT,
+};
+
+struct Value {
+    union {
+        StructInstance* asStruct;
+        // ...
+    };
+};
+
+// var list = [1, 2, 3]
+void Compiler::arrayLiteral() {
+    consume(TOKEN_LBRACKET, "[");
+    
+    int count = 0;
+    if (!check(TOKEN_RBRACKET)) {
+        do {
+            expression();  // Empilha elemento
+            count++;
+        } while (match(TOKEN_COMMA));
+    }
+    
+    consume(TOKEN_RBRACKET, "]");
+    
+    emitByte(OP_NEW_ARRAY);
+    emitByte(count);  // Quantos elementos no stack
+}
+
+// arr[i]
+void Compiler::subscript() {
+    expression();  // índice
+    consume(TOKEN_RBRACKET, "]");
+    
+    if (canAssign && match(TOKEN_EQUAL)) {
+        expression();  // valor
+        emitByte(OP_ARRAY_SET);
+    } else {
+        emitByte(OP_ARRAY_GET);
+    }
+}
+
+// arr.push(5)
+void Compiler::dotCall() {
+    consume(TOKEN_IDENTIFIER, "method name");
+    Token method = previous;
+    
+    if (strcmp(method.lexeme.c_str(), "push") == 0) {
+        consume(TOKEN_LPAREN, "(");
+        expression();  // argumento
+        consume(TOKEN_RPAREN, ")");
+        emitByte(OP_ARRAY_PUSH);
+    }
+    // ... outros métodos
+}
+

@@ -1,10 +1,12 @@
 #include "compiler.hpp"
 #include "interpreter.hpp"
+#include "pool.hpp"
 #include "code.hpp"
 #include "value.hpp"
 #include "opcode.hpp"
 #include <cstdio>
 #include <cstdlib>
+#include <stdarg.h>
 
 // ============================================
 // PARSE RULE TABLE - DEFINIÇÃO
@@ -26,6 +28,7 @@ Compiler::Compiler(Interpreter *vm)
 {
 
     initRules();
+    cursor = 0;
 }
 Compiler::~Compiler()
 {
@@ -52,6 +55,8 @@ void Compiler::initRules()
     rules[TOKEN_COMMA] = {nullptr, nullptr, PREC_NONE};
     rules[TOKEN_SEMICOLON] = {nullptr, nullptr, PREC_NONE};
 
+    rules[TOKEN_DOT] = {nullptr, &Compiler::dot, PREC_CALL};
+
     // Arithmetic
     rules[TOKEN_PLUS] = {nullptr, &Compiler::binary, PREC_TERM};
     rules[TOKEN_MINUS] = {&Compiler::unary, &Compiler::binary, PREC_TERM};
@@ -76,6 +81,13 @@ void Compiler::initRules()
     rules[TOKEN_OR_OR] = {nullptr, &Compiler::or_, PREC_OR};
     rules[TOKEN_BANG] = {&Compiler::unary, nullptr, PREC_NONE};
 
+    rules[TOKEN_PIPE] = {nullptr, &Compiler::binary, PREC_BITWISE_OR};
+    rules[TOKEN_CARET] = {nullptr, &Compiler::binary, PREC_BITWISE_XOR};
+    rules[TOKEN_AMPERSAND] = {nullptr, &Compiler::binary, PREC_BITWISE_AND};
+    rules[TOKEN_TILDE] = {&Compiler::unary, nullptr, PREC_NONE};
+    rules[TOKEN_LEFT_SHIFT] = {nullptr, &Compiler::binary, PREC_SHIFT};
+    rules[TOKEN_RIGHT_SHIFT] = {nullptr, &Compiler::binary, PREC_SHIFT};
+
     // Literals
     rules[TOKEN_INT] = {&Compiler::number, nullptr, PREC_NONE};
     rules[TOKEN_FLOAT] = {&Compiler::number, nullptr, PREC_NONE};
@@ -94,112 +106,48 @@ void Compiler::initRules()
 // MAIN ENTRY POINT
 // ============================================
 
-Function *Compiler::compile(const std::string &source, Interpreter *vm)
+ProcessDef *Compiler::compile(const std::string &source)
 {
     clear();
-    vm_ = vm;
+
     lexer = new Lexer(source);
-
-    function = vm->addFunction("__main__", 0);
-    currentProcess = vm->addProcess("__main_process__", function);
-    currentChunk = &function->chunk;
-    currentFiber = &currentProcess->fibers[0];
-
-    advance();
-
-    while (!match(TOKEN_EOF))
-    {
-        declaration();
-    }
-
-    emitReturn();
-
-    Function *result = function;
-    function = nullptr;
-
-    if (hadError)
-    {
-        return nullptr;
-    }
-
-    return result;
-}
-
-Process *Compiler::compile(const std::string &source )
-{
-    clear();
- 
-    lexer = new Lexer(source);
+    tokens = lexer->scanAll();
 
     function = vm_->addFunction("__main__", 0);
     currentProcess = vm_->addProcess("__main_process__", function);
-    currentChunk = &function->chunk;
+    currentChunk = function->chunk;
     currentFiber = &currentProcess->fibers[0];
 
     advance();
 
-    while (!match(TOKEN_EOF))
+    while (!match(TOKEN_EOF) && !hadError)
     {
         declaration();
     }
 
     emitReturn();
 
- 
-
     if (hadError)
     {
         return nullptr;
     }
+
+    currentProcess->finalize();
 
     return currentProcess;
 }
 
-Function *Compiler::compileExpression(const std::string &source, Interpreter *vm)
+ProcessDef *Compiler::compileExpression(const std::string &source)
 {
     clear();
-    vm_ = vm;
+
     lexer = new Lexer(source);
 
-    function = vm->addFunction("__expr__", 0);
-    currentProcess = vm->addProcess("__main_process__", function);
-    currentChunk = &function->chunk;
-    currentFiber = &currentProcess->fibers[0];
-
-    advance();
-
-    if (check(TOKEN_EOF))
-    {
-        error("Empty expression");
-        function = nullptr;
-        return nullptr;
-    }
-
-    expression();
-    consume(TOKEN_EOF, "Expect end of expression");
-
-    emitByte(OP_RETURN);
-
-    Function *result = function;
-    function = nullptr;
-
-    if (hadError)
-    {
-        return nullptr;
-    }
-
-    return result;
-}
-
-Process *Compiler::compileExpression(const std::string &source )
-{
-    clear();
-    
-    lexer = new Lexer(source);
+    tokens = lexer->scanAll();
 
     function = vm_->addFunction("__expr__", 0);
     currentProcess = vm_->addProcess("__main_process__", function);
-    currentChunk = &function->chunk;
+    currentChunk = function->chunk;
     currentFiber = &currentProcess->fibers[0];
 
     advance();
@@ -216,13 +164,11 @@ Process *Compiler::compileExpression(const std::string &source )
 
     emitByte(OP_RETURN);
 
-    Function *result = function;
-    function = nullptr;
-
     if (hadError)
     {
         return nullptr;
     }
+    currentProcess->finalize();
 
     return currentProcess;
 }
@@ -230,6 +176,7 @@ Process *Compiler::compileExpression(const std::string &source )
 void Compiler::clear()
 {
     delete lexer;
+    tokens.clear();
     lexer = nullptr;
     function = nullptr;
     currentChunk = nullptr;
@@ -240,6 +187,7 @@ void Compiler::clear()
     scopeDepth = 0;
     localCount_ = 0;
     loopDepth_ = 0;
+    cursor = 0;
 }
 
 // ============================================
@@ -248,16 +196,30 @@ void Compiler::clear()
 
 void Compiler::advance()
 {
+
     previous = current;
-
-    for (;;)
+    if (cursor >= tokens.size())
     {
-        current = lexer->scanToken();
-        if (current.type != TOKEN_ERROR)
-            break;
-
-        errorAtCurrent(current.lexeme.c_str());
+        current.type = TOKEN_EOF;
+        return;
     }
+
+    current = tokens[cursor++];
+}
+
+Token Compiler::peek(int offset)
+{
+    size_t index = cursor + offset;
+    if (index >= tokens.size())
+    {
+        return tokens.back(); // EOF
+    }
+    return tokens[index];
+}
+
+bool Compiler::checkNext(TokenType t)
+{
+    return peek(0).type == t;
 }
 
 bool Compiler::check(TokenType type)
@@ -287,6 +249,17 @@ void Compiler::consume(TokenType type, const char *message)
 // ============================================
 // ERROR HANDLING
 // ============================================
+
+void Compiler::fail(const char *fmt, ...)
+{
+    char buffer[1024];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+
+    errorAt(previous, buffer);
+}
 
 void Compiler::error(const char *message)
 {
@@ -400,6 +373,7 @@ int Compiler::emitJump(uint8 instruction)
     return currentChunk->count - 2;
 }
 
+ 
 void Compiler::patchJump(int offset)
 {
     int jump = currentChunk->count - offset - 2;
@@ -425,6 +399,31 @@ void Compiler::emitLoop(int loopStart)
 
     emitByte((offset >> 8) & 0xff);
     emitByte(offset & 0xff);
+}
+
+void Compiler::patchJumpTo(int operandOffset, int targetOffset)
+{
+    int jump = targetOffset - (operandOffset + 2);  // target - after operand
+    if (jump < 0) { error("Backward goto must use OP_LOOP"); return; }
+    if (jump > UINT16_MAX) { error("Jump distance too large"); return; }
+
+    currentChunk->code[operandOffset]     = (jump >> 8) & 0xff;
+    currentChunk->code[operandOffset + 1] = jump & 0xff;
+}
+
+
+void Compiler::emitGosubTo(int targetOffset)
+{
+    emitByte(OP_GOSUB);
+    int from = (int)currentChunk->count + 2;
+    int delta = targetOffset - from;
+    if (delta < -32768 || delta > 32767)
+    {
+        error("gosub jump out of range");
+    }
+
+    emitByte((delta >> 8) & 0xff);
+    emitByte(delta & 0xff);
 }
 
 // ============================================
@@ -479,6 +478,7 @@ ParseRule *Compiler::getRule(TokenType type)
 
 void Compiler::number(bool canAssign)
 {
+    (void)canAssign;
     if (previous.type == TOKEN_INT)
     {
         int value = std::atoi(previous.lexeme.c_str());
@@ -493,11 +493,13 @@ void Compiler::number(bool canAssign)
 
 void Compiler::string(bool canAssign)
 {
+    (void)canAssign;
     emitConstant(Value::makeString(previous.lexeme.c_str()));
 }
 
 void Compiler::literal(bool canAssign)
 {
+    (void)canAssign;
     switch (previous.type)
     {
     case TOKEN_TRUE:
@@ -516,12 +518,14 @@ void Compiler::literal(bool canAssign)
 
 void Compiler::grouping(bool canAssign)
 {
+    (void)canAssign;
     expression();
     consume(TOKEN_RPAREN, "Expect ')' after expression");
 }
 
 void Compiler::unary(bool canAssign)
 {
+    (void)canAssign;
     TokenType operatorType = previous.type;
 
     parsePrecedence(PREC_UNARY);
@@ -534,12 +538,16 @@ void Compiler::unary(bool canAssign)
     case TOKEN_BANG:
         emitByte(OP_NOT);
         break;
+    case TOKEN_TILDE:
+        emitByte(OP_BITWISE_NOT);
+        break;
     default:
         return;
     }
 }
 void Compiler::binary(bool canAssign)
 {
+    (void)canAssign;
     TokenType operatorType = previous.type;
     ParseRule *rule = getRule(operatorType);
 
@@ -584,7 +592,21 @@ void Compiler::binary(bool canAssign)
         emitByte(OP_LESS);
         emitByte(OP_NOT);
         break;
-
+    case TOKEN_PIPE:
+        emitByte(OP_BITWISE_OR);
+        break;
+    case TOKEN_AMPERSAND:
+        emitByte(OP_BITWISE_AND);
+        break;
+    case TOKEN_CARET:
+        emitByte(OP_BITWISE_XOR);
+        break;
+    case TOKEN_LEFT_SHIFT:
+        emitByte(OP_SHIFT_LEFT);
+        break;
+    case TOKEN_RIGHT_SHIFT:
+        emitByte(OP_SHIFT_RIGHT);
+        break;
     default:
         return;
     }
@@ -596,6 +618,7 @@ void Compiler::binary(bool canAssign)
 
 void Compiler::declaration()
 {
+
     if (match(TOKEN_DEF))
     {
         funDeclaration();
@@ -621,13 +644,25 @@ void Compiler::declaration()
 
 void Compiler::statement()
 {
-    if (match(TOKEN_FRAME))
+
+    if (check(TOKEN_IDENTIFIER) && peek(0).type == TOKEN_COLON)
+    {
+        labelStatement();
+    }
+
+    //  Info(" Prev : %s", previous.toString().c_str());
+    //  Info(" Current : %s", current.toString().c_str());
+    //  Info(" next : %s", peek(0).toString().c_str());
+
+    else if (match(TOKEN_FRAME))
     {
         frameStatement();
-    } else if (match(TOKEN_YIELD))
+    }
+    else if (match(TOKEN_YIELD))
     {
         yieldStatement();
-    } else if (match(TOKEN_FIBER))
+    }
+    else if (match(TOKEN_FIBER))
     {
         fiberStatement();
     }
@@ -646,6 +681,14 @@ void Compiler::statement()
     else if (match(TOKEN_WHILE))
     {
         whileStatement();
+    }
+    else if (match(TOKEN_GOTO))
+    {
+        gotoStatement();
+    }
+    else if (match(TOKEN_GOSUB))
+    {
+        gosubStatement();
     }
     else if (match(TOKEN_DO))
     {
@@ -696,8 +739,10 @@ void Compiler::printStatement()
 
 void Compiler::expressionStatement()
 {
+
+    // Expressão normal
     expression();
-    consume(TOKEN_SEMICOLON, "Expect ';' after expression");
+    consume(TOKEN_SEMICOLON, "Expresion statemnt Expect ';'");
     emitByte(OP_POP);
 }
 
@@ -763,36 +808,6 @@ uint8 Compiler::identifierConstant(Token &name)
 {
 
     return makeConstant(Value::makeString(name.lexeme.c_str()));
-}
-
-int Compiler::getPrivateIndex(const char *name)
-{
-    // Mapeamento fixo
-    struct
-    {
-        const char *name;
-        int index;
-    } privates[] = {
-        {"x", 0},      // PrivateIndex::X
-        {"y", 1},      // PrivateIndex::Y
-        {"z", 2},      // PrivateIndex::Z
-        {"graph", 3},  // PrivateIndex::GRAPH
-        {"angle", 4},  // PrivateIndex::ANGLE
-        {"size", 5},   // PrivateIndex::SIZE
-        {"flags", 6},  // PrivateIndex::FLAGS
-        {"id", 7},     // PrivateIndex::ID
-        {"father", 8}, // PrivateIndex::FATHER
-    };
-
-    for (int i = 0; i < 9; i++)
-    {
-        if (strcmp(name, privates[i].name) == 0)
-        {
-            return privates[i].index;
-        }
-    }
-
-    return -1;
 }
 
 void Compiler::handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssign)
@@ -871,7 +886,7 @@ void Compiler::namedVariable(Token &name, bool canAssign)
     // === 1. SE estamos em PROCESS e é private conhecido ===
     if (isProcess_)
     {
-        arg = getPrivateIndex(name.lexeme.c_str());
+        arg = (int)vm_->getProcessPrivateIndex(name.lexeme.c_str());
         if (arg != -1)
         {
             getOp = OP_GET_PRIVATE;
@@ -1220,123 +1235,68 @@ void Compiler::loopStatement()
     // Patch dos breaks (única forma de sair!)
     endLoop();
 }
+
 void Compiler::switchStatement()
 {
     consume(TOKEN_LPAREN, "Expect '(' after 'switch'");
-    expression(); // Valor do switch fica na stack
+    expression(); // [value]
     consume(TOKEN_RPAREN, "Expect ')' after switch expression");
     consume(TOKEN_LBRACE, "Expect '{' before switch body");
 
-    // Variável temporária para guardar o valor do switch
-    int switchValueSlot = -1;
+    std::vector<int> endJumps;
+    std::vector<int> caseFailJumps;
 
-    if (scopeDepth > 0)
+    // Parse cases
+    while (match(TOKEN_CASE))
     {
-        // Local: adiciona variável temporária
-        Token temp;
-        temp.lexeme = "__switch_temp__";
-        addLocal(temp);
-        markInitialized();
+        emitByte(OP_DUP); // [value, value]
+        expression();     // [value, value, case_val]
+        consume(TOKEN_COLON, "Expect ':' after case value");
+        emitByte(OP_EQUAL); // [value, bool]
 
-        switchValueSlot = localCount_ - 1;
+        int caseJump = emitJump(OP_JUMP_IF_FALSE);
+        emitByte(OP_POP); // [value] - Pop comparison result
 
-        emitBytes(OP_SET_LOCAL, (uint8)switchValueSlot);
+        emitByte(OP_POP); // []
+
+        // Case body
+        while (!check(TOKEN_CASE) && !check(TOKEN_DEFAULT) &&
+               !check(TOKEN_RBRACE) && !check(TOKEN_EOF))
+        {
+            statement();
+        }
+
+        endJumps.push_back(emitJump(OP_JUMP));
+
+        patchJump(caseJump);
+        emitByte(OP_POP); // [value] - Pop comparison result
+
+        // ← switch value ainda no stack para próximo case
+    }
+
+    // Default (opcional)
+    if (match(TOKEN_DEFAULT))
+    {
+        consume(TOKEN_COLON, "Expect ':' after 'default'");
+
+        emitByte(OP_POP); // []
+
+        while (!check(TOKEN_CASE) && !check(TOKEN_RBRACE) && !check(TOKEN_EOF))
+        {
+            statement();
+        }
     }
     else
     {
-        // Global: cria variável temporária
 
-        uint8 globalIdx = makeConstant(Value::makeString("__switch_temp__"));
-        emitBytes(OP_DEFINE_GLOBAL, globalIdx);
-    }
-
-    std::vector<int> caseEndJumps;
-    int defaultStart = -1;
-    bool hasDefault = false;
-
-    // Parse todos os cases
-    while (!check(TOKEN_RBRACE) && !check(TOKEN_EOF))
-    {
-        if (match(TOKEN_CASE))
-        {
-            // case VALUE:
-
-            // Carrega valor do switch
-            if (switchValueSlot != -1)
-            {
-                emitBytes(OP_GET_LOCAL, (uint8)switchValueSlot);
-            }
-            else
-            {
-                uint8 globalIdx = makeConstant(Value::makeString("__switch_temp__"));
-                emitBytes(OP_GET_GLOBAL, globalIdx);
-            }
-
-            // Valor do case
-            expression();
-            consume(TOKEN_COLON, "Expect ':' after case value");
-
-            // Compara
-            emitByte(OP_EQUAL);
-
-            // Se NÃO for igual, salta este case
-            int skipCase = emitJump(OP_JUMP_IF_FALSE);
-            emitByte(OP_POP);
-
-            // Executa statements do case
-            while (!check(TOKEN_CASE) && !check(TOKEN_DEFAULT) &&
-                   !check(TOKEN_RBRACE) && !check(TOKEN_EOF))
-            {
-                statement();
-            }
-
-            // Break implícito - salta para o fim
-            caseEndJumps.push_back(emitJump(OP_JUMP));
-
-            // Se não era igual, salta para aqui (próximo case)
-            patchJump(skipCase);
-            emitByte(OP_POP);
-        }
-        else if (match(TOKEN_DEFAULT))
-        {
-            // default:
-            consume(TOKEN_COLON, "Expect ':' after 'default'");
-
-            if (hasDefault)
-            {
-                error("Switch can only have one 'default' case");
-            }
-            hasDefault = true;
-
-            // Executa statements
-            while (!check(TOKEN_CASE) && !check(TOKEN_RBRACE) && !check(TOKEN_EOF))
-            {
-                statement();
-            }
-        }
-        else
-        {
-            errorAtCurrent("Expect 'case' or 'default' in switch body");
-            break;
-        }
+        emitByte(OP_POP); // []
     }
 
     consume(TOKEN_RBRACE, "Expect '}' after switch body");
 
-    // Patch todos os jumps de fim de case
-    for (int jump : caseEndJumps)
+    for (int jump : endJumps)
     {
         patchJump(jump);
-    }
-
-    // Limpa variável temporária do switch
-    if (switchValueSlot != -1)
-    {
-        // Local - já vai ser limpo pelo endScope se necessário
-    }
-    else
-    {
-        // Global - podemos deixar (ou limpar )
     }
 }
 
@@ -1443,6 +1403,13 @@ void Compiler::forStatement()
 void Compiler::returnStatement()
 {
 
+    if (isProcess_)
+    {
+        consume(TOKEN_SEMICOLON, "Expect ';'");
+        emitByte(OP_RETURN_SUB);
+        return;
+    }
+
     if (function == nullptr)
     {
         error("Can't return from top-level code");
@@ -1523,8 +1490,9 @@ void Compiler::processDeclaration()
     consume(TOKEN_IDENTIFIER, "Expect process name");
     Token nameToken = previous;
     isProcess_ = true;
+    argNames.clear();
 
-    //Warning("Compiling process '%s'", nameToken.lexeme.c_str());
+    // Warning("Compiling process '%s'", nameToken.lexeme.c_str());
 
     // Cria função para o process
     int funcIndex;
@@ -1532,7 +1500,7 @@ void Compiler::processDeclaration()
 
     if (!func)
     {
-        error("Process already exists");
+        error("Function already exists");
         return;
     }
 
@@ -1540,14 +1508,44 @@ void Compiler::processDeclaration()
     compileFunction(func, true); // true = É PROCESS!
 
     // Cria blueprint (process não vai para globals como callable)
-    vm_->addProcess(nameToken.lexeme.c_str(), func);
+    ProcessDef *proc = vm_->addProcess(nameToken.lexeme.c_str(), func);
+
+    for (uint32 i = 0; i < argNames.size(); i++)
+    {
+        int privateIndex = vm_->getProcessPrivateIndex(argNames[i]->chars());
+
+        if (privateIndex >= 0)
+        {
+            if (privateIndex == (int)PrivateIndex::ID)
+            {
+                Warning("Property 'ID' is readonly!");
+            }
+            else if (privateIndex == (int)PrivateIndex::FATHER)
+            {
+                Warning("Property 'FATHER' is readonly!");
+            }
+            else
+            {
+                proc->argsNames.push((uint8)privateIndex);
+            }
+        }
+        else
+        {
+
+            proc->argsNames.push(255); // Marcador "sem private"
+        }
+        destroyString(argNames[i]);
+    }
+    argNames.clear();
 
     uint32 index = vm_->getTotalProcesses() - 1;
-    //Warning("Process '%s' registered with index %d", nameToken.lexeme.c_str(), index);
+    // Warning("Process '%s' registered with index %d", nameToken.lexeme.c_str(), index);
 
     emitConstant(Value::makeProcess(index));
     uint8 nameConstant = identifierConstant(nameToken);
     defineVariable(nameConstant);
+
+    proc->finalize();
 
     isProcess_ = false;
 }
@@ -1563,10 +1561,25 @@ void Compiler::compileFunction(Function *func, bool isProcess)
 
     // Troca contexto
     this->function = func;
-    this->currentChunk = &func->chunk;
+    this->currentChunk = func->chunk;
     this->scopeDepth = 0;
     this->localCount_ = 0;
     this->isProcess_ = isProcess;
+    labels.clear();
+    pendingGotos.clear();
+    pendingGosubs.clear();
+
+    if (!func)
+    {
+        Error("Error in funcion");
+        return;
+    }
+
+    if (!func->chunk)
+    {
+        Error("Error in funcion code");
+        return;
+    }
 
     // Parse parâmetros
     beginScope();
@@ -1584,6 +1597,10 @@ void Compiler::compileFunction(Function *func, bool isProcess)
             }
 
             consume(TOKEN_IDENTIFIER, "Expect parameter name");
+            if (isProcess)
+            {
+                argNames.push(std::move(createString(previous.lexeme.c_str())));
+            }
             addLocal(previous);
             markInitialized();
 
@@ -1597,11 +1614,17 @@ void Compiler::compileFunction(Function *func, bool isProcess)
     block();
     endScope();
 
+    resolveGotos();
+    resolveGosubs();
+
+    labels.clear();
+    pendingGotos.clear();
+    pendingGosubs.clear();
+
     if (!function->hasReturn)
     {
         emitReturn();
     }
-
 
     // Restaura estado
     this->function = enclosing;
@@ -1613,6 +1636,7 @@ void Compiler::compileFunction(Function *func, bool isProcess)
 
 void Compiler::prefixIncrement(bool canAssign)
 {
+    (void)canAssign;
     // ++i
     // previous = '++', current deve ser identifier
 
@@ -1693,7 +1717,7 @@ void Compiler::frameStatement()
         error("'frame' can only be used in process body");
         return;
     }
-    
+
     if (match(TOKEN_LPAREN))
     {
         // frame(expression)
@@ -1705,11 +1729,11 @@ void Compiler::frameStatement()
         // frame; = frame(100);
         emitBytes(OP_CONSTANT, makeConstant(Value::makeInt(100)));
     }
-    
+
     consume(TOKEN_SEMICOLON, "Expect ';' after frame");
     emitByte(OP_FRAME);
 }
- 
+
 void Compiler::exitStatement()
 {
     if (!isProcess_)
@@ -1717,7 +1741,7 @@ void Compiler::exitStatement()
         error("'exit' can only be used in process body");
         return;
     }
-    
+
     if (match(TOKEN_LPAREN))
     {
         // exit(expression)
@@ -1726,19 +1750,17 @@ void Compiler::exitStatement()
     }
     else
     {
-        // exit; 
+        // exit;
         emitConstant(Value::makeInt(0));
     }
-    
+
     consume(TOKEN_SEMICOLON, "Expect ';' after exit");
-    emitByte(OP_EXIT);   
-
+    emitByte(OP_EXIT);
 }
-
 
 void Compiler::yieldStatement()
 {
-       
+
     if (match(TOKEN_LPAREN))
     {
         expression(); // Percentagem vai para stack
@@ -1746,15 +1768,13 @@ void Compiler::yieldStatement()
     }
     else
     {
-        
+
         emitBytes(OP_CONSTANT, makeConstant(Value::makeDouble(1.0)));
     }
-    
+
     consume(TOKEN_SEMICOLON, "Expect ';' after yild");
     emitByte(OP_YIELD);
 }
-
- 
 
 void Compiler::fiberStatement()
 {
@@ -1763,19 +1783,16 @@ void Compiler::fiberStatement()
 
     namedVariable(nameToken, false); // empilha callee
 
-    
-    
     consume(TOKEN_LPAREN, "Expect '(' after fiber function name.");
 
-    
     uint8 argCount = 0;
-    
+
     if (!check(TOKEN_RPAREN))
     {
         do
         {
             expression();
-            
+
             if (argCount == 255)
             {
                 error("Can't have more than 255 arguments");
@@ -1786,14 +1803,150 @@ void Compiler::fiberStatement()
 
     consume(TOKEN_RPAREN, "Expect ')' after arguments");
     Warning("Compiling fiber call to '%s' with %d arguments", nameToken.lexeme.c_str(), argCount);
-    
-
-
 
     consume(TOKEN_SEMICOLON, "Expect ';' after fiber call.");
 
     emitByte(OP_SPAWN);
     emitByte(argCount);
-    //emitByte(OP_POP); // descarta o nil/handle se spawn devolver algo
-    
+    // emitByte(OP_POP); // descarta o nil/handle se spawn devolver algo
+}
+
+void Compiler::dot(bool canAssign)
+{
+    consume(TOKEN_IDENTIFIER, "Expect property name after '.'");
+    Token propName = previous;
+    uint8 nameIdx = identifierConstant(propName);
+    if (canAssign && match(TOKEN_EQUAL))
+    {
+        // obj.prop = value
+        expression();
+        emitBytes(OP_SET_PROPERTY, nameIdx);
+    }
+    else if (match(TOKEN_LPAREN))
+    {
+        uint8 argCount = argumentList(); // empilha args
+        emitBytes(OP_INVOKE, nameIdx);
+        emitByte(argCount);
+    }
+    else
+    {
+        // obj.prop
+        emitBytes(OP_GET_PROPERTY, nameIdx);
+    }
+}
+
+void Compiler::labelStatement()
+{
+    consume(TOKEN_IDENTIFIER, "Expect label");
+    Token name = previous;
+    consume(TOKEN_COLON, "Expect ':'");
+
+    Label label;
+    label.name = name.lexeme;
+    label.offset = currentChunk->count;
+    for (auto &l : labels)
+    {
+        if (l.name == name.lexeme)
+        {
+            fail("Duplicate '%s' label", name.lexeme.c_str());
+        }
+    }
+    labels.push_back(label);
+}
+
+void Compiler::gotoStatement()
+{
+    consume(TOKEN_IDENTIFIER, "Expect label");
+    Token target = previous;
+    consume(TOKEN_SEMICOLON, "Expect ';'");
+
+    // Backward
+    for (const Label &l : labels)
+    {
+        if (l.name == target.lexeme)
+        {
+            emitLoop(l.offset);
+            return;
+        }
+    }
+
+    // Forward
+    GotoJump jump;
+    jump.target = target.lexeme;
+    jump.jumpOffset = emitJump(OP_JUMP);
+    pendingGotos.push_back(jump);
+}
+
+void Compiler::resolveGotos()
+{
+    for (const GotoJump &jump : pendingGotos)
+    {
+        int targetOffset = -1;
+
+        for (const Label &l : labels)
+        {
+            if (l.name == jump.target)
+            {
+                targetOffset = l.offset;
+                break;
+            }
+        }
+
+        if (targetOffset == -1)
+        {
+            error("Undefined label");
+            continue;
+        }
+
+        patchJumpTo(jump.jumpOffset, targetOffset);
+    }
+
+    pendingGotos.clear();
+}
+
+void Compiler::gosubStatement()
+{
+    consume(TOKEN_IDENTIFIER, "Expect label");
+    Token target = previous;
+    consume(TOKEN_SEMICOLON, "Expect ';'");
+
+    // se já existe label (pode ser backward)
+    for (const Label &l : labels)
+    {
+        if (l.name == target.lexeme)
+        {
+            emitGosubTo(l.offset);
+            return;
+        }
+    }
+
+    // forward: placeholder
+    GotoJump j;
+    j.target = target.lexeme;
+    j.jumpOffset = emitJump(OP_GOSUB); // devolve offset do OPERANDO
+    pendingGosubs.push_back(j);
+}
+
+
+void Compiler::resolveGosubs()
+{
+    for (const auto &j : pendingGosubs)
+    {
+        int targetOffset = -1;
+        for (const auto &l : labels)
+            if (l.name == j.target)
+            {
+                targetOffset = l.offset;
+                break;
+            }
+
+        if (targetOffset < 0)
+        {
+            error("Undefined label");
+            continue;
+        }
+
+        patchJumpTo(j.jumpOffset, targetOffset); // signed int16
+    }
+    pendingGosubs.clear();
 }

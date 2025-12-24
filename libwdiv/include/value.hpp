@@ -35,7 +35,7 @@ struct Value
   Value(Value &&other) noexcept = default;
   Value &operator=(const Value &other) = default;
   Value &operator=(Value &&other) noexcept = default;
-  ~Value() = default;
+  //~Value() ;
 
   static Value makeNil();
   static Value makeBool(bool b);
@@ -51,6 +51,7 @@ struct Value
   static Value makeProcess(int idx);
 
   // Type checks
+  bool isNumber() const ;
   bool isNil() const { return type == ValueType::NIL; }
   bool isBool() const { return type == ValueType::BOOL; }
   bool isInt() const { return type == ValueType::INT; }
@@ -71,7 +72,7 @@ struct Value
   int asNativeId() const;
   int asProcessId() const;
 
-
+long asNumber() const;
 
 
 };

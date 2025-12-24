@@ -1,0 +1,7 @@
+// benchmark.bu
+var start = clock();
+fib(25);
+var end = clock();
+var ms = end - start;
+assert(ms < 50, "fib perf");
+pass("performance");

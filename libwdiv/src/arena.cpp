@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <climits>
 
-size_t BlockAllocator::s_blockSizes[blockSizes] =
+size_t HeapAllocator::s_blockSizes[blockSizes] =
 	{
 		16,	 // 0
 		32,	 // 1
@@ -20,10 +20,10 @@ size_t BlockAllocator::s_blockSizes[blockSizes] =
 		512, // 12
 		640, // 13
 };
-uint8 BlockAllocator::s_blockSizeLookup[maxBlockSize + 1];
-bool BlockAllocator::s_blockSizeLookupInitialized;
+uint8 HeapAllocator::s_blockSizeLookup[maxBlockSize + 1];
+bool HeapAllocator::s_blockSizeLookupInitialized;
 
-struct Chunk
+struct Heap
 {
 	size_t blockSize;
 	Block *blocks;
@@ -34,15 +34,20 @@ struct Block
 	Block *next;
 };
 
-BlockAllocator::BlockAllocator()
+HeapAllocator::HeapAllocator()
 {
 	assert(blockSizes < UCHAR_MAX);
 
+	m_totalAllocated = 0;
+	m_totalReserved = 0;
+	m_largeAllocations = 0;
+	m_largeAllocatedBytes = 0;
+
 	m_chunkSpace = chunkArrayIncrement;
 	m_chunkCount = 0;
-	m_chunks = (Chunk *)aAlloc(m_chunkSpace * sizeof(Chunk));
+	m_chunks = (Heap *)aAlloc(m_chunkSpace * sizeof(Heap));
 
-	std::memset(m_chunks, 0, m_chunkSpace * sizeof(Chunk));
+	std::memset(m_chunks, 0, m_chunkSpace * sizeof(Heap));
 	for (auto &list : m_freeLists)
 	{
 		list = nullptr;
@@ -67,10 +72,12 @@ BlockAllocator::BlockAllocator()
 
 		s_blockSizeLookupInitialized = true;
 	}
+	std::memset(m_blockAllocations, 0, sizeof(m_blockAllocations));
 }
 
-BlockAllocator::~BlockAllocator()
+HeapAllocator::~HeapAllocator()
 {
+
 	for (size_t i = 0; i < m_chunkCount; ++i)
 	{
 		aFree(m_chunks[i].blocks);
@@ -79,7 +86,7 @@ BlockAllocator::~BlockAllocator()
 	aFree(m_chunks);
 }
 
-void *BlockAllocator::Allocate(size_t size)
+void *HeapAllocator::Allocate(size_t size)
 {
 	if (size == 0)
 		return NULL;
@@ -88,36 +95,42 @@ void *BlockAllocator::Allocate(size_t size)
 
 	if (size > maxBlockSize)
 	{
+		m_totalAllocated += size;
+		m_largeAllocations++;
+		m_largeAllocatedBytes += size;
+		   Info("Large allocation: %zu bytes (bypassing arena!)", size);
 		return aAlloc(size);
 	}
 
 	size_t index = s_blockSizeLookup[size];
 	assert(0 <= index && index < blockSizes);
+	size_t blockSize = s_blockSizes[index];
 
 	if (m_freeLists[index])
 	{
 		Block *block = m_freeLists[index];
 		m_freeLists[index] = block->next;
+		m_totalAllocated += blockSize;
+		m_blockAllocations[index]++;
 		return block;
 	}
 	else
 	{
 		if (m_chunkCount == m_chunkSpace)
 		{
-			Chunk *oldChunks = m_chunks;
+			Heap *oldChunks = m_chunks;
 			m_chunkSpace += chunkArrayIncrement;
-			m_chunks = (Chunk *)aAlloc(m_chunkSpace * sizeof(Chunk));
-			std::memcpy(m_chunks, oldChunks, m_chunkCount * sizeof(Chunk));
-			std::memset(m_chunks + m_chunkCount, 0, chunkArrayIncrement * sizeof(Chunk));
+			m_chunks = (Heap *)aAlloc(m_chunkSpace * sizeof(Heap));
+			std::memcpy(m_chunks, oldChunks, m_chunkCount * sizeof(Heap));
+			std::memset(m_chunks + m_chunkCount, 0, chunkArrayIncrement * sizeof(Heap));
 			aFree(oldChunks);
 		}
 
-		Chunk *chunk = m_chunks + m_chunkCount;
+		Heap *chunk = m_chunks + m_chunkCount;
 		chunk->blocks = (Block *)aAlloc(chunkSize);
 #if defined(_DEBUG)
 		std::memset(chunk->blocks, 0xcd, chunkSize);
 #endif
-		size_t blockSize = s_blockSizes[index];
 		chunk->blockSize = blockSize;
 		size_t blockCount = chunkSize / blockSize;
 		assert(blockCount * blockSize <= chunkSize);
@@ -134,11 +147,15 @@ void *BlockAllocator::Allocate(size_t size)
 		m_freeLists[index] = chunk->blocks->next;
 		++m_chunkCount;
 
+		m_totalReserved += chunkSize;
+		m_totalAllocated += blockSize;
+		m_blockAllocations[index]++;
+
 		return chunk->blocks;
 	}
 }
 
-void BlockAllocator::Free(void *p, size_t size)
+void HeapAllocator::Free(void *p, size_t size)
 {
 	if (size == 0)
 	{
@@ -149,20 +166,26 @@ void BlockAllocator::Free(void *p, size_t size)
 
 	if (size > maxBlockSize)
 	{
+		m_totalAllocated -= size;
+		m_largeAllocations--;
+		m_largeAllocatedBytes -= size;
 		aFree(p);
 		return;
 	}
 
 	size_t index = s_blockSizeLookup[size];
 	assert(0 <= index && index < blockSizes);
+	size_t blockSize = s_blockSizes[index];
+	m_totalAllocated -= blockSize;
+	m_blockAllocations[index]--;
 
 #ifdef _DEBUG
 	// Verify the memory address and size is valid.
-	size_t blockSize = s_blockSizes[index];
+
 	bool found = false;
 	for (size_t i = 0; i < m_chunkCount; ++i)
 	{
-		Chunk *chunk = m_chunks + i;
+		Heap *chunk = m_chunks + i;
 		if (chunk->blockSize != blockSize)
 		{
 			assert((int8 *)p + blockSize <= (int8 *)chunk->blocks ||
@@ -187,21 +210,92 @@ void BlockAllocator::Free(void *p, size_t size)
 	m_freeLists[index] = block;
 }
 
-void BlockAllocator::Clear()
+void HeapAllocator::Clear()
 {
+	m_totalAllocated = 0;
+	m_totalReserved = 0;
+	m_largeAllocations = 0;
+	m_largeAllocatedBytes = 0;
+	std::memset(m_blockAllocations, 0, sizeof(m_blockAllocations));
 	for (size_t i = 0; i < m_chunkCount; ++i)
 	{
 		aFree(m_chunks[i].blocks);
 	}
 
 	m_chunkCount = 0;
-	std::memset(m_chunks, 0, m_chunkSpace * sizeof(Chunk));
+	std::memset(m_chunks, 0, m_chunkSpace * sizeof(Heap));
 
 	for (auto &list : m_freeLists)
 	{
 		list = nullptr;
 	}
 }
+
+void HeapAllocator::GetStats(AllocationStats &stats) const
+{
+    stats.totalReserved = m_totalReserved;
+    stats.totalAllocated = m_totalAllocated;
+    
+    // Corrigir: totalFree só considera memória de chunks
+    // Não incluir large allocations no cálculo
+    size_t allocatedInChunks = m_totalAllocated - m_largeAllocatedBytes;
+    stats.totalFree = (m_totalReserved > allocatedInChunks) 
+                      ? (m_totalReserved - allocatedInChunks) 
+                      : 0;
+    
+    stats.chunkCount = m_chunkCount;
+    stats.largeAllocations = m_largeAllocations;
+    stats.largeAllocatedBytes = m_largeAllocatedBytes;
+
+    std::memcpy(stats.blockStats, m_blockAllocations, sizeof(m_blockAllocations));
+}
+
+void HeapAllocator::Stats()
+{
+    size_t used = GetTotalAllocated();
+    Info("Memory used: %zu KB", used / 1024);
+
+    AllocationStats stats;
+    GetStats(stats);
+
+    Info("=== Heap Allocator Stats ===");
+    Info("  Reserved: %zu KB", stats.totalReserved / 1024);
+    Info("  Allocated: %zu KB", stats.totalAllocated / 1024);
+    
+    // Proteger contra divisão por zero
+    if (stats.totalReserved > 0)
+    {
+        double utilization = 100.0 * (stats.totalAllocated - stats.largeAllocatedBytes) / stats.totalReserved;
+        Info("  Free: %zu KB (%.1f%% utilization)", 
+             stats.totalFree / 1024, 
+             utilization);
+    }
+    else
+    {
+        Info("  Free: 0 KB (no chunks allocated)");
+    }
+    
+    Info("  Chunks: %zu", stats.chunkCount);
+    Info("  Large allocs: %zu (%zu KB)", 
+         stats.largeAllocations, 
+         stats.largeAllocatedBytes / 1024);
+
+    if (blockSizes)
+    {
+        Info("=== Block Distribution ===");
+        for (size_t i = 0; i < blockSizes; i++)
+        {
+            if (stats.blockStats[i] > 0)
+            {
+                Info("  %3zu bytes: %4zu allocs (%zu KB)",
+                     s_blockSizes[i],
+                     stats.blockStats[i],
+                     (s_blockSizes[i] * stats.blockStats[i]) / 1024);
+            }
+        }
+    }
+}
+
 //********************************************************************** */
 
 StackAllocator::StackAllocator()

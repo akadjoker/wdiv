@@ -1,0 +1,11 @@
+var s = "hello";
+
+assert_eq(s.length(), 5, "string length");
+assert_eq(s.upper(), "HELLO", "string upper");
+assert_eq(s.at(0), "h", "string at");
+assert(s.contains("ell"), "string contains");
+assert(s.starts_with("hel"), "string starts_with");
+
+// Concatenação
+var full = s.concat(" world");
+assert_eq(full, "hello world", "string concat");

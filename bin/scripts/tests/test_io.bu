@@ -1,0 +1,6 @@
+ 
+var result = format("x={}, y={}", 100, 200);
+assert_eq(result, "x=100, y=200", "format");
+
+write("test {}\n", 42);
+pass("write");
