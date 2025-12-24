@@ -1,0 +1,11 @@
+// test_perf.bu
+process stress() {
+    var i = 0;
+    loop {
+        i = i + 1;
+        if (i > 1000000) break;
+        frame(1);
+    }
+    pass("1M iterations");
+}
+stress();

@@ -27,6 +27,7 @@
 Interpreter::Interpreter()
 {
     compiler = new Compiler(this);
+    setPrivateTable();
 }
 
 Interpreter::~Interpreter()
@@ -35,31 +36,40 @@ Interpreter::~Interpreter()
     for (size_t i = 0; i < functions.size(); i++)
     {
         Function *func = functions[i];
-        if (func->name)
-        {
-            destroyString(func->name);
-        }
-        func->chunk.clear();
-        // arena.Free(func, sizeof(Function));
         delete func;
     }
+    functions.clear();
 
     for (size_t j = 0; j < processes.size(); j++)
     {
-        Process *proc = processes[j];
+        ProcessDef *proc = processes[j];
         proc->release();
         delete proc;
     }
+    const bool showStats = false;
 
     processes.clear();
+    ProcessPool::instance().clear();
+
+    if (showStats)
+        arena.Stats();
 
     for (size_t j = 0; j < cleanProcesses.size(); j++)
     {
         Process *proc = cleanProcesses[j];
         proc->release();
-        arena.Free(proc, sizeof(Process));
+        ProcessPool::instance().free(proc);
     }
     cleanProcesses.clear();
+
+    for (size_t i = 0; i < aliveProcesses.size(); i++)
+    {
+        Process *process = aliveProcesses[i];
+        process->release();
+        ProcessPool::instance().free(process);
+    }
+
+    aliveProcesses.clear();
 
     for (size_t i = 0; i < natives.size(); i++)
     {
@@ -69,17 +79,10 @@ Interpreter::~Interpreter()
             destroyString(native.name);
         }
     }
+    natives.clear();
 
-    for (size_t i = 0; i < aliveProcesses.size(); i++)
-    {
-        Process *process = aliveProcesses[i];
-        process->release();
-        arena.Free(process, sizeof(Process));
-    }
-
-    aliveProcesses.clear();
-
-    arena.Clear();
+    // arena.Clear();
+    StringPool::instance().clear();
 }
 
 void Interpreter::disassemble()
@@ -106,20 +109,20 @@ void Interpreter::disassemble()
         printf("----------------------------------------\n");
 
         // Constants
-        printf("\nConstants (%zu):\n", func->chunk.constants.size());
-        for (size_t j = 0; j < func->chunk.constants.size(); j++)
+        printf("\nConstants (%zu):\n", func->chunk->constants.size());
+        for (size_t j = 0; j < func->chunk->constants.size(); j++)
         {
             printf("  [%zu] = ", j);
-            printValue(func->chunk.constants[j]);
+            printValue(func->chunk->constants[j]);
             printf("\n");
         }
 
         // Bytecode usando Debug::disassembleInstruction
         printf("\nBytecode:\n");
-        for (size_t offset = 0; offset < func->chunk.count;)
+        for (size_t offset = 0; offset < func->chunk->count;)
         {
             printf("  ");
-            offset = Debug::disassembleInstruction(func->chunk, offset);
+            offset = Debug::disassembleInstruction(*func->chunk, offset);
         }
 
         printf("\n");
@@ -130,12 +133,12 @@ void Interpreter::disassemble()
 
     for (size_t i = 1; i < processes.size(); i++)
     {
-        Process *proc = processes[i];
+        ProcessDef *proc = processes[i];
         if (!proc)
             continue;
 
         printf("----------------------------------------\n");
-        printf("Process #%zu: %s (id=%u)\n", i, proc->name->chars(), proc->id);
+        printf("Process #%zu: %s \n", i, proc->name->chars());
         printf("----------------------------------------\n");
 
         if (proc->fibers[0].frameCount > 0)
@@ -146,20 +149,20 @@ void Interpreter::disassemble()
             printf("  Arity: %d\n", func->arity);
 
             // Constants
-            printf("\nConstants (%zu):\n", func->chunk.constants.size());
-            for (size_t j = 0; j < func->chunk.constants.size(); j++)
+            printf("\nConstants (%zu):\n", func->chunk->constants.size());
+            for (size_t j = 0; j < func->chunk->constants.size(); j++)
             {
                 printf("  [%zu] = ", j);
-                printValue(func->chunk.constants[j]);
+                printValue(func->chunk->constants[j]);
                 printf("\n");
             }
 
             // Bytecode usando Debug::disassembleInstruction
             printf("\nBytecode:\n");
-            for (size_t offset = 0; offset < func->chunk.count;)
+            for (size_t offset = 0; offset < func->chunk->count;)
             {
                 printf("  ");
-                offset = Debug::disassembleInstruction(func->chunk, offset);
+                offset = Debug::disassembleInstruction(*func->chunk, offset);
             }
         }
 
@@ -186,8 +189,6 @@ void Interpreter::print(Value value)
 {
     printValue(value);
 }
-
- 
 
 Fiber *Interpreter::get_ready_fiber(Process *proc)
 {
@@ -303,48 +304,46 @@ bool Interpreter::isFalsey(Value value)
     return value.isNil() || (value.isBool() && !value.asBool());
 }
 
- 
-
 Function *Interpreter::compile(const char *source)
 {
-    return compiler->compile(source, this);
+    ProcessDef *proc = compiler->compile(source);
+    Function *mainFunc = proc->fibers[0].frames[0].func;
+    return mainFunc;
 }
 
 Function *Interpreter::compileExpression(const char *source)
 {
-    return compiler->compileExpression(source, this);
+    ProcessDef *proc = compiler->compileExpression(source);
+    Function *mainFunc = proc->fibers[0].frames[0].func;
+    return mainFunc;
 }
+
 bool Interpreter::run(const char *source, bool _dump)
 {
     hasFatalError_ = false;
-    Process *proc = compiler->compile(source);
+    ProcessDef *proc = compiler->compile(source);
     if (!proc)
     {
         return false;
     }
 
-     if (_dump)
+    functionsMap.destroy();
+    processesMap.destroy();
+    nativesMap.destroy();
+
+    if (_dump)
     {
-      //  disassemble();
+        disassemble();
         // Function *mainFunc = proc->fibers[0].frames[0].func;
         // Debug::dumpFunction(mainFunc);
     }
- for (size_t i = 0; i < functions.size(); i++)
-    {
-        Function *func = functions[i];
-        if (!func)
-            continue;
-        func->chunk.freeze();
-    }
 
-    mainProcess =  spawnProcess(proc);
+    mainProcess = spawnProcess(proc);
     currentProcess = mainProcess;
 
     Fiber *fiber = &mainProcess->fibers[0];
 
-    
-    Info("Execute");
-   // run_fiber(fiber);
+    run_fiber(fiber);
 
     return !hasFatalError_;
 }
@@ -364,12 +363,25 @@ void Interpreter::initFiber(Fiber *fiber, Function *func)
 
     fiber->stackTop = fiber->stack;
 
-    fiber->ip = func->chunk.code;
+    fiber->ip = func->chunk->code;
 
     fiber->frameCount = 1;
     fiber->frames[0].func = func;
-    fiber->frames[0].ip = func->chunk.code;
+    fiber->frames[0].ip = nullptr;
     fiber->frames[0].slots = fiber->stack; // Base da stack
+}
+
+void Interpreter::setPrivateTable()
+{
+    privateIndexMap.set("x", 0);
+    privateIndexMap.set("y", 1);
+    privateIndexMap.set("z", 2);
+    privateIndexMap.set("graph", 3);
+    privateIndexMap.set("angle", 4);
+    privateIndexMap.set("size", 5);
+    privateIndexMap.set("flags", 6);
+    privateIndexMap.set("id", 7);
+    privateIndexMap.set("father", 8);
 }
 
 bool toNumberPair(const Value &a, const Value &b, double &da, double &db)
@@ -590,6 +602,12 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 #define PUSH(value) (*fiber->stackTop++ = value)
 #define NPEEK(n) (fiber->stackTop[-1 - (n)])
 
+    // if (frame->ip == nullptr)
+    // {
+    //     runtimeError("FATAL: frame->ip is NULL! Code was not initialized properly.");
+    //     return {FiberResult::FIBER_DONE, 0, 0, 0};
+    // }
+
 #define READ_BYTE() (*ip++)
 #define READ_SHORT() (ip += 2, (uint16)((ip[-2] << 8) | ip[-1]))
 
@@ -610,11 +628,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         func = frame->func;                            \
     } while (false)
 
-#define READ_CONSTANT() (func->chunk.constants[READ_BYTE()])
+#define READ_CONSTANT() (func->chunk->constants[READ_BYTE()])
     LOAD_FRAME();
 
     // printf("[DEBUG] Starting run_fiber: ip=%p, func=%s, offset=%ld\n",
-    //        (void*)ip, func->name->chars(), ip - func->chunk.code);
+    //        (void*)ip, func->name->chars(), ip - func->chunk->code);
 
     // ===== LOOP PRINCIPAL =====
 
@@ -635,7 +653,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
 #if DEBUG_TRACE_EXECUTION
         // Mostra instrução
-        size_t offset = ip - func->chunk.code;
+        size_t offset = ip - func->chunk->code;
         Debug::disassembleInstruction(func->chunk, offset);
 #endif
 
@@ -744,7 +762,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             if (a.isString() && b.isString())
             {
-                String *result = concatString(a.asString(), b.asString());
+                String *result = StringPool::instance().concat(a.asString(), b.asString());
                 PUSH(Value::makeString(result));
                 break;
             }
@@ -1118,7 +1136,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
                 CallFrame *newFrame = &fiber->frames[fiber->frameCount++];
                 newFrame->func = func;
-                newFrame->ip = func->chunk.code;
+                newFrame->ip = func->chunk->code;
                 newFrame->slots = fiber->stackTop - argCount; // Argumentos começam aqui
             }
             else if (callee.isNative())
@@ -1144,7 +1162,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             {
 
                 int index = callee.asProcessId();
-                Process *blueprint = processes[index];
+                ProcessDef *blueprint = processes[index];
 
                 if (!blueprint)
                 {
@@ -1173,6 +1191,14 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     for (int i = 0; i < argCount; i++)
                     {
                         procFiber->stack[i] = fiber->stackTop[-(argCount - i)];
+                        if (blueprint->argsNames.size() > 0)
+                        {
+                            uint8 index = blueprint->argsNames[i];
+                            if (index != 255)
+                            {
+                                instance->privates[index] = procFiber->stack[i];
+                            }
+                        }
                     }
 
                     procFiber->stackTop = procFiber->stack + argCount;
@@ -1182,6 +1208,18 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
                 // Remove callee + args da stack atual
                 fiber->stackTop -= (argCount + 1);
+
+                if (currentProcess->id == 0)
+                {
+                }
+
+                instance->privates[(int)PrivateIndex::ID] = Value::makeInt(instance->id);
+                instance->privates[(int)PrivateIndex::FATHER] = Value::makeProcess(currentProcess->id);
+
+                if (hooks.onStart)
+                {
+                    hooks.onStart(instance);
+                }
 
                 // Push ID do processo criado
                 PUSH(Value::makeInt(instance->id));
@@ -1255,20 +1293,14 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     // Marca processo como morto
                     currentProcess->state = FiberState::DEAD;
 
-                    printf("          ");
-                    for (Value *slot = fiber->stack; slot < fiber->stackTop; slot++)
-                    {
-                        printf("[ ");
-                        printValue(*slot);
-                        printf(" ]");
-                    }
-                    printf("\n");
-
-                    // Chama hook onDestroy
-                    // if (hooks.onDestroy)
+                    // printf("          ");
+                    // for (Value *slot = fiber->stack; slot < fiber->stackTop; slot++)
                     // {
-                    //     hooks.onDestroy(currentProcess, currentProcess->exitCode);
+                    //     printf("[ ");
+                    //     printValue(*slot);
+                    //     printf(" ]");
                     // }
+                    // printf("\n");
                 }
 
                 STORE_FRAME();
@@ -1381,7 +1413,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             CallFrame *frame = &newFiber->frames[newFiber->frameCount++];
             frame->func = func;
-            frame->ip = func->chunk.code;
+            frame->ip = func->chunk->code;
             frame->slots = newFiber->stack; // Argumentos começam aqui
 
             fiber->stackTop -= (argCount + 1);
@@ -1408,11 +1440,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             Value object = PEEK();
             Value nameValue = READ_CONSTANT();
 
-            printf("\nGet Object: '");
-            printValue(object);
-            printf("'\nName : '");
-            printValue(nameValue);
-            printf("'\n");
+            // printf("\nGet Object: '");
+            // printValue(object);
+            // printf("'\nName : '");
+            // printValue(nameValue);
+            // printf("'\n");
 
             if (!nameValue.isString())
             {
@@ -1443,41 +1475,35 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             // === PROCESS PRIVATES (external access) ===
             if (object.isProcess())
             {
-                // uint32 processId = object.asProcessId();
 
-                // // Busca processo na lista de vivos
-                // Process *proc = nullptr;
-                // for (size_t i = 0; i < aliveProcesses.size(); i++)
-                // {
-                //     if (aliveProcesses[i]->id == processId)
-                //     {
-                //         proc = aliveProcesses[i];
-                //         break;
-                //     }
-                // }
+                int processId = object.asProcessId();
 
-                // if (!proc || proc->state == FiberState::DEAD)
-                // {
-                //     runtimeError("Process is dead or invalid");
-                //     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                // }
+                Process *proc = aliveProcesses[processId];
+                if (!proc)
+                {
+                    runtimeError("Process '%i' is dead or invalid", processId);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                int privateIdx = getProcessPrivateIndex(name);
+                if (privateIdx != -1)
+                {
+                    PUSH(proc->privates[privateIdx]);
+                }
+                else
+                {
+                    runtimeError("Proces  does not support '%s' property access", name);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
 
-                // // Lookup private pelo nome
-                // int privateIdx = getPrivateIndex(name);
-                // if (privateIdx != -1)
-                // {
-                //     DROP(); // Remove process ID
-                //     PUSH(proc->privates[privateIdx]);
-                //     break;
-                // }
+                break;
 
                 // runtimeError("Process has no property '%s'", name);
                 // return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
             // === OUTROS TIPOS (futuro) ===
-            // runtimeError("Type does not support property access");
-            // return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            runtimeError("Type does not support property access");
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             break;
         }
         case OP_SET_PROPERTY:
@@ -1487,13 +1513,13 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             Value object = PEEK2();
             Value nameValue = READ_CONSTANT();
 
-            printf("Set Value: '");
-            printValue(value);
-            printf("'\nObject: '");
-            printValue(object);
-            printf("'\nName : '");
-            printValue(nameValue);
-            printf("'\n");
+            // printf("Set Value: '");
+            // printValue(value);
+            // printf("'\nObject: '");
+            // printValue(object);
+            // printf("'\nName : '");
+            // printValue(nameValue);
+            // printf("'\n");
 
             if (!nameValue.isString())
             {
@@ -1501,55 +1527,50 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
-            // String *propName = nameValue.asString();
-            // const char *name = propName->chars();
+            String *propName = nameValue.asString();
+            const char *name = propName->chars();
 
-            // // === STRINGS (read-only) ===
-            // if (object.isString())
-            // {
-            //     runtimeError("Cannot set property on string (immutable)");
-            //     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            // }
+            // === STRINGS (read-only) ===
+            if (object.isString())
+            {
+                runtimeError("Cannot set property on string (immutable)");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
 
-            // // === PROCESS PRIVATES (external write) ===
-            // if (object.isProcess())
-            // {
-            //     uint32 processId = object.asProcessId();
+            // === PROCESS PRIVATES (external write) ===
+            if (object.isProcess())
+            {
+                int processId = object.asProcessId();
+                Process *proc = aliveProcesses[processId];
 
-            //     // Busca processo
-            //     Process *proc = nullptr;
-            //     for (size_t i = 0; i < aliveProcesses.size(); i++)
-            //     {
-            //         if (aliveProcesses[i]->id == processId)
-            //         {
-            //             proc = aliveProcesses[i];
-            //             break;
-            //         }
-            //     }
+                if (!proc) // || proc->state == FiberState::DEAD)
+                {
+                    runtimeError("Process '%i' is dead or invalid", processId);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
 
-            //     if (!proc || proc->state == FiberState::DEAD)
-            //     {
-            //         runtimeError("Process is dead or invalid");
-            //         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            //     }
+                // Lookup private pelo nome
+                int privateIdx = getProcessPrivateIndex(name);
+                if (privateIdx != -1)
+                {
+                    if ((privateIdx == (int)PrivateIndex::ID) || (privateIdx == (int)PrivateIndex::FATHER))
+                    {
+                        runtimeError("Property '%s' is readonly", name);
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+                    proc->privates[privateIdx] = value;
+                    DROP();      // Remove value
+                    DROP();      // Remove process
+                    PUSH(value); // Assignment retorna valor
+                    break;
+                }
 
-            //     // Lookup private pelo nome
-            //     int privateIdx = getPrivateIndex(name);
-            //     if (privateIdx != -1)
-            //     {
-            //         proc->privates[privateIdx] = value;
-            //         DROP();      // Remove value
-            //         DROP();      // Remove process
-            //         PUSH(value); // Assignment retorna valor
-            //         break;
-            //     }
+                runtimeError("Process has no property '%s'", name);
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
 
-            //     runtimeError("Process has no property '%s'", name);
-            //     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            // }
-
-            // runtimeError("Cannot set property on this type");
-            // return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            runtimeError("Cannot set property on this type");
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
 
             break;
         }
@@ -1841,6 +1862,26 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             runtimeError("Type does not support method calls");
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
+        case OP_GOSUB:
+        {
+            int16 off = (int16)READ_SHORT(); // lê u16 mas cast para signed
+            if (fiber->gosubTop >= GOSUB_MAX)
+                runtimeError("gosub stack overflow");
+            fiber->gosubStack[fiber->gosubTop++] = ip; // retorno
+            ip += off;                                 // forward/back
+            break;
+        }
+
+        case OP_RETURN_SUB:
+        {
+            if (fiber->gosubTop > 0)
+            {
+                ip = fiber->gosubStack[--fiber->gosubTop];
+                break;
+            }
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+        }
+
         default:
         {
             runtimeError("Unknown opcode %d", instruction);

@@ -272,7 +272,7 @@ int main()
 
     vm.setHooks(hooks);
 
-    std::ifstream file("main.cc");
+    std::ifstream file("bunny.cc");
     std::string code((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
 

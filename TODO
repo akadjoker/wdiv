@@ -333,20 +333,7 @@ void Compiler::structCall() {
     emitByte(argCount);
 }
 
-// obj.health
-void Compiler::dot() {
-    consume(TOKEN_IDENTIFIER, "field name");
-    Token field = previous;
-    
-    uint8_t fieldIndex = makeConstant(Value::makeString(field.lexeme.c_str()));
-    
-    if (canAssign && match(TOKEN_EQUAL)) {
-        expression();  // valor
-        emitBytes(OP_SET_FIELD, fieldIndex);
-    } else {
-        emitBytes(OP_GET_FIELD, fieldIndex);
-    }
-}
+
 
 struct StructDef {
     String* name;

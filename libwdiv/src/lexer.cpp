@@ -56,6 +56,9 @@ void Lexer::initKeywords()
         {"fiber", TOKEN_FIBER},
         {"yield", TOKEN_YIELD},
         {"exit", TOKEN_EXIT},
+        {"label", TOKEN_LABEL},
+        {"goto", TOKEN_GOTO},
+        {"gosub", TOKEN_GOSUB},
     };
 }
 
@@ -323,6 +326,12 @@ Token Lexer::identifier()
     {
         return makeToken(it->second, text);
     }
+
+    // if (peek() == ':')
+	// {
+    //     printf("label\n");
+	// 	return makeToken(TOKEN_LABEL,text);
+	// }
 
     return makeToken(TOKEN_IDENTIFIER, text);
 }

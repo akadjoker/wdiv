@@ -1,14 +1,18 @@
 #pragma once
 #include "config.hpp"
 #include "string.hpp"
-#include "arena.hpp"
+#include "vector.hpp"
+
 
 struct Value;
+struct Process;
+struct HeapAllocator;
+ 
 
 class StringPool
 {
 private:
-    BlockAllocator allocator;
+    HeapAllocator allocator;
 
 public:
     StringPool() = default;
@@ -16,10 +20,8 @@ public:
 
     String *create(const char *str, uint32 len);
 
-    String *create(const char *str)
-    {
-        return create(str, std::strlen(str));
-    }
+    String *create(const char *str);
+
 
 
     int indexOf(String *str, String *substr, int startIndex = 0);
@@ -42,10 +44,8 @@ public:
 
     void destroy(String *s);
 
-    void clear()
-    {
-        allocator.Clear();
-    }
+    void clear();
+
 
     static StringPool &instance()
     {
@@ -54,10 +54,28 @@ public:
     }
 };
 
-inline String *concatString(String *a, String *b)
+
+class ProcessPool 
 {
-    return StringPool::instance().concat(a, b);
-}
+
+    Vector<Process*> pool;
+public:
+    ProcessPool();
+    ~ProcessPool() = default;
+
+    static ProcessPool &instance()
+    {
+        static ProcessPool pool;
+        return pool;
+    }
+
+    Process* create();
+    void free(Process *proc);
+    void destory(Process *proc);
+    void clear();
+
+};
+ 
 
 inline String *createString(const char *str, uint32 len)
 {

@@ -155,7 +155,7 @@ Value native_clock(Interpreter *vm, int argCount, Value *args)
 
 void onStart(Process *proc)
 {
-    // printf("[start] %s id=%u\n", proc->name->chars(), proc->id);
+   //  printf("[start] %s id=%u\n", proc->name->chars(), proc->id);
 }
 
 void onUpdate(Process *proc, float dt)
@@ -173,16 +173,28 @@ void onUpdate(Process *proc, float dt)
 
 void onDestroy(Process *proc, int exitCode)
 {
-    printf("[destroy] %s exit=%d\n", proc->name->chars(), proc->exitCode);
+   // printf("[destroy] %s exit=%d\n", proc->name->chars(), proc->exitCode);
 }
 
 void onRender(Process *proc)
 {
-    printf("[render] %s rendering...\n", proc->name->chars());
+   // printf("[render] %s rendering...\n", proc->name->chars());
 }
 
 int main()
 {
+
+
+    // Lexer lex("close:");
+
+    // Token t;
+    // while ((t = lex.scanToken()).type != TOKEN_EOF)
+    // {
+    //     printf("%s \n", t.toString().c_str());
+    // }
+
+    // return 0;
+
     Interpreter vm;
     vm.registerNative("write", native_write, -1);
     vm.registerNative("format", native_format, -1);
@@ -204,14 +216,15 @@ int main()
     std::string code((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
 
-    if (!vm.run(code.c_str()),false)
+    if (!vm.run(code.c_str(),false))
     {
         std::cerr << "Error running code.\n";
         return 1;
     }
 
     int stapes = 0;
-    while (stapes < 50)
+    //while (vm.liveProcess()>0)
+    while (stapes<5000)
     {
         stapes++;
         vm.update(0.016f); // Simula um frame de 16ms

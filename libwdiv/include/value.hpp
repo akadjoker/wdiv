@@ -35,7 +35,7 @@ struct Value
   Value(Value &&other) noexcept = default;
   Value &operator=(const Value &other) = default;
   Value &operator=(Value &&other) noexcept = default;
-  ~Value() = default;
+  //~Value() ;
 
   static Value makeNil();
   static Value makeBool(bool b);

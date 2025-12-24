@@ -7,6 +7,15 @@ Value::Value() : type(ValueType::NIL)
     as.integer = 0;
 }
 
+// Value::~Value()
+// {
+//     if(type == ValueType::STRING)
+//     {
+//         Info("destroy value %p",as.string);
+//         destroyString(as.string);
+//     }
+// }
+
 Value Value::makeNil()
 {
     Value v;
