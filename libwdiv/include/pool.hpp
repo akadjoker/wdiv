@@ -6,7 +6,7 @@
 
 struct Value;
 struct Process;
-struct HeapAllocator;
+
  
 
 class StringPool

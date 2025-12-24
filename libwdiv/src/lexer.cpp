@@ -17,6 +17,19 @@ Lexer::Lexer(const std::string &src)
     initKeywords();
 }
 
+Lexer::Lexer(const char *src, size_t len)
+ : source(src, len), start(0), current(0), line(1),
+       column(1),
+      tokenColumn(1),
+      hasPendingError(false),
+      pendingErrorMessage(""),
+      pendingErrorLine(0),
+      pendingErrorColumn(0)
+{
+    initKeywords();
+}
+
+
 void Lexer::setPendingError(const std::string &message)
 {
     if (!hasPendingError)
@@ -59,6 +72,8 @@ void Lexer::initKeywords()
         {"label", TOKEN_LABEL},
         {"goto", TOKEN_GOTO},
         {"gosub", TOKEN_GOSUB},
+        {"include", TOKEN_INCLUDE},
+        {"import", TOKEN_IMPORT},
     };
 }
 

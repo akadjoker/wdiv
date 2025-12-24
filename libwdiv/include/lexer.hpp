@@ -10,7 +10,8 @@
 class Lexer
 {
 public:
-    explicit Lexer(const std::string &source);
+    Lexer(const std::string &source);
+    Lexer(const char* src, size_t len);
 
     Token scanToken();
 

@@ -8,7 +8,6 @@
 #include "token.hpp"
 #include "lexer.hpp"
 
-
 Value native_write(Interpreter *vm, int argCount, Value *args)
 {
     if (argCount < 1 || !args[0].isString())
@@ -155,7 +154,7 @@ Value native_clock(Interpreter *vm, int argCount, Value *args)
 
 void onStart(Process *proc)
 {
-   //  printf("[start] %s id=%u\n", proc->name->chars(), proc->id);
+    //  printf("[start] %s id=%u\n", proc->name->chars(), proc->id);
 }
 
 void onUpdate(Process *proc, float dt)
@@ -173,17 +172,114 @@ void onUpdate(Process *proc, float dt)
 
 void onDestroy(Process *proc, int exitCode)
 {
-   // printf("[destroy] %s exit=%d\n", proc->name->chars(), proc->exitCode);
+    // printf("[destroy] %s exit=%d\n", proc->name->chars(), proc->exitCode);
 }
 
 void onRender(Process *proc)
 {
-   // printf("[render] %s rendering...\n", proc->name->chars());
+    // printf("[render] %s rendering...\n", proc->name->chars());
+}
+
+static char fileBuffer[1024 * 1024];
+
+const char *desktopFileLoader(const char *filename, size_t *outSize, void *userdata)
+{
+    FILE *f = fopen(filename, "rb");
+    if (!f)
+    {
+        *outSize = 0;
+        return nullptr;
+    }
+
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    fread(fileBuffer, 1, size, f);
+    fclose(f);
+
+    *outSize = size;
+    return fileBuffer;
+}
+
+struct FileLoaderContext
+{
+    const char *searchPaths[8];
+    int pathCount;
+    char fullPath[512];
+    char buffer[1024 * 1024];
+};
+
+const char *multiPathFileLoader(const char *filename, size_t *outSize, void *userdata)
+{
+    FileLoaderContext *ctx = (FileLoaderContext *)userdata;
+
+ 
+    for (int i = 0; i < ctx->pathCount; i++)
+    {
+        snprintf(ctx->fullPath, sizeof(ctx->fullPath),
+                 "%s/%s", ctx->searchPaths[i], filename);
+
+        FILE *f = fopen(ctx->fullPath, "rb");
+        if (!f)
+        {
+            continue; // Tenta próximo path
+        }
+
+        // Obtém size
+        fseek(f, 0, SEEK_END);
+        long size = ftell(f);
+
+        if (size <= 0)
+        {
+            fprintf(stderr, "Empty or error reading: %s (size=%ld)\n",
+                    ctx->fullPath, size);
+            fclose(f);
+            continue; // Tenta próximo path
+        }
+
+        if (size >= sizeof(ctx->buffer))
+        {
+            fprintf(stderr, "File too large: %s (%ld bytes, max %zu)\n",
+                    ctx->fullPath, size, sizeof(ctx->buffer));
+            fclose(f);
+            *outSize = 0;
+            return nullptr;
+        }
+
+        fseek(f, 0, SEEK_SET);
+
+        size_t bytesRead = fread(ctx->buffer, 1, size, f);
+        fclose(f);
+
+        if (bytesRead != (size_t)size)
+        {
+            fprintf(stderr, "Read error: %s (expected %ld, got %zu)\n",
+                    ctx->fullPath, size, bytesRead);
+            continue;
+        }
+
+        ctx->buffer[bytesRead] = '\0';
+
+        printf("✓ Loaded: %s (%zu bytes)\n", ctx->fullPath, bytesRead);
+
+        *outSize = bytesRead;
+        return ctx->buffer;
+    }
+
+    fprintf(stderr, "✗ File not found in any path: %s\n", filename);
+    fprintf(stderr, "  Searched paths:\n");
+    for (int i = 0; i < ctx->pathCount; i++)
+    {
+        fprintf(stderr, "    - %s/%s\n", ctx->searchPaths[i], filename);
+    }
+
+    *outSize = 0;
+    return nullptr;
 }
 
 int main()
 {
-
 
     // Lexer lex("close:");
 
@@ -203,6 +299,14 @@ int main()
     vm.registerNative("sin", native_sin, 1);
     vm.registerNative("cos", native_cos, 1);
     vm.registerNative("abs", native_abs, 1);
+    // vm.setFileLoader(desktopFileLoader, nullptr);
+
+    FileLoaderContext ctx;
+    ctx.searchPaths[0] = "./bin";
+    ctx.searchPaths[1] = "./scrips";
+    ctx.searchPaths[2] = ".";
+    ctx.pathCount = 3;
+    vm.setFileLoader(multiPathFileLoader, &ctx);
 
     VMHooks hooks;
     hooks.onStart = onStart;
@@ -216,15 +320,15 @@ int main()
     std::string code((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
 
-    if (!vm.run(code.c_str(),false))
+    if (!vm.run(code.c_str(), false))
     {
         std::cerr << "Error running code.\n";
         return 1;
     }
 
     int stapes = 0;
-    //while (vm.liveProcess()>0)
-    while (stapes<5000)
+    // while (vm.liveProcess()>0)
+    while (stapes < 5000)
     {
         stapes++;
         vm.update(0.016f); // Simula um frame de 16ms

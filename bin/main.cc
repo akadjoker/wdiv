@@ -1,3 +1,6 @@
+include "strings.cc";
+
+
 process teste() {
     print("A");
     gosub sub;
@@ -73,3 +76,6 @@ loop_test();
 teste2();
 teste3();
 teste4();
+
+print("external");
+print(add(2, 3));

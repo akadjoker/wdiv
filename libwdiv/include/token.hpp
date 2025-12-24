@@ -100,6 +100,8 @@ enum TokenType
     TOKEN_LEFT_SHIFT,     // <<
     TOKEN_RIGHT_SHIFT,    // >>
 
+    TOKEN_INCLUDE,
+    TOKEN_IMPORT,
 
     // Special
     TOKEN_EOF,

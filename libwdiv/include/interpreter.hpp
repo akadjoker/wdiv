@@ -5,26 +5,8 @@
 #include "string.hpp"
 #include "arena.hpp"
 #include "code.hpp"
+#include "types.hpp"
 
-static constexpr int MAX_PRIVATES = 16;
-static constexpr int MAX_FIBERS = 8;
-static constexpr int STACK_MAX = 256;
-static constexpr int FRAMES_MAX = 32;
-static constexpr int GOSUB_MAX = 16;
-
-enum class InterpretResult : uint8
-{
-    OK,
-    COMPILE_ERROR,
-    RUNTIME_ERROR
-};
-
-enum class FiberState : uint8
-{
-    RUNNING,
-    SUSPENDED,
-    DEAD
-};
 
 struct Function;
 struct CallFrame;
@@ -32,6 +14,7 @@ struct Fiber;
 struct Process;
 class Interpreter;
 class Compiler;
+
 typedef Value (*NativeFunction)(Interpreter *vm, int argCount, Value *args);
 
 struct NativeDef
@@ -234,6 +217,7 @@ class Interpreter
 
     VMHooks hooks;
 
+ 
     // const Value &peek(int distance = 0);
 
     Fiber *get_ready_fiber(Process *proc);
@@ -248,6 +232,8 @@ public:
     int getProcessPrivateIndex(const char *name);
 
     uint32 liveProcess();
+
+    void setFileLoader(FileLoaderCallback loader, void* userdata = nullptr);
 
     ProcessDef *addProcess(const char *name, Function *func);
     void destroyProcess(Process *proc);

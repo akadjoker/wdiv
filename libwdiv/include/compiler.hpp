@@ -4,9 +4,11 @@
 #include "lexer.hpp"
 #include "token.hpp"
 #include "vector.hpp"
+#include "types.hpp"
 #include <vector>
 #include <cstring>
 #include <string>
+#include <set>
 
 class Code;
 struct Value;
@@ -122,6 +124,9 @@ class Compiler
 public:
     Compiler(Interpreter *vm);
     ~Compiler();
+
+
+    void setFileLoader(FileLoaderCallback loader, void* userdata = nullptr);
 
     ProcessDef *compile(const std::string &source);
     ProcessDef *compileExpression(const std::string &source);
@@ -275,6 +280,12 @@ private:
 
     void frameStatement();
     void exitStatement();
+
+    void includeStatement();
+
+    FileLoaderCallback fileLoader = nullptr;
+    void* fileLoaderUserdata = nullptr;
+    std::set<std::string> includedFiles;
 
     static ParseRule rules[TOKEN_COUNT];
 };

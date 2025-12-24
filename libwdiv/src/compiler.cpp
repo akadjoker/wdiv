@@ -106,6 +106,12 @@ void Compiler::initRules()
 // MAIN ENTRY POINT
 // ============================================
 
+void Compiler::setFileLoader(FileLoaderCallback loader, void *userdata)
+{
+    fileLoader = loader;
+    fileLoaderUserdata = userdata;
+}
+
 ProcessDef *Compiler::compile(const std::string &source)
 {
     clear();
@@ -373,7 +379,6 @@ int Compiler::emitJump(uint8 instruction)
     return currentChunk->count - 2;
 }
 
- 
 void Compiler::patchJump(int offset)
 {
     int jump = currentChunk->count - offset - 2;
@@ -403,14 +408,21 @@ void Compiler::emitLoop(int loopStart)
 
 void Compiler::patchJumpTo(int operandOffset, int targetOffset)
 {
-    int jump = targetOffset - (operandOffset + 2);  // target - after operand
-    if (jump < 0) { error("Backward goto must use OP_LOOP"); return; }
-    if (jump > UINT16_MAX) { error("Jump distance too large"); return; }
+    int jump = targetOffset - (operandOffset + 2); // target - after operand
+    if (jump < 0)
+    {
+        error("Backward goto must use OP_LOOP");
+        return;
+    }
+    if (jump > UINT16_MAX)
+    {
+        error("Jump distance too large");
+        return;
+    }
 
-    currentChunk->code[operandOffset]     = (jump >> 8) & 0xff;
+    currentChunk->code[operandOffset] = (jump >> 8) & 0xff;
     currentChunk->code[operandOffset + 1] = jump & 0xff;
 }
-
 
 void Compiler::emitGosubTo(int targetOffset)
 {
@@ -644,16 +656,15 @@ void Compiler::declaration()
 
 void Compiler::statement()
 {
+    if (match(TOKEN_INCLUDE)) 
+    {
+        includeStatement(); 
+    }else
 
     if (check(TOKEN_IDENTIFIER) && peek(0).type == TOKEN_COLON)
     {
         labelStatement();
     }
-
-    //  Info(" Prev : %s", previous.toString().c_str());
-    //  Info(" Current : %s", current.toString().c_str());
-    //  Info(" next : %s", peek(0).toString().c_str());
-
     else if (match(TOKEN_FRAME))
     {
         frameStatement();
@@ -1758,6 +1769,71 @@ void Compiler::exitStatement()
     emitByte(OP_EXIT);
 }
 
+ 
+void Compiler::includeStatement()
+{
+    consume(TOKEN_STRING, "Expect filename after include");
+
+    std::string filename = previous.lexeme.c_str();
+
+    // std::set para proteção circular
+    if (includedFiles.find(filename) != includedFiles.end())
+    {
+        fail("Circular include: %s", filename.c_str());
+        return;
+    }
+
+    if (!fileLoader)
+    {
+        fail("No file loader set");
+        return;
+    }
+
+    // CALLBACK retorna C-style
+    size_t sourceSize = 0;
+    const char *source = fileLoader(filename.c_str(), &sourceSize, fileLoaderUserdata);
+
+    if (!source || sourceSize == 0)
+    {
+        fail("Cannot load %s %d", filename.c_str(),sourceSize);
+        return;
+    }
+
+    // Adiciona ao set
+    includedFiles.insert(filename);
+
+    // SALVA estado 
+    Lexer *oldLexer = this->lexer;
+    std::vector<Token> oldTokens = this->tokens;
+    Token oldCurrent = this->current;
+    Token oldPrevious = this->previous;
+    int oldCursor = this->cursor;
+
+    // COMPILA inline
+    this->lexer = new Lexer(source, sourceSize);
+    this->tokens = lexer->scanAll();
+    this->cursor = 0;
+    advance();
+
+    while (!check(TOKEN_EOF) && !hadError)
+    {
+        declaration();
+    }
+
+    // RESTAURA
+    delete this->lexer;
+    this->lexer = oldLexer;
+    this->tokens = oldTokens;
+    this->current = oldCurrent;
+    this->previous = oldPrevious;
+    this->cursor = oldCursor;
+
+    // Remove do set
+    includedFiles.erase(filename);
+
+    consume(TOKEN_SEMICOLON, "Expect ';' after include");
+}
+
 void Compiler::yieldStatement()
 {
 
@@ -1926,7 +2002,6 @@ void Compiler::gosubStatement()
     j.jumpOffset = emitJump(OP_GOSUB); // devolve offset do OPERANDO
     pendingGosubs.push_back(j);
 }
-
 
 void Compiler::resolveGosubs()
 {
