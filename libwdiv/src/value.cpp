@@ -88,6 +88,24 @@ Value Value::makeNative(int idx)
     return v;
 }
 
+Value Value::makeNativeClass(int idx)
+{
+    Value v;
+    v.type = ValueType::NATIVECLASS;
+    v.as.nativeClassId = idx;
+    return v;
+}
+
+Value Value::makeNativeClassInstance()
+{
+    Value v;
+    v.type = ValueType::NATIVECLASSINSTANCE;
+    v.as.sClassInstance = InstancePool::instance().createNativeClass();
+    return v;
+}
+
+
+
 Value Value::makeProcess(int idx)
 {
     Value v;
@@ -152,6 +170,30 @@ Value Value::makeClassInstance()
     return v;
 }
 
+Value Value::makePointer(void *pointer)
+{
+    Value v;
+    v.type = ValueType::POINTER;
+    v.as.pointer = pointer;
+    return v;
+}
+
+Value Value::makeNativeStruct(int idx)
+{
+    Value v;
+    v.type = ValueType::NATIVESTRUCT;
+    v.as.nativeStructId = idx;
+    return v;
+}
+
+Value Value::makeNativeStructInstance()
+{
+    Value v;
+    v.type = ValueType::NATIVESTRUCTINSTANCE;
+    v.as.sNativeStruct = InstancePool::instance().createNativeStruct();
+    return v;
+}
+
 bool Value::isNumber() const
 {
     return ((type == ValueType::INT) || (type == ValueType::DOUBLE));
@@ -206,6 +248,21 @@ int Value::asClassId() const
     return as.classId;
 }
 
+int Value::asClassNativeId() const
+{
+    return as.nativeClassId;
+}
+
+void *Value::asPointer() const
+{
+    return as.pointer;
+}
+
+int Value::asNativeStructId() const
+{
+    return as.nativeStructId;
+}
+
 StructInstance *Value::asStructInstance() const
 {
     return as.sInstance;
@@ -224,6 +281,16 @@ MapInstance *Value::asMap() const
 ClassInstance *Value::asClassInstance() const
 {
     return as.sClass;
+}
+
+NativeInstance *Value::asNativeClassInstance() const
+{
+    return as.sClassInstance;
+}
+
+NativeStructInstance *Value::asNativeStructInstance() const
+{
+    return as.sNativeStruct;
 }
 
 long Value::asNumber() const
@@ -342,11 +409,28 @@ void printValue(const Value &value)
     }
     case ValueType::CLASSINSTANCE:
     {
-       ClassInstance* inst = value.as.sClass;
+        ClassInstance* inst = value.as.sClass;
         printf("<instance %s>", inst->klass->name->chars());
         break;
     }
-    
+    case ValueType::NATIVECLASSINSTANCE:
+    {
+        NativeInstance* inst = value.as.sClassInstance;
+        printf("<native_instance %s>", inst->klass->name->chars());
+        break;
+    }   
+    case ValueType::NATIVESTRUCTINSTANCE:
+    {
+        NativeStructInstance* inst = value.as.sNativeStruct;
+        printf("<native_struct_instance %s>", inst->def->name->chars());
+        break;
+    }
+    case ValueType::POINTER:
+    {
+        
+        printf("<pointer %p>", value.as.pointer);
+        break;
+    }
 
 
     default:

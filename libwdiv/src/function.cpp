@@ -109,7 +109,7 @@ int Interpreter::registerNative(const char *name, NativeFunction func, int arity
     nativesMap.set(nName, def);
     natives.push(def);
 
-    Info("Registered native: %s (index=%d)", name, def.index);
+ //   Info("Registered native: %s (index=%d)", name, def.index);
 
     globals.set(nName, Value::makeNative(def.index));
 

@@ -74,7 +74,30 @@ struct CStringEq
     }
 };
 
+enum class FieldType : uint8_t
+{
+    INT,     // int
+    FLOAT,   // float
+    DOUBLE,  // double
+    BOOL,    // bool
+    POINTER, // void*
+    STRING,  // String*
+};
+
 typedef Value (*NativeFunction)(Interpreter *vm, int argCount, Value *args);
+typedef Value (*NativeMethod)(Interpreter *vm, void *instance, int argCount, Value *args);
+typedef void *(*NativeConstructor)(Interpreter *vm, int argCount, Value *args);
+typedef void (*NativeDestructor)(Interpreter *vm, void *instance);
+typedef Value (*NativeGetter)(Interpreter *vm, void *instance);
+typedef void (*NativeSetter)(Interpreter *vm, void *instance, Value value);
+typedef void (*NativeStructCtor)(Interpreter *vm, void *buffer, int argc, Value *args);
+typedef void (*NativeStructDtor)(Interpreter *vm, void *buffer);
+
+struct NativeProperty
+{
+    NativeGetter getter;
+    NativeSetter setter; // null = read-only
+};
 
 struct NativeDef
 {
@@ -86,7 +109,7 @@ struct NativeDef
 
 struct Function
 {
-    
+
     int arity{-1};
     Code *chunk{nullptr};
     String *name{nullptr};
@@ -101,32 +124,63 @@ struct StructDef
     uint8 argCount;
 };
 
-
-
-
 struct ClassDef
 {
     String *name{nullptr};
     String *parent{nullptr};
     bool inherited{false};
-    int fieldCount;                                                // Número de fields
-    Function* constructor{nullptr}; // existe na tabela
-    ClassDef *superclass; // 1 nível herança
-    
-    HashMap<String *, Function*, StringHasher, StringEq> methods;
+    int fieldCount;                 // Número de fields
+    Function *constructor{nullptr}; // existe na tabela
+    ClassDef *superclass;           // 1 nível herança
+
+    HashMap<String *, Function *, StringHasher, StringEq> methods;
     HashMap<String *, uint8_t, StringHasher, StringEq> fieldNames; // field name → index
     Function *canRegisterFunction(const char *name);
     ~ClassDef();
 };
 
-
-
-struct BoundMethod 
+struct NativeClassDef
 {
-    Value receiver;  // self (instance)
-    Function* method;
+    String *name;
+    NativeConstructor constructor;
+    NativeDestructor destructor;
+
+    HashMap<String *, NativeMethod, StringHasher, StringEq> methods;
+    HashMap<String *, NativeProperty, StringHasher, StringEq> properties;
+
+    ~NativeClassDef();
+
+    int argCount; // Args do constructor
 };
 
+struct NativeInstance
+{
+    NativeClassDef *klass;
+    void *userData; //  Ponteiro para struct C++
+    int refCount;
+};
+
+struct NativeFieldDef
+{
+    size_t offset;
+    FieldType type;
+    bool readOnly;
+};
+
+struct NativeStructDef
+{
+    String *name;
+    size_t structSize;
+    HashMap<String *, NativeFieldDef, StringHasher, StringEq> fields;
+    NativeStructCtor constructor; // nullable
+    NativeStructDtor destructor;  // nullable
+};
+
+struct NativeStructInstance
+{
+    NativeStructDef *def;
+    void *data; // Malloc'd block (structSize bytes)
+};
 
 struct GCObject
 {
@@ -158,7 +212,7 @@ struct MapInstance : public GCObject
     ~MapInstance();
 };
 
-struct ClassInstance: public GCObject
+struct ClassInstance : public GCObject
 {
     ClassDef *klass;
 
@@ -166,8 +220,7 @@ struct ClassInstance: public GCObject
     ClassInstance();
     ~ClassInstance();
 
-    bool getMethod(String *name,Function **func);
-
+    bool getMethod(String *name, Function **func);
 };
 
 struct CallFrame
@@ -292,12 +345,18 @@ class Interpreter
     Vector<ArrayInstance *> arrayInstances;
     Vector<ClassInstance *> classesInstances;
 
-    HashMap<String *, Value, StringHasher, StringEq> globals;
+    Vector<NativeClassDef *> nativeClasses;
+    Vector<NativeInstance *> nativeInstances;
 
-    //    HeapAllocator arena;
+    Vector<NativeStructDef *> nativeStructs;
+    Vector<NativeStructInstance *> nativeStructInstances;
+
+    HashMap<String *, Value, StringHasher, StringEq> globals;
 
     Vector<Process *> aliveProcesses;
     Vector<Process *> cleanProcesses;
+
+    HeapAllocator heapAllocator;
 
     float currentTime;
     float lastFrameTime;
@@ -339,6 +398,35 @@ public:
 
     void setFileLoader(FileLoaderCallback loader, void *userdata = nullptr);
 
+    NativeClassDef *registerNativeClass(
+        const char *name,
+        NativeConstructor ctor,
+        NativeDestructor dtor,
+        int argCount);
+    void addNativeMethod(
+        NativeClassDef *klass,
+        const char *methodName,
+        NativeMethod method);
+    void addNativeProperty(
+        NativeClassDef *klass,
+        const char *propName,
+        NativeGetter getter,
+        NativeSetter setter = nullptr // null = read-only
+    );
+
+    NativeStructDef *registerNativeStruct(
+        const char *name,
+        size_t structSize,
+        NativeStructCtor ctor = nullptr,
+        NativeStructDtor dtor = nullptr);
+
+    void addStructField(
+        NativeStructDef *def,
+        const char *fieldName,
+        size_t offset,
+        FieldType type,
+        bool readOnly = false);
+
     ProcessDef *addProcess(const char *name, Function *func);
     void destroyProcess(Process *proc);
     Process *spawnProcess(ProcessDef *proc);
@@ -349,8 +437,8 @@ public:
     ClassDef *registerClass(String *nam, int *id);
 
     bool containsClassDefenition(String *name);
-    bool getClassDefenition(String *name,ClassDef *result);
-    bool tryGetClassDefenition(const char* name,ClassDef **result);
+    bool getClassDefenition(String *name, ClassDef *result);
+    bool tryGetClassDefenition(const char *name, ClassDef **result);
 
     uint32 getTotalProcesses() const;
     uint32 getTotalAliveProcesses() const;

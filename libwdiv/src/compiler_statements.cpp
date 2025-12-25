@@ -1335,7 +1335,7 @@ void Compiler::self(bool canAssign)
 
 void Compiler::super(bool canAssign)
 {
-    Warning("SUPER");
+    (void)canAssign;
 
     if (currentClass == nullptr)
     {

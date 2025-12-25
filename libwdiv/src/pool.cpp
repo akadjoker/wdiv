@@ -95,7 +95,7 @@ void StringPool::clear()
 
    
 
-    
+    //Info("String pool stats:");
  //   allocator.Stats();
  
     allocator.Clear();

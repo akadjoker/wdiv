@@ -68,8 +68,39 @@ void InstancePool::freeClass(ClassInstance *c)
     arena.Free(c, sizeof(ClassInstance));
 }
 
+NativeInstance *InstancePool::createNativeClass()
+{
+    void *mem = (NativeInstance *)arena.Allocate(sizeof(NativeInstance)); // 32kb
+    NativeInstance *instance = new (mem) NativeInstance();
+//    Info(" Create of class instance %ld ", sizeof(NativeInstance));
+    return instance;
+}
+
+void InstancePool::freeNativeClass(NativeInstance *n)
+{
+   // Info("Fre of class instance %s ", n->klass->name->chars());
+    n->~NativeInstance();
+    arena.Free(n, sizeof(NativeInstance));
+}
+
+NativeStructInstance *InstancePool::createNativeStruct()
+{
+    void *mem = (NativeStructInstance *)arena.Allocate(sizeof(NativeStructInstance)); // 32kb
+    NativeStructInstance *instance = new (mem) NativeStructInstance();
+   // Info(" Create of struct instance %ld ", sizeof(NativeStructInstance));
+    return instance;
+}
+
+void InstancePool::freeNativeStruct(NativeStructInstance *n)
+{
+ //   Info("Fre of struct instance %s ", n->def->name->chars());
+    n->~NativeStructInstance();
+    arena.Free(n, sizeof(NativeStructInstance));
+}
+
 void InstancePool::clear()
 {
+    Info("Instance pool stats:");
     arena.Stats();
     arena.Clear();
 }

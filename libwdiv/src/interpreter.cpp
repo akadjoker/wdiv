@@ -106,6 +106,48 @@ Interpreter::~Interpreter()
         delete proc;
     }
 
+    for (size_t i = 0; i < nativeStructInstances.size(); i++)
+    {
+        NativeStructInstance *a = nativeStructInstances[i];
+        if (a->def->destructor) 
+        {
+            a->def->destructor(this, a->data);
+            heapAllocator.Free(a->data, a->def->structSize);
+        }
+        InstancePool::instance().freeNativeStruct(a);
+    }
+    nativeStructInstances.clear();
+
+
+    for (size_t i = 0; i < nativeStructs.size(); i++)
+    {
+        NativeStructDef  *a = nativeStructs[i];
+        destroyString(a->name);
+        delete a;
+    }
+    nativeStructs.clear();
+    
+
+    for (size_t i = 0; i < nativeInstances.size(); i++)
+    {
+        NativeInstance *a = nativeInstances[i];
+        a->klass->destructor(this, a->userData); // so depois apagamos as def
+        InstancePool::instance().freeNativeClass(a);
+    }
+    nativeInstances.clear();
+    for (size_t j = 0; j < nativeClasses.size(); j++)
+    {
+        NativeClassDef *proc = nativeClasses[j];
+        delete proc;
+    }
+
+    classes.clear();
+
+    Info("Heap stats:");
+    heapAllocator.Stats();
+    heapAllocator.Clear();
+
+    
     StringPool::instance().clear();
     InstancePool::instance().clear();
 }
@@ -113,6 +155,71 @@ Interpreter::~Interpreter()
 void Interpreter::setFileLoader(FileLoaderCallback loader, void *userdata)
 {
     compiler->setFileLoader(loader, userdata);
+}
+
+NativeClassDef *Interpreter::registerNativeClass(const char *name, NativeConstructor ctor, NativeDestructor dtor, int argCount)
+{
+    NativeClassDef *klass = new NativeClassDef();
+    klass->name = createString(name);
+    int id = nativeClasses.size();
+    klass->constructor = ctor;
+    klass->destructor = dtor;
+    klass->argCount = argCount;
+
+    nativeClasses.push(klass);
+
+    // Define global
+    globals.set(klass->name, Value::makeNativeClass(id));
+
+    return klass;
+}
+
+void Interpreter::addNativeMethod(NativeClassDef *klass, const char *methodName, NativeMethod method)
+{
+    String *name = createString(methodName);
+    klass->methods.set(name, method);
+}
+
+void Interpreter::addNativeProperty(
+    NativeClassDef *klass,
+    const char *propName,
+    NativeGetter getter,
+    NativeSetter setter)
+{
+    String *name = createString(propName);
+
+    NativeProperty prop;
+    prop.getter = getter;
+    prop.setter = setter;
+
+    klass->properties.set(name, prop);
+}
+
+NativeStructDef *Interpreter::registerNativeStruct(const char *name, size_t structSize, NativeStructCtor ctor, NativeStructDtor dtor)
+{
+    NativeStructDef *klass = new NativeStructDef();
+    klass->name = createString(name);
+    klass->constructor = ctor;
+    klass->destructor = dtor;
+    klass->structSize = structSize;
+    int id = nativeStructs.size();
+    nativeStructs.push(klass);    
+    globals.set(klass->name, Value::makeNativeStruct( id));
+    return klass;
+}
+
+void Interpreter::addStructField(NativeStructDef *def, const char *fieldName, size_t offset, FieldType type, bool readOnly)
+{
+    String *name = createString(fieldName);
+    NativeFieldDef field;
+    field.offset = offset;
+    field.type = type;
+    field.readOnly = readOnly;
+    if (def->fields.exist(name))
+    {
+        Warning("Field %s already exists in struct %s", fieldName, def->name->chars());
+    }
+    def->fields.set(name, field);
 }
 
 void Interpreter::disassemble()
@@ -654,4 +761,10 @@ Function *ClassDef::canRegisterFunction(const char *name)
 ClassDef::~ClassDef()
 {
     methods.destroy();
+}
+
+NativeClassDef::~NativeClassDef()
+{
+    methods.destroy();
+    properties.destroy();
 }

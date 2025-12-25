@@ -24,5 +24,6 @@ add_subdirectory(game)
 add_subdirectory(tests)
 
 add_subdirectory(testStructs)
+add_subdirectory(testStructsBidings)
 
  

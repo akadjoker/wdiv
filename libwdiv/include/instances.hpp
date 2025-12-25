@@ -7,6 +7,8 @@ struct StructInstance;
 struct ArrayInstance;
 struct MapInstance;
 struct ClassInstance;
+struct NativeInstance;
+struct NativeStructInstance;
 
 class InstancePool 
 {
@@ -34,6 +36,12 @@ public:
 
     ClassInstance* creatClass();
     void freeClass(ClassInstance *c);
+
+    NativeInstance* createNativeClass();
+    void freeNativeClass(NativeInstance *n);
+
+    NativeStructInstance* createNativeStruct();
+    void freeNativeStruct(NativeStructInstance *n);
 
     void clear();
  

@@ -155,6 +155,171 @@ Value native_clock(Interpreter *vm, int argCount, Value *args)
     return Value::makeDouble(static_cast<double>(clock()) / CLOCKS_PER_SEC);
 }
 
+struct Vector2
+{
+    double x, y;
+    String* name;
+};
+
+
+void vector2_ctor(Interpreter *vm, void *buffer, int argc, Value *args)
+{
+    Vector2 *v = (Vector2 *)buffer;
+    v->x = args[0].asDouble();
+    v->y = args[1].asDouble();
+    v->name = args[2].asString();
+
+    Info("Vector2 ctor %f %f %s", v->x, v->y, v->name->chars());
+ 
+}
+
+void vector2_dtor(Interpreter* vm, void* buffer)
+{
+    Vector2 *v = (Vector2 *)buffer;
+ 
+}
+
+void registerVector2(Interpreter &vm)
+{
+    auto *vec2 = vm.registerNativeStruct(
+        "Vector2",
+        sizeof(Vector2),
+        vector2_ctor,
+        vector2_dtor // Destructor
+    );
+    vm.addStructField(vec2, "x", offsetof(Vector2, x), FieldType::FLOAT);
+    vm.addStructField(vec2, "y", offsetof(Vector2, y), FieldType::FLOAT);
+    vm.addStructField(vec2, "name", offsetof(Vector2, name), FieldType::STRING);
+}
+
+struct Sprite
+{
+    int id;
+    int x, y;
+    int graph;
+    const char *name;
+};
+
+int nextSpriteId = 0;
+
+// ========================================
+// SPRITE.CPP - COM VM
+// ========================================
+
+void *sprite_constructor(Interpreter *vm, int argCount, Value *args)
+{
+    Sprite *sprite = new Sprite();
+    sprite->id = nextSpriteId++;
+    sprite->graph = args[0].asInt();
+    sprite->x = args[1].asInt();
+    sprite->y = args[2].asInt();
+    sprite->name = args[3].asString()->chars();
+
+    return sprite;
+}
+
+void sprite_destructor(Interpreter *vm, void *instance)
+{
+    Sprite *sprite = (Sprite *)instance;
+
+    printf("Destroying sprite: %s\n", sprite->name);
+
+    delete sprite;
+}
+
+Value sprite_move(Interpreter *vm, void *instance, int argCount, Value *args)
+{
+    if (argCount != 2)
+    {
+        vm->runtimeError("move() expects 2 arguments");
+        return Value::makeNil();
+    }
+
+    Sprite *sprite = (Sprite *)instance;
+    sprite->x += args[0].asInt();
+    sprite->y += args[1].asInt();
+
+    printf("Sprite moved: %s (%d, %d)\n", sprite->name, sprite->x, sprite->y);
+
+    return Value::makeNil();
+}
+Value sprite_draw(Interpreter *vm, void *instance, int argCount, Value *args)
+{
+    Sprite *sprite = (Sprite *)instance;
+
+    printf("Drawing sprite: %s (%d, %d)\n", sprite->name, sprite->x, sprite->y);
+
+    return Value::makeNil();
+}
+Value sprite_setPos(Interpreter *vm, void *instance, int argCount, Value *args)
+{
+    Sprite *sprite = (Sprite *)instance;
+
+    sprite->x = args[0].asInt();
+    sprite->y = args[1].asInt();
+
+    printf("Sprite moved: %s (%d, %d)\n", sprite->name, sprite->x, sprite->y);
+
+    return Value::makeNil();
+}
+
+Value sprite_getName(Interpreter *vm, void *instance, int argCount, Value *args)
+{
+    Sprite *sprite = (Sprite *)instance;
+    return Value::makeString(sprite->name);
+}
+
+Value sprite_get_x(Interpreter *vm, void *instance)
+{
+    Sprite *sprite = (Sprite *)instance;
+    return Value::makeInt(sprite->x);
+}
+
+// Setter: x
+void sprite_set_x(Interpreter *vm, void *instance, Value value)
+{
+    Sprite *sprite = (Sprite *)instance;
+    sprite->x = value.asInt();
+}
+
+// Getter: y
+Value sprite_get_y(Interpreter *vm, void *instance)
+{
+    Sprite *sprite = (Sprite *)instance;
+    return Value::makeInt(sprite->y);
+}
+
+// Setter: y
+void sprite_set_y(Interpreter *vm, void *instance, Value value)
+{
+    Sprite *sprite = (Sprite *)instance;
+    sprite->y = value.asInt();
+}
+
+// Getter: id (read-only)
+Value sprite_get_id(Interpreter *vm, void *instance)
+{
+    Sprite *sprite = (Sprite *)instance;
+    return Value::makeInt(sprite->id);
+}
+
+void registerSpriteClass(Interpreter &vm)
+{
+    NativeClassDef *spriteClass = vm.registerNativeClass(
+        "Sprite",
+        sprite_constructor,
+        sprite_destructor,
+        4 // argCount
+    );
+
+    vm.addNativeMethod(spriteClass, "draw", sprite_draw);
+    vm.addNativeMethod(spriteClass, "move", sprite_move);
+    vm.addNativeMethod(spriteClass, "setPos", sprite_setPos);
+    vm.addNativeProperty(spriteClass, "x", sprite_get_x, sprite_set_x);
+    vm.addNativeProperty(spriteClass, "y", sprite_get_y, sprite_set_y);
+    vm.addNativeProperty(spriteClass, "id", sprite_get_id); // Read-only
+}
+
 void onStart(Process *proc)
 {
     //  printf("[start] %s id=%u\n", proc->name->chars(), proc->id);
@@ -303,6 +468,9 @@ int main()
     vm.registerNative("abs", native_abs, 1);
     // vm.setFileLoader(desktopFileLoader, nullptr);
 
+    registerSpriteClass(vm);
+    registerVector2(vm);
+
     FileLoaderContext ctx;
     ctx.searchPaths[0] = "./bin";
     ctx.searchPaths[1] = "./scrips";
@@ -355,10 +523,9 @@ int main()
     // vm.pushInt(200);
     // vm.callProcess("enemy", 2);
 
-    // Modo interativo - vê os yields acontecerem
-    for (int i = 0; i < 100; i++)
+    for (int i = 0; i < 5; i++)
     {
-       // printf("\n=== FRAME %d ===\n", i);
+        // printf("\n=== FRAME %d ===\n", i);
         vm.update(0.016f);
 
         // Pausa para ver output

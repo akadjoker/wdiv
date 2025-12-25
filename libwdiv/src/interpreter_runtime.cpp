@@ -765,6 +765,65 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
                 break;
             }
+            else if (callee.isNativeClass())
+            {
+                int classId = callee.asClassNativeId();
+                NativeClassDef *klass = nativeClasses[classId];
+
+                if (argCount != klass->argCount)
+                {
+                    runtimeError("Native class expects %d args, got %d", klass->argCount, argCount);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+
+                Value *args = fiber->stackTop - argCount;
+                void *userData = klass->constructor(this, argCount, args);
+
+                if (!userData)
+                {
+                    runtimeError("Failed to create native '%s' instance", klass->name->chars());
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                Value literal = Value::makeNativeClassInstance();
+                // Cria instance wrapper
+                NativeInstance *instance = literal.as.sClassInstance;
+                nativeInstances.push(instance);
+                instance->klass = klass;
+                instance->userData = userData;
+                instance->refCount = 1;
+                // Remove args + callee, push instance
+                fiber->stackTop -= (argCount + 1);
+                PUSH(literal);
+
+                break;
+            }
+
+            else if (callee.isNativeStruct())
+            {
+                int structId = callee.asNativeStructId();
+                NativeStructDef *def = nativeStructs[structId];
+
+                void *data = heapAllocator.Allocate(def->structSize);
+                std::memset(data, 0, def->structSize);
+                if (def->constructor)
+                {
+                    Value *args = fiber->stackTop - argCount;
+                    def->constructor(this, data, argCount, args);
+                }
+
+                Value literal = Value::makeNativeStructInstance();
+                // Cria instance wrapper
+                NativeStructInstance *instance = literal.as.sNativeStruct;
+                nativeStructInstances.push(instance);
+                instance->def = def;
+                instance->data = data;
+
+                // Remove args + callee, push instance
+                fiber->stackTop -= (argCount + 1);
+                PUSH(literal);
+
+                break;
+            }
             else
             {
 
@@ -1032,7 +1091,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             {
                 ClassInstance *instance = object.asClassInstance();
 
-                bool inherited = instance->klass->inherited;
+                // bool inherited = instance->klass->inherited;
 
                 uint8_t fieldIdx;
                 if (instance->klass->fieldNames.get(nameValue.asString(), &fieldIdx))
@@ -1046,7 +1105,80 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
-            runtimeError("Type does not support 'SET' property access");
+            if (object.isNativeClassInstance())
+            {
+
+                NativeInstance *instance = object.asNativeClassInstance();
+                NativeClassDef *klass = instance->klass;
+                NativeProperty prop;
+                if (instance->klass->properties.get(nameValue.asString(), &prop))
+                {
+                    DROP(); // Remove object
+
+                    //  Chama getter
+                    Value result = prop.getter(this, instance->userData);
+                    PUSH(result);
+                    break;
+                }
+
+                runtimeError("Undefined property '%s' on native class '%s", nameValue.asStringChars(), klass->name->chars());
+                DROP();
+                PUSH(Value::makeNil());
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            if (object.isNativeStructInstance())
+            {
+
+                NativeStructInstance *inst = object.asNativeStructInstance();
+                NativeStructDef *def = inst->def;
+
+                NativeFieldDef field;
+
+                if (!def->fields.get(nameValue.asString(), &field))
+                {
+                    runtimeError("Undefined field '%s' on native struct '%s", nameValue.asStringChars(), def->name->chars());
+                    DROP();
+                    PUSH(Value::makeNil());
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                char *base = (char *)inst->data;
+                char *ptr = base + field.offset;
+
+                Value result;
+                switch (field.type)
+                {
+                case FieldType::INT:
+                    result = Value::makeInt(*(int *)ptr);
+                    break;
+
+                case FieldType::FLOAT:
+                case FieldType::DOUBLE:
+                    result = Value::makeDouble(*(double *)ptr);
+                    break;
+
+                case FieldType::BOOL:
+                    result = Value::makeBool(*(bool *)ptr);
+                    break;
+
+                case FieldType::POINTER:
+                    result = Value::makePointer(*(void **)ptr);
+                    break;
+
+                case FieldType::STRING:
+                {
+                    String *str = *(String **)ptr;
+                    result = str ? Value::makeString(str) : Value::makeNil();
+                    break;
+                }
+                }
+
+                DROP(); // Remove object
+                PUSH(result);
+                break;
+            }
+
+            runtimeError("Type does not support 'set' property access");
 
             printf("[Object: '");
             printValue(object);
@@ -1166,7 +1298,119 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
-            runtimeError("Cannot set property on this type");
+            if (object.isNativeClassInstance())
+            {
+
+                NativeInstance *instance = object.asNativeClassInstance();
+                NativeClassDef *klass = instance->klass;
+                NativeProperty prop;
+                if (instance->klass->properties.get(nameValue.asString(), &prop))
+                {
+                    if (!prop.setter)
+                    {
+                        runtimeError("Property '%s' from class '%s' is read-only", nameValue.asStringChars(), klass->name->chars());
+                        DROP();
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    // Chama setter
+                    prop.setter(this, instance->userData, value);
+                    DROP(); // Remove object
+                    break;
+                }
+            }
+
+            if (object.isNativeStructInstance())
+            {
+                NativeStructInstance *inst = object.asNativeStructInstance();
+                NativeStructDef *def = inst->def;
+
+                NativeFieldDef field;
+                if (!def->fields.get(nameValue.asString(), &field))
+                {
+                    runtimeError("Undefined field '%s' in struct '%s", nameValue.asStringChars(), def->name->chars());
+                    DROP();
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+
+                // Read-only check
+                if (field.readOnly)
+                {
+                    runtimeError("Field '%s' is read-only in struct '%s", nameValue.asStringChars(), def->name->chars());
+                    DROP();
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                char *base = (char *)inst->data;
+                char *ptr = base + field.offset;
+                switch(field.type)
+                {
+                case FieldType::INT:
+                    if (!value.isInt())
+                    {
+                        runtimeError("Field expects int");
+                        DROP();
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+                    *(int *)ptr = value.asInt();
+                    break;
+
+                case FieldType::FLOAT:
+                case FieldType::DOUBLE:
+                    if (!value.isDouble() && !value.isInt())
+                    {
+                        runtimeError("Field expects number");
+                        DROP();
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+                    *(double *)ptr = value.isDouble() ? value.asDouble() : (double)value.asInt();
+                    break;
+
+                case FieldType::BOOL:
+                    if (!value.isBool())
+                    {
+                        runtimeError("Field expects bool");
+                        DROP();
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+                    *(bool *)ptr = value.asBool();
+                    break;
+
+                case FieldType::POINTER:
+                    if (!value.isPointer() && !value.isNil())
+                    {
+                        runtimeError("Field expects pointer");
+                        DROP();
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+                    *(void **)ptr = value.isPointer() ? value.asPointer() : nullptr;
+                    break;
+
+                case FieldType::STRING:
+                {
+                    if (!value.isString() && !value.isNil())
+                    {
+                        runtimeError("Field expects string");
+                        DROP();
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+                    String **fieldPtr = (String **)ptr;
+                    *fieldPtr = value.isString() ? value.asString() : nullptr;
+                    break;
+                }
+                }
+
+                DROP(); // Remove object
+                break;
+            }
+
+            runtimeError("Cannot 'set' property on this type");
+            printf("[Object: '");
+            printValue(object);
+            printf("' Property : '");
+            printValue(nameValue);
+
+            printf("']\n");
+
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
 
             break;
@@ -1684,7 +1928,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                     }
 
-                  //  Debug::dumpFunction(method);
+                    //  Debug::dumpFunction(method);
                     fiber->stackTop[-argCount - 1] = receiver;
 
                     // Setup call frame
@@ -1710,7 +1954,35 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
+            if (receiver.isNativeClassInstance())
+            {
+                printValueNl(receiver);
+                printValueNl(nameValue);
+
+                NativeInstance *instance = receiver.asNativeClassInstance();
+                NativeClassDef *klass = instance->klass;
+
+                NativeMethod method;
+                if (!instance->klass->methods.get(nameValue.asString(), &method))
+                {
+                    runtimeError("Native class '%s' has no method '%s'", klass->name->chars(), name);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+
+                Value *args = fiber->stackTop - argCount;
+                Value result = method(this, instance->userData, argCount, args);
+                fiber->stackTop -= (argCount + 1);
+                PUSH(result);
+
+                break;
+            }
+
             runtimeError("Type does not support method calls");
+
+            printf(": ");
+            printValue(receiver);
+            printf("\n");
+
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
 
@@ -1730,7 +2002,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             // printValueNl(self);
             // printf(" args %d \n",argCount);
 
-
             if (!self.isClassInstance())
             {
                 runtimeError("'super' requires an instance");
@@ -1749,7 +2020,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             Function *method;
             if (!instance->klass->superclass->methods.get(methodName, &method))
             {
-                runtimeError("Undefined method '%s' in superclass",methodName->chars());
+                runtimeError("Undefined method '%s' in superclass", methodName->chars());
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 

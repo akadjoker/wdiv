@@ -6,6 +6,8 @@ struct StructInstance;
 struct ArrayInstance;
 struct MapInstance;
 struct ClassInstance;
+struct NativeInstance;
+struct NativeStructInstance;
 
 
 enum class ValueType : uint8
@@ -18,13 +20,18 @@ enum class ValueType : uint8
   ARRAY,
   MAP,
   STRUCT,
+  NATIVESTRUCT,
   STRUCTINSTANCE,
   FUNCTION,
   NATIVE,
+  NATIVECLASS,
+  NATIVECLASSINSTANCE,
+  NATIVESTRUCTINSTANCE,
   CLASS,
   CLASSINSTANCE,
   PROCESS,
   PROC_NATIVES,
+  POINTER,
 };
 
 struct Value
@@ -38,10 +45,15 @@ struct Value
     String *string;
     int structId;
     int classId;
+    int nativeClassId;
+    int nativeStructId;
     StructInstance *sInstance;
     ArrayInstance  *array;
     MapInstance    *map;
     ClassInstance  *sClass;
+    NativeInstance *sClassInstance;
+    NativeStructInstance   *sNativeStruct;
+    void* pointer;
 
     int functionId;
     int nativeId;
@@ -67,6 +79,8 @@ struct Value
   static Value makeString(String *str);
   static Value makeFunction(int idx);
   static Value makeNative(int idx);
+  static Value makeNativeClass(int idx);
+  static Value makeNativeClassInstance();
   static Value makeProcess(int idx);
   static Value makeStruct(int idx);
   static Value makeStructInstance( );
@@ -75,6 +89,9 @@ struct Value
   static Value makeProcNative(int idx);
   static Value makeClass(int idx);
   static Value makeClassInstance();
+  static Value makePointer(void* pointer);
+  static Value makeNativeStruct(int idx);
+  static Value makeNativeStructInstance();
 
   // Type checks
   bool isNumber() const;
@@ -85,6 +102,7 @@ struct Value
   bool isString() const { return type == ValueType::STRING; }
   bool isFunction() const { return type == ValueType::FUNCTION; }
   bool isNative() const { return type == ValueType::NATIVE; }
+  bool isNativeClass() const { return type == ValueType::NATIVECLASS; }
   bool isProcess() const { return type == ValueType::PROCESS; }
   bool isStruct() const { return type == ValueType::STRUCT; }
   bool isStructInstance() const { return type == ValueType::STRUCTINSTANCE; }
@@ -93,6 +111,10 @@ struct Value
   bool isProcNative() const { return type == ValueType::PROC_NATIVES; }
   bool isClass() const { return type == ValueType::CLASS; }
   bool isClassInstance(){ return type == ValueType::CLASSINSTANCE; }
+  bool isNativeClassInstance(){ return type == ValueType::NATIVECLASSINSTANCE; }
+  bool isPointer(){ return type == ValueType::POINTER; }
+  bool isNativeStruct(){ return type == ValueType::NATIVESTRUCT; }
+  bool isNativeStructInstance(){ return type == ValueType::NATIVESTRUCTINSTANCE; }
 
   // Conversions
   bool asBool() const;
@@ -105,12 +127,17 @@ struct Value
   int asProcessId() const;
   int asStructId() const;
   int asClassId() const;
+  int asClassNativeId() const;
+  void* asPointer() const;
+  int asNativeStructId() const;
  
   String *asString() const;
   StructInstance* asStructInstance() const;
   ArrayInstance* asArray() const;
   MapInstance* asMap() const;
   ClassInstance *asClassInstance() const;
+  NativeInstance *asNativeClassInstance() const;
+  NativeStructInstance *asNativeStructInstance() const;
 
   long asNumber() const;
 };

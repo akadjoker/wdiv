@@ -1,32 +1,35 @@
-struct State {
-    var x, y;
-};
+ 
+//  var sprite = Sprite(1, 100, 100,"player");
+ 
 
-def teste(state) 
-{
-    while (true) 
-    {
-    print("A");
-    state.x = state.x + 1;  
-    yield(100);
-    print("B");
-    state.y = state.y + 1;
-    yield(100);
-    }
-}
+ 
+// print(sprite.x);         // 100
+// print(sprite.y);         // 100
+// print(sprite.id);        // 1
+ 
 
-process enemy() 
-{
-    var state = State(1, 1);
-    
-    fiber teste(state);   
-    self.x=0;
-    
-    while (true) 
-    {
-        write("{} {}\n", state.x, state.y);
-        frame;
-    }
-}
+// // ✅ SET properties
+// sprite.x = 200;
+// sprite.y = 300;
 
-enemy();
+// print(sprite.x);  // 200
+
+// //  Read-only
+ 
+
+// //  Funciona com métodos também
+// sprite.move(10, 5);
+// print(sprite.x);  // 210
+
+
+
+var pos = Vector2(100, 100,"luis");
+ 
+
+pos.x=120;
+
+print(pos.x);
+
+pos.name="rute";
+
+print(pos.name);
