@@ -5,6 +5,8 @@
 struct StructInstance;
 struct ArrayInstance;
 struct MapInstance;
+struct ClassInstance;
+
 
 enum class ValueType : uint8
 {
@@ -19,6 +21,8 @@ enum class ValueType : uint8
   STRUCTINSTANCE,
   FUNCTION,
   NATIVE,
+  CLASS,
+  CLASSINSTANCE,
   PROCESS,
   PROC_NATIVES,
 };
@@ -33,9 +37,12 @@ struct Value
     double number;
     String *string;
     int structId;
+    int classId;
     StructInstance *sInstance;
     ArrayInstance  *array;
     MapInstance    *map;
+    ClassInstance  *sClass;
+
     int functionId;
     int nativeId;
     int processId;
@@ -62,10 +69,12 @@ struct Value
   static Value makeNative(int idx);
   static Value makeProcess(int idx);
   static Value makeStruct(int idx);
-  static Value makeStructInstance(String *name);
+  static Value makeStructInstance( );
   static Value makeMap( );
   static Value makeArray();
   static Value makeProcNative(int idx);
+  static Value makeClass(int idx);
+  static Value makeClassInstance();
 
   // Type checks
   bool isNumber() const;
@@ -82,6 +91,8 @@ struct Value
   bool isMap() const { return type == ValueType::MAP; }
   bool isArray() const { return type == ValueType::ARRAY; }
   bool isProcNative() const { return type == ValueType::PROC_NATIVES; }
+  bool isClass() const { return type == ValueType::CLASS; }
+  bool isClassInstance(){ return type == ValueType::CLASSINSTANCE; }
 
   // Conversions
   bool asBool() const;
@@ -93,11 +104,13 @@ struct Value
   int asNativeId() const;
   int asProcessId() const;
   int asStructId() const;
+  int asClassId() const;
  
   String *asString() const;
   StructInstance* asStructInstance() const;
   ArrayInstance* asArray() const;
   MapInstance* asMap() const;
+  ClassInstance *asClassInstance() const;
 
   long asNumber() const;
 };

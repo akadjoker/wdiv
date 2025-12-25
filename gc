@@ -1,0 +1,472 @@
+class Interpreter {
+private:
+    // === GC STATE ===
+    Object* objects = nullptr;        // All heap objects
+    
+    size_t bytesAllocated = 0;
+    size_t nextGC = 1024 * 1024;      // 1MB initial threshold
+    
+    std::vector<Object*> grayStack;   // ← Tri-color GRAY stack
+    
+    bool gcEnabled = true;
+    
+public:
+    void collectGarbage();
+    
+private:
+    // Allocation
+    Object* allocateObject(ValueType type, size_t size);
+    
+    // Mark phase
+    void markRoots();
+    void markValue(Value value);
+    void markObject(Object* object);
+    void markArray(ObjArray* array);
+    void markMap(ObjMap* map);
+    void markInstance(ObjInstance* instance);
+    void blackenObject(Object* object);
+    void traceReferences();
+    
+    // Sweep phase
+    void sweep();
+    
+    // Helpers
+    void freeObject(Object* object);
+};
+
+Object* Interpreter::allocateObject(ValueType type, size_t size) {
+    Object* object = (Object*)aAlloc(size);
+    object->type = type;
+    object->isMarked = false;  // ← Começa WHITE
+    
+    // Add to linked list
+    object->next = objects;
+    objects = object;
+    
+    bytesAllocated += size;
+    
+#ifdef DEBUG_LOG_GC
+    printf("%p allocate %zu for %d\n", (void*)object, size, type);
+#endif
+    
+    // ✅ Trigger GC se passou threshold
+    if (gcEnabled && bytesAllocated > nextGC) {
+        collectGarbage();
+    }
+    
+    return object;
+}
+
+// Example: String
+ObjString* Interpreter::allocateString(const char* chars, int length, uint32_t hash) {
+    ObjString* string = (ObjString*)allocateObject(VALUE_STRING, sizeof(ObjString));
+    string->length = length;
+    string->chars = (char*)aAlloc(length + 1);
+    memcpy(string->chars, chars, length);
+    string->chars[length] = '\0';
+    string->hash = hash;
+    return string;
+}
+
+// Example: Array
+ObjArray* Interpreter::allocateArray() {
+    ObjArray* array = (ObjArray*)allocateObject(VALUE_ARRAY, sizeof(ObjArray));
+    array->count = 0;
+    array->capacity = 8;
+    array->elements = new Value[8];
+    return array;
+}
+
+void Interpreter::markRoots() {
+    // ✅ 1. Fiber stacks (all processes)
+    for (size_t i = 0; i < aliveProcesses.size(); i++) {
+        Process* proc = aliveProcesses[i];
+        
+        for (int f = 0; f < proc->nextFiberIndex; f++) {
+            Fiber* fiber = &proc->fibers[f];
+            
+            // Mark stack
+            for (Value* slot = fiber->stack; slot < fiber->stackTop; slot++) {
+                markValue(*slot);
+            }
+            
+            // Mark call frames (closures se tiveres)
+            for (int i = 0; i < fiber->frameCount; i++) {
+                // markObject((Object*)fiber->frames[i].closure);
+            }
+        }
+        
+        // ✅ 2. Process privates
+        for (int p = 0; p < MAX_PRIVATES; p++) {
+            markValue(proc->privates[p]);
+        }
+    }
+    
+    // ✅ 3. Globals
+    globals.forEach([&](ObjString* name, Value value) {
+        markObject((Object*)name);
+        markValue(value);
+    });
+    
+    // ✅ 4. String pool (interned strings)
+    stringPool.forEach([&](ObjString* string) {
+        markObject((Object*)string);
+    });
+}
+
+void Interpreter::markValue(Value value) {
+    if (!value.isObject()) return;
+    markObject(value.asObject());
+}
+
+void Interpreter::markObject(Object* object) {
+    if (object == nullptr) return;
+    if (object->isMarked) return;  // ← Já BLACK/GRAY
+    
+#ifdef DEBUG_LOG_GC
+    printf("%p mark ", (void*)object);
+    printValue(Value::makeObject(object));
+    printf("\n");
+#endif
+    
+    object->isMarked = true;  // ← WHITE → GRAY
+    
+    // ✅ Add to gray stack (para processar filhos depois)
+    grayStack.push_back(object);
+}
+
+
+void Interpreter::traceReferences() {
+    while (!grayStack.empty()) {
+        Object* object = grayStack.back();
+        grayStack.pop_back();
+        
+        blackenObject(object);  // ← GRAY → BLACK
+    }
+}
+
+void Interpreter::blackenObject(Object* object) {
+#ifdef DEBUG_LOG_GC
+    printf("%p blacken ", (void*)object);
+    printValue(Value::makeObject(object));
+    printf("\n");
+#endif
+    
+    switch (object->type) {
+        case VALUE_ARRAY:
+            markArray((ObjArray*)object);
+            break;
+            
+        case VALUE_MAP:
+            markMap((ObjMap*)object);
+            break;
+            
+        case VALUE_INSTANCE:
+            markInstance((ObjInstance*)object);
+            break;
+            
+        case VALUE_BOUND_METHOD: {
+            ObjBoundMethod* bound = (ObjBoundMethod*)object;
+            markValue(bound->receiver);
+            // markObject((Object*)bound->method);
+            break;
+        }
+            
+        case VALUE_STRING:
+            // Strings não têm referências
+            break;
+            
+        default:
+            break;
+    }
+}
+
+void Interpreter::markArray(ObjArray* array) {
+    for (int i = 0; i < array->count; i++) {
+        markValue(array->elements[i]);
+    }
+}
+
+void Interpreter::markMap(ObjMap* map) {
+    map->table.forEach([&](ObjString* key, Value value) {
+        markObject((Object*)key);
+        markValue(value);
+    });
+}
+
+void Interpreter::markInstance(ObjInstance* instance) {
+    // Mark class (se guardares como Object*)
+    // markObject((Object*)instance->klass);
+    
+    instance->fields.forEach([&](ObjString* name, Value value) {
+        markObject((Object*)name);
+        markValue(value);
+    });
+}
+
+void Interpreter::sweep() {
+    Object* previous = nullptr;
+    Object* object = objects;
+    
+    while (object != nullptr) {
+        if (object->isMarked) {
+            // ✅ BLACK - sobreviveu
+            object->isMarked = false;  // Reset para próximo GC
+            previous = object;
+            object = object->next;
+        } else {
+            // ❌ WHITE - lixo!
+            Object* unreached = object;
+            object = object->next;
+            
+            if (previous != nullptr) {
+                previous->next = object;
+            } else {
+                objects = object;
+            }
+            
+            freeObject(unreached);
+        }
+    }
+}
+
+void Interpreter::freeObject(Object* object) {
+#ifdef DEBUG_LOG_GC
+    printf("%p free type %d\n", (void*)object, object->type);
+#endif
+    
+    switch (object->type) {
+        case VALUE_STRING: {
+            ObjString* string = (ObjString*)object;
+            aFree(string->chars);
+            break;
+        }
+        
+        case VALUE_ARRAY: {
+            ObjArray* array = (ObjArray*)object;
+            delete[] array->elements;
+            break;
+        }
+        
+        case VALUE_MAP: {
+            ObjMap* map = (ObjMap*)object;
+            map->table.destroy();
+            break;
+        }
+        
+        case VALUE_INSTANCE: {
+            ObjInstance* instance = (ObjInstance*)object;
+            instance->fields.destroy();
+            break;
+        }
+        
+        case VALUE_BOUND_METHOD:
+            // Só o wrapper, receiver e method são owned elsewhere
+            break;
+            
+        default:
+            break;
+    }
+    
+    aFree(object);
+}
+
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// value.hpp
+struct Object {
+    ValueType type;
+    bool marked;
+    Object* next;
+    
+    union {
+        String* asString;
+        Array* asArray;
+        Map* asMap;
+        StructInstance* asStructInstance;
+        Instance* asInstance;
+        BoundMethod* asBoundMethod;
+        // ...
+    };
+};
+
+// interpreter.hpp
+class Interpreter {
+private:
+    Object* objects = nullptr;  // ← Lista de todos objects
+    size_t bytesAllocated = 0;
+    size_t nextGC = 1024 * 1024;  // 1MB
+    
+public:
+    void collectGarbage();
+    
+private:
+    Object* allocateObject(ValueType type, size_t size);
+    void markRoots();
+    void markValue(Value value);
+    void markObject(Object* object);
+    void sweep();
+};
+
+Object* Interpreter::allocateObject(ValueType type, size_t size) {
+    Object* object = (Object*)aAlloc(size);
+    object->type = type;
+    object->marked = false;
+    
+    // ✅ Adiciona à lista
+    object->next = objects;
+    objects = object;
+    
+    bytesAllocated += size;
+    
+    // ✅ Auto-GC se passou threshold
+    if (bytesAllocated > nextGC) {
+        collectGarbage();
+    }
+    
+    return object;
+}
+
+// Exemplo: criar Array
+Array* createArray() {
+    Object* obj = allocateObject(VALUE_ARRAY, sizeof(Object));
+    
+    Array* arr = new Array();
+    arr->count = 0;
+    arr->capacity = 8;
+    arr->elements = new Value[8];
+    
+    obj->asArray = arr;
+    
+    return arr;
+}
+
+void Interpreter::markRoots() {
+    // ✅ 1. Stack de todas fibers de todos processes
+    for (size_t i = 0; i < aliveProcesses.size(); i++) {
+        Process* proc = aliveProcesses[i];
+        
+        for (int f = 0; f < proc->nextFiberIndex; f++) {
+            Fiber* fiber = &proc->fibers[f];
+            
+            // Stack
+            for (Value* slot = fiber->stack; slot < fiber->stackTop; slot++) {
+                markValue(*slot);
+            }
+        }
+        
+        // ✅ 2. Privates
+        for (int p = 0; p < MAX_PRIVATES; p++) {
+            markValue(proc->privates[p]);
+        }
+    }
+    
+    // ✅ 3. Globals
+    globals.forEach([&](String* name, Value value) {
+        markValue(value);
+    });
+}
+
+void Interpreter::markValue(Value value) {
+    if (value.isString()) markObject((Object*)value.asString());
+    else if (value.isArray()) markObject((Object*)value.asArray);
+    else if (value.isMap()) markObject((Object*)value.asMap);
+    else if (value.isInstance()) markObject((Object*)value.asInstance);
+    else if (value.isBoundMethod()) markObject((Object*)value.asBoundMethod);
+    // ...
+}
+
+void Interpreter::markObject(Object* object) {
+    if (!object) return;
+    if (object->marked) return;  // ← Já marcado (evita ciclos)
+    
+    object->marked = true;
+    
+    // ✅ Marca filhos
+    if (object->type == VALUE_ARRAY) {
+        Array* arr = object->asArray;
+        for (int i = 0; i < arr->count; i++) {
+            markValue(arr->elements[i]);
+        }
+    }
+    else if (object->type == VALUE_MAP) {
+        Map* map = object->asMap;
+        map->table.forEach([&](String* key, Value value) {
+            markValue(value);
+        });
+    }
+    else if (object->type == VALUE_INSTANCE) {
+        Instance* inst = object->asInstance;
+        inst->fields.forEach([&](String* name, Value value) {
+            markValue(value);
+        });
+    }
+    // ...
+}
+void Interpreter::sweep() {
+    Object** obj = &objects;
+    
+    while (*obj) {
+        if (!(*obj)->marked) {
+            // ✅ NÃO marcado - liberta!
+            Object* unreached = *obj;
+            
+            *obj = unreached->next;
+            
+            // Free conteúdo
+            if (unreached->type == VALUE_ARRAY) {
+                Array* arr = unreached->asArray;
+                delete[] arr->elements;
+                delete arr;
+            }
+            else if (unreached->type == VALUE_MAP) {
+                Map* map = unreached->asMap;
+                map->table.destroy();
+                delete map;
+            }
+            else if (unreached->type == VALUE_INSTANCE) {
+                Instance* inst = unreached->asInstance;
+                inst->fields.destroy();
+                delete inst;
+            }
+            // ...
+            
+            aFree(unreached);
+            
+        } else {
+            // ✅ Marcado - mantém e reseta flag
+            (*obj)->marked = false;
+            obj = &(*obj)->next;
+        }
+    }
+}
+void Interpreter::collectGarbage() {
+    size_t before = bytesAllocated;
+    
+    // ✅ 1. MARK
+    markRoots();
+    
+    // ✅ 2. SWEEP
+    sweep();
+    
+    // ✅ 3. Ajusta threshold
+    nextGC = bytesAllocated * 2;
+    
+    #ifdef DEBUG_LOG_GC
+    printf("GC: collected %zu bytes (from %zu to %zu) next at %zu\n",
+           before - bytesAllocated, before, bytesAllocated, nextGC);
+    #endif
+}
+
+// No game loop
+void gameLoop() {
+    while (running) {
+        vm.update(deltaTime);
+        render();
+        
+        // ✅ GC manual entre frames
+        if (frameCount % 60 == 0) {  // A cada 1 segundo
+            vm.collectGarbage();
+        }
+    }
+}

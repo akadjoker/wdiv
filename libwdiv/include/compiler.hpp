@@ -19,6 +19,7 @@ struct Fiber;
 struct Process;
 struct String;
 struct ProcessDef;
+struct ClassDef;
 class Interpreter;
 
 typedef void (Compiler::*ParseFn)(bool canAssign);
@@ -142,9 +143,11 @@ private:
 
     int cursor;
 
+    FunctionType currentFunctionType;
     Function *function;
     Code *currentChunk;
     Fiber *currentFiber;
+    ClassDef *currentClass;
     ProcessDef *currentProcess;
     Vector<String *> argNames;
      std::vector<Token> tokens;
@@ -240,6 +243,8 @@ private:
     void fiberStatement();
 
     void dot(bool canAssign);
+    void self(bool canAssign);
+    void super(bool canAssign);
 
     void labelStatement();
     void gotoStatement();
@@ -273,6 +278,13 @@ private:
     void structDeclaration() ;
     void arrayLiteral(bool canAssign);
     void subscript(bool canAssign) ;
+    void mapLiteral(bool canAssign) ;
+
+
+
+    void classDeclaration() ;
+    void method( ClassDef *classDef);
+ 
 
     // Scope
     void beginScope();

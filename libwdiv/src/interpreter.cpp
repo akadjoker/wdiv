@@ -7,9 +7,6 @@
 #include <new>
 #include <stdarg.h>
 
-
-
-
 Interpreter::Interpreter()
 {
     compiler = new Compiler(this);
@@ -29,17 +26,22 @@ Interpreter::~Interpreter()
     }
     functions.clear();
 
+    for (size_t i = 0; i < functionsClass.size(); i++)
+    {
+        Function *func = functionsClass[i];
+        delete func;
+    }
+    functionsClass.clear();
+
     for (size_t j = 0; j < processes.size(); j++)
     {
         ProcessDef *proc = processes[j];
         proc->release();
         delete proc;
     }
-    const bool showStats = false;
 
     processes.clear();
     ProcessPool::instance().clear();
-
 
     for (size_t j = 0; j < cleanProcesses.size(); j++)
     {
@@ -70,7 +72,7 @@ Interpreter::~Interpreter()
 
     for (size_t i = 0; i < structs.size(); i++)
     {
-        StructDef *a =structs[i];
+        StructDef *a = structs[i];
         destroyString(a->name);
         delete a;
     }
@@ -78,28 +80,39 @@ Interpreter::~Interpreter()
 
     for (size_t i = 0; i < structInstances.size(); i++)
     {
-        StructInstance *a =structInstances[i];
+        StructInstance *a = structInstances[i];
         InstancePool::instance().freeStruct(a);
     }
     structInstances.clear();
 
     for (size_t i = 0; i < arrayInstances.size(); i++)
     {
-        ArrayInstance *a =arrayInstances[i];
+        ArrayInstance *a = arrayInstances[i];
         InstancePool::instance().freeArray(a);
     }
     arrayInstances.clear();
 
-   
+    for (size_t i = 0; i < classesInstances.size(); i++)
+    {
+        ClassInstance *a = classesInstances[i];
+        InstancePool::instance().freeClass(a);
+    }
+    classesInstances.clear();
 
-     
+    for (size_t j = 0; j < classes.size(); j++)
+    {
+        ClassDef *proc = classes[j];
+
+        delete proc;
+    }
+
     StringPool::instance().clear();
     InstancePool::instance().clear();
 }
 
 void Interpreter::setFileLoader(FileLoaderCallback loader, void *userdata)
 {
-    compiler->setFileLoader(loader,userdata);
+    compiler->setFileLoader(loader, userdata);
 }
 
 void Interpreter::disassemble()
@@ -352,7 +365,7 @@ bool Interpreter::run(const char *source, bool _dump)
     {
         disassemble();
         // Function *mainFunc = proc->fibers[0].frames[0].func;
-      //   Debug::dumpFunction(mainFunc);
+        //   Debug::dumpFunction(mainFunc);
     }
 
     mainProcess = spawnProcess(proc);
@@ -360,7 +373,7 @@ bool Interpreter::run(const char *source, bool _dump)
 
     Fiber *fiber = &mainProcess->fibers[0];
 
-  //  Debug::disassembleChunk(*fiber->frames[0].func->chunk,"#main");
+    //  Debug::disassembleChunk(*fiber->frames[0].func->chunk,"#main");
 
     run_fiber(fiber);
 
@@ -404,55 +417,153 @@ void Interpreter::setPrivateTable()
     privateIndexMap.set("father", 8);
 }
 
-StructDef *Interpreter::addStruct(String* name,int* id)
+StructDef *Interpreter::addStruct(String *name, int *id)
 {
-    
+
     if (structsMap.exist(name))
     {
         return nullptr;
     }
     StructDef *proc = new StructDef();
     structsMap.set(name, proc);
-    *id =(int) structs.size();
+    *id = (int)structs.size();
     structs.push(proc);
     return proc;
 }
 
 StructDef *Interpreter::registerStruct(String *name, int *id)
 {
-     if (structsMap.exist(name))
+    if (structsMap.exist(name))
     {
         return nullptr;
     }
-    
+
     StructDef *proc = new StructDef();
-    
-    proc->name=name;
-    proc->argCount=0;
+
+    proc->name = name;
+    proc->argCount = 0;
     structsMap.set(name, proc);
 
-    *id =(int) structs.size();
-    
+    *id = (int)structs.size();
+
     structs.push(proc);
-    
+
     return proc;
 }
 
- 
-
-StructInstance::StructInstance():
-GCObject(), def(nullptr)
+ClassDef *Interpreter::registerClass(String *name, int *id)
 {
+    if (structsMap.exist(name))
+    {
+        return nullptr;
+    }
 
+    ClassDef *proc = new ClassDef();
+    proc->name = name;
+    classesMap.set(name, proc);
+
+    *id = (int)classes.size();
+
+    classes.push(proc);
+
+    return proc;
+}
+
+bool Interpreter::containsClassDefenition(String *name)
+{
+    return classesMap.exist(name);
+}
+
+bool Interpreter::getClassDefenition(String *name, ClassDef *result)
+{
+    return classesMap.get(name, &result);
+}
+
+bool Interpreter::tryGetClassDefenition(const char *name, ClassDef **out)
+{
+    String *pName = createString(name);
+    bool result = false;
+    if (classesMap.get(pName, out))
+    {
+        result = true;
+    }
+    return result;
+}
+
+int Interpreter::addGlobal(const char *name, Value value)
+{
+    String *pName = createString(name);
+    if (globals.exist(pName))
+    {
+        destroyString(pName);
+        return -1;
+    }
+    globals.set(pName, value);
+    globalList.push(value);
+
+    return (int)(globalList.size() - 1);
+}
+
+String *Interpreter::addGlobalEx(const char *name, Value value)
+{
+    String *pName = createString(name);
+    if (globals.exist(pName))
+    {
+        destroyString(pName);
+        return nullptr;
+    }
+    globals.set(pName, value);
+    globalList.push(value);
+
+    return pName;
+}
+
+Value Interpreter::getGlobal(uint32 index)
+{
+    if (index >= globalList.size())
+        return Value::makeNil();
+    return globalList[index];
+}
+
+bool Interpreter::tryGetGlobal(const char *name, Value *value)
+{
+    String *pName = createString(name);
+    bool result = false;
+    if (globals.get(pName, value))
+    {
+        result = true;
+    }
+    destroyString(pName);
+    return result;
+}
+
+void Interpreter::addFiber(Process *proc, Function *func)
+{
+    if (proc->nextFiberIndex >= MAX_FIBERS)
+    {
+        runtimeError("Too many fibers in process");
+        return;
+    }
+
+    int index = proc->nextFiberIndex++;
+    initFiber(&proc->fibers[index], func);
+}
+
+void Interpreter::addFunctionsClasses(Function *fun)
+{
+    functionsClass.push(fun);
+}
+
+StructInstance::StructInstance() : GCObject(), def(nullptr)
+{
 }
 
 StructInstance::~StructInstance()
 {
-    Info("destroy struct %d",refCount);
+    Info("destroy struct %d", refCount);
 }
 
-GCObject::GCObject():
-refCount(1)
+GCObject::GCObject() : refCount(1)
 {
 }
 
@@ -466,21 +577,81 @@ void GCObject::release()
     refCount--;
 }
 
-ArrayInstance::ArrayInstance():
-GCObject()
+ArrayInstance::ArrayInstance() : GCObject()
 {
 }
 
 ArrayInstance::~ArrayInstance()
 {
-    
 }
 
-MapInstance::MapInstance():
-GCObject()
+MapInstance::MapInstance() : GCObject()
 {
 }
 
 MapInstance::~MapInstance()
 {
+}
+
+ClassInstance::ClassInstance() : GCObject()
+{
+}
+
+ClassInstance::~ClassInstance()
+{
+}
+
+bool ClassInstance::getMethod(String *name, Function **out)
+{
+    ClassDef *current = klass;
+
+    while (current)
+    {
+        if (current->methods.get(name, out))
+        {
+            return true;
+        }
+        current = current->superclass;
+    }
+
+    return false;
+}
+
+// bool ClassInstance::getMethod(String *name, Function **out)
+// {
+//     if(klass->methods.get(name, out))
+//     {
+//         return true;
+//     }
+
+//     if (klass->inherited)
+//     {
+//         if(klass->superclass->methods.get(name,out));
+//         {
+//             return true;
+//         }
+//     }
+//     return false;
+// }
+
+Function *ClassDef::canRegisterFunction(const char *name)
+{
+    String *pName = createString(name);
+    if (methods.exist(pName))
+    {
+        destroyString(pName);
+        return nullptr;
+    }
+    Function *func = new Function();
+    func->arity = 0;
+    func->hasReturn = false;
+    func->name = pName;
+    func->chunk = new Code(16);
+    methods.set(pName, func);
+    return func;
+}
+
+ClassDef::~ClassDef()
+{
+    methods.destroy();
 }

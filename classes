@@ -1,0 +1,534 @@
+enum ValueType {
+    // ... existentes ...
+    VALUE_CLASS,     // Definição da classe
+    VALUE_INSTANCE,  // Instância da classe
+    VALUE_METHOD,    // Método bound
+};
+
+// Definição da classe
+struct ClassDef {
+    String* name;
+    ClassDef* superclass;  // Herança (1 nível)
+    HashMap<String*, Function*, ...> methods;
+};
+
+// Instância da classe
+struct Instance {
+    ClassDef* klass;
+    HashMap<String*, Value, ...> fields;
+};
+
+// Método bound (self já ligado)
+struct BoundMethod {
+    Value receiver;  // self
+    Function* method;
+};
+
+struct Value {
+    ValueType type;
+    union {
+        // ... existentes ...
+        ClassDef* asClass;
+        Instance* asInstance;
+        BoundMethod* asBoundMethod;
+    };
+    
+    static Value makeClass(ClassDef* klass) {
+        Value v;
+        v.type = VALUE_CLASS;
+        v.asClass = klass;
+        return v;
+    }
+    
+    static Value makeInstance(Instance* inst) {
+        Value v;
+        v.type = VALUE_INSTANCE;
+        v.asInstance = inst;
+        return v;
+    }
+    
+    static Value makeBoundMethod(BoundMethod* method) {
+        Value v;
+        v.type = VALUE_METHOD;
+        v.asBoundMethod = method;
+        return v;
+    }
+    
+    bool isClass() const { return type == VALUE_CLASS; }
+    bool isInstance() const { return type == VALUE_INSTANCE; }
+    bool isBoundMethod() const { return type == VALUE_METHOD; }
+};
+
+
+enum OpCode {
+    // ... existentes ...
+    
+    OP_CLASS,        // Define classe
+    OP_INHERIT,      // Herança
+    OP_METHOD,       // Define método
+    OP_GET_SUPER,    // super.method
+    OP_SUPER_INVOKE, // super.method(args)
+};
+
+
+void Compiler::declaration() {
+    if (check(TOKEN_IDENTIFIER) && peek(0).type == TOKEN_COLON) {
+        labelStatement();
+        return;
+    }
+    
+    if (match(TOKEN_VAR)) varDeclaration();
+    else if (match(TOKEN_DEF)) defDeclaration();
+    else if (match(TOKEN_PROCESS)) processDeclaration();
+    else if (match(TOKEN_ENUM)) enumDeclaration();
+    else if (match(TOKEN_STRUCT)) structDeclaration();
+    else if (match(TOKEN_CLASS)) classDeclaration();  // ← NOVO
+    else statement();
+}
+
+void Compiler::classDeclaration() {
+    consume(TOKEN_IDENTIFIER, "Expect class name");
+    Token className = previous;
+    uint8_t nameConstant = identifierConstant(className);
+    
+    // Emite OP_CLASS
+    emitBytes(OP_CLASS, nameConstant);
+    defineVariable(nameConstant);
+    
+    // Herança?
+    if (match(TOKEN_COLON)) {
+        consume(TOKEN_IDENTIFIER, "Expect superclass name");
+        Token superName = previous;
+        
+        // Load superclass
+        variable(false);
+        
+        // Load subclass
+        namedVariable(className, false);
+        
+        emitByte(OP_INHERIT);
+    }
+    
+    // Load class (para adicionar métodos)
+    namedVariable(className, false);
+    
+    consume(TOKEN_LBRACE, "Expect '{' before class body");
+    
+    // Parse métodos
+    while (!check(TOKEN_RBRACE) && !check(TOKEN_EOF)) {
+        method();
+    }
+    
+    consume(TOKEN_RBRACE, "Expect '}' after class body");
+    
+    // Pop class
+    emitByte(OP_POP);
+}
+
+void Compiler::method() {
+    consume(TOKEN_IDENTIFIER, "Expect method name");
+    uint8_t nameConstant = identifierConstant(previous);
+    
+    FunctionType type = TYPE_METHOD;
+    
+    // init é construtor
+    if (strcmp(previous.lexeme.c_str(), "init") == 0) {
+        type = TYPE_INITIALIZER;
+    }
+    
+    function(type);
+    
+    emitBytes(OP_METHOD, nameConstant);
+}
+
+void Compiler::function(FunctionType type) {
+    Function* func = vm_->addFunction("method", 0);
+    Code* prevChunk = currentChunk;
+    currentChunk = func->chunk;
+    
+    beginScope();
+    
+    // ✅ self como local[0]
+    Local* local = &locals[localCount_++];
+    local->depth = scopeDepth;
+    local->name = "self";
+    
+    // Parse params
+    consume(TOKEN_LPAREN, "Expect '('");
+    
+    if (!check(TOKEN_RPAREN)) {
+        do {
+            func->arity++;
+            if (func->arity > 255) {
+                error("Cannot have more than 255 parameters");
+            }
+            
+            uint8_t paramConstant = parseVariable("Expect parameter name");
+            defineVariable(paramConstant);
+        } while (match(TOKEN_COMMA));
+    }
+    
+    consume(TOKEN_RPAREN, "Expect ')' after parameters");
+    consume(TOKEN_LBRACE, "Expect '{' before method body");
+    
+    block();
+    
+    endScope();
+    
+    // ✅ init retorna self automaticamente
+    if (type == TYPE_INITIALIZER) {
+        emitBytes(OP_GET_LOCAL, 0);  // self
+        emitByte(OP_RETURN);
+    } else {
+        emitReturn();
+    }
+    
+    currentChunk = prevChunk;
+    
+    // Emite função como constante
+    emitConstant(Value::makeFunction(func));
+}
+
+
+case OP_CLASS: {
+    uint8_t nameIdx = READ_BYTE();
+    Value nameValue = func->chunk->constants[nameIdx];
+    String* name = nameValue.asString();
+    
+    ClassDef* klass = new ClassDef();
+    klass->name = name;
+    klass->superclass = nullptr;
+    
+    PUSH(Value::makeClass(klass));
+    break;
+}
+
+
+case OP_INHERIT: {
+    Value superclass = PEEK2();
+    
+    if (!superclass.isClass()) {
+        runtimeError("Superclass must be a class");
+        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+    }
+    
+    Value subclass = PEEK();
+    ClassDef* sub = subclass.asClass();
+    ClassDef* super = superclass.asClass();
+    
+    // ✅ Copia métodos do parent
+    super->methods.forEach([&](String* name, Function* method) {
+        sub->methods.set(name, method);
+    });
+    
+    // ✅ Guarda referência ao superclass
+    sub->superclass = super;
+    
+    POP();  // subclass
+    break;
+}
+
+case OP_METHOD: {
+    uint8_t nameIdx = READ_BYTE();
+    Value nameValue = func->chunk->constants[nameIdx];
+    String* name = nameValue.asString();
+    
+    Value method = PEEK();
+    Value klass = PEEK2();
+    
+    ClassDef* classDef = klass.asClass();
+    Function* methodFunc = method.asFunction();
+    
+    classDef->methods.set(name, methodFunc);
+    
+    POP();  // method
+    break;
+}
+
+case OP_CALL: {
+    uint8_t argCount = READ_BYTE();
+    Value callee = NPEEK(argCount);
+    
+    // ✅ CLASS INSTANTIATION
+    if (callee.isClass()) {
+        ClassDef* klass = callee.asClass();
+        
+        // Cria instância
+        Instance* instance = new Instance();
+        instance->klass = klass;
+        
+        // Substitui class por instance na stack
+        fiber->stackTop[-argCount - 1] = Value::makeInstance(instance);
+        
+        // ✅ Chama init() se existir
+        Function* initializer;
+        String* initName = stringPool.intern("init");
+        
+        if (klass->methods.get(initName, &initializer)) {
+            // Chama init
+            if (argCount != initializer->arity) {
+                runtimeError("init() expects %d arguments, got %d",
+                            initializer->arity, argCount);
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+            
+            // Setup call frame
+            CallFrame* frame = &fiber->frames[fiber->frameCount];
+            frame->func = initializer;
+            frame->ip = initializer->chunk->code;
+            frame->slots = fiber->stackTop - argCount;  // self + args
+            
+            fiber->frameCount++;
+            STORE_FRAME();
+            LOAD_FRAME();
+        } else {
+            // Sem init - pop args
+            fiber->stackTop -= argCount;
+        }
+        
+        break;
+    }
+    
+    // ✅ BOUND METHOD CALL
+    if (callee.isBoundMethod()) {
+        BoundMethod* bound = callee.asBoundMethod();
+        
+        // self já está bound
+        fiber->stackTop[-argCount - 1] = bound->receiver;
+        
+        // Call method
+        // ... setup call frame ...
+        
+        break;
+    }
+    
+    // ... struct, function calls ...
+}
+
+case OP_CALL: {
+    uint8_t argCount = READ_BYTE();
+    Value callee = NPEEK(argCount);
+    
+    // ✅ CLASS INSTANTIATION
+    if (callee.isClass()) {
+        ClassDef* klass = callee.asClass();
+        
+        // Cria instância
+        Instance* instance = new Instance();
+        instance->klass = klass;
+        
+        // Substitui class por instance na stack
+        fiber->stackTop[-argCount - 1] = Value::makeInstance(instance);
+        
+        // ✅ Chama init() se existir
+        Function* initializer;
+        String* initName = stringPool.intern("init");
+        
+        if (klass->methods.get(initName, &initializer)) {
+            // Chama init
+            if (argCount != initializer->arity) {
+                runtimeError("init() expects %d arguments, got %d",
+                            initializer->arity, argCount);
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+            
+            // Setup call frame
+            CallFrame* frame = &fiber->frames[fiber->frameCount];
+            frame->func = initializer;
+            frame->ip = initializer->chunk->code;
+            frame->slots = fiber->stackTop - argCount;  // self + args
+            
+            fiber->frameCount++;
+            STORE_FRAME();
+            LOAD_FRAME();
+        } else {
+            // Sem init - pop args
+            fiber->stackTop -= argCount;
+        }
+        
+        break;
+    }
+    
+    // ✅ BOUND METHOD CALL
+    if (callee.isBoundMethod()) {
+        BoundMethod* bound = callee.asBoundMethod();
+        
+        // self já está bound
+        fiber->stackTop[-argCount - 1] = bound->receiver;
+        
+        // Call method
+        // ... setup call frame ...
+        
+        break;
+    }
+    
+    // ... struct, function calls ...
+}
+
+case OP_SET_PROPERTY: {
+    Value value = PEEK();
+    Value object = PEEK2();
+    Value nameValue = READ_CONSTANT();
+    const char* name = nameValue.asStringChars();
+    
+    // === INSTANCE ===
+    if (object.isInstance()) {
+        Instance* instance = object.asInstance();
+        String* fieldName = stringPool.intern(name);
+        
+        instance->fields.set(fieldName, value);
+        
+        DROP();  // object
+        break;
+    }
+    
+    // ... struct, process ...
+}
+
+case OP_GET_SUPER: {
+    uint8_t nameIdx = READ_BYTE();
+    Value nameValue = func->chunk->constants[nameIdx];
+    String* name = nameValue.asString();
+    
+    Value superclass = POP();
+    Value instance = PEEK();
+    
+    if (!superclass.isClass()) {
+        runtimeError("super must be a class");
+        PUSH(Value::makeNil());
+        break;
+    }
+    
+    ClassDef* super = superclass.asClass();
+    
+    // Procura método no parent
+    Function* method;
+    if (super->methods.get(name, &method)) {
+        BoundMethod* bound = new BoundMethod();
+        bound->receiver = instance;
+        bound->method = method;
+        
+        PUSH(Value::makeBoundMethod(bound));
+    } else {
+        runtimeError("Superclass has no method '%s'", name->chars());
+        PUSH(Value::makeNil());
+    }
+    
+    break;
+}
+
+case OP_SUPER_INVOKE: {
+    uint8_t nameIdx = READ_BYTE();
+    uint8_t argCount = READ_BYTE();
+    
+    Value nameValue = func->chunk->constants[nameIdx];
+    String* name = nameValue.asString();
+    
+    Value superclass = POP();
+    
+    if (!superclass.isClass()) {
+        runtimeError("super must be a class");
+        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+    }
+    
+    ClassDef* super = superclass.asClass();
+    
+    // Procura método
+    Function* method;
+    if (!super->methods.get(name, &method)) {
+        runtimeError("Superclass has no method '%s'", name->chars());
+        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+    }
+    
+    // Call method (self já está na stack)
+    // ... setup call frame ...
+    
+    break;
+}
+
+// Classe básica
+class Animal {
+    init(name) {
+        self.name = name;
+        self.age = 0;
+    }
+    
+    speak() {
+        print(self.name + " makes a sound");
+    }
+    
+    grow() {
+        self.age = self.age + 1;
+    }
+}
+
+var cat = Animal("Whiskers");
+cat.speak();  // "Whiskers makes a sound"
+cat.grow();
+print(cat.age);  // 1
+
+// Herança
+class Dog : Animal {
+    init(name, breed) {
+        super.init(name);  // ✅ Chama construtor parent
+        self.breed = breed;
+    }
+    
+    speak() {
+        print(self.name + " barks!");
+    }
+    
+    fetch() {
+        print(self.name + " fetches the ball");
+    }
+}
+
+var dog = Dog("Rex", "Labrador");
+dog.speak();   // "Rex barks!"
+dog.fetch();   // "Rex fetches the ball"
+dog.grow();    // ✅ Método herdado
+print(dog.age);  // 1
+
+// Classes em processes
+class Bullet {
+    init(x, y, angle, speed) {
+        self.x = x;
+        self.y = y;
+        self.angle = angle;
+        self.speed = speed;
+    }
+    
+    update() {
+        self.x = self.x + cos(self.angle) * self.speed;
+        self.y = self.y + sin(self.angle) * self.speed;
+    }
+    
+    isOutOfBounds() {
+        return self.x < 0 || self.x > 800 || 
+               self.y < 0 || self.y > 600;
+    }
+}
+
+var bullets = [];
+
+process spawner() {
+    loop {
+        if (key(KEY_SPACE)) {
+            var b = Bullet(x, y, angle, 10);
+            bullets.push(b);
+        }
+        
+        // Update todas
+        for (var i = 0; i < bullets.len(); i++) {
+            bullets[i].update();
+            
+            if (bullets[i].isOutOfBounds()) {
+                // Remove
+                bullets.remove(i);
+                i = i - 1;
+            }
+        }
+        
+        frame;
+    }
+}

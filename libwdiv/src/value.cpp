@@ -104,11 +104,11 @@ Value Value::makeStruct(int idx)
     return v;
 }
 
-Value Value::makeStructInstance(String *s)
+Value Value::makeStructInstance( )
 {
     Value v;
     v.type = ValueType::STRUCTINSTANCE;
-    v.as.sInstance = InstancePool::instance().createStruct(s);
+    v.as.sInstance = InstancePool::instance().createStruct();
     return v;
 }
 
@@ -133,6 +133,22 @@ Value Value::makeProcNative(int idx)
     Value v;
     v.type = ValueType::PROC_NATIVES;
     v.as.procNativesId = idx;
+    return v;
+}
+
+Value Value::makeClass(int idx)
+{
+    Value v;
+    v.type = ValueType::CLASS;
+    v.as.classId = idx;
+    return v;
+}
+
+Value Value::makeClassInstance()
+{
+     Value v;
+    v.type = ValueType::CLASSINSTANCE;
+    v.as.sClass = InstancePool::instance().creatClass();
     return v;
 }
 
@@ -185,6 +201,11 @@ int Value::asStructId() const
     return as.structId;
 }
 
+int Value::asClassId() const
+{
+    return as.classId;
+}
+
 StructInstance *Value::asStructInstance() const
 {
     return as.sInstance;
@@ -198,6 +219,11 @@ ArrayInstance *Value::asArray() const
 MapInstance *Value::asMap() const
 {
     return as.map;
+}
+
+ClassInstance *Value::asClassInstance() const
+{
+    return as.sClass;
 }
 
 long Value::asNumber() const
@@ -214,46 +240,6 @@ long Value::asNumber() const
     return 0;
 }
 
-void printValueNewLine(const Value &value)
-{
-    switch (value.type)
-    {
-    case ValueType::NIL:
-        printf("nil\n");
-        break;
-    case ValueType::BOOL:
-        printf("%s\n", value.as.boolean ? "true" : "false");
-        break;
-    case ValueType::INT:
-        printf("%ld\n", value.as.integer);
-        break;
-    case ValueType::DOUBLE:
-        printf("%f\n", value.as.number);
-        break;
-    case ValueType::STRING:
-        printf("%s\n", value.as.string->chars());
-        break;
-    case ValueType::FUNCTION:
-        printf("<function>\n");
-        break;
-    case ValueType::NATIVE:
-        printf("<native>\n");
-        break;
-    case ValueType::PROCESS:
-        printf("<process>\n");
-        break;
-    case ValueType::STRUCT:
-        printf("<struct>\n");
-        break;
-    case ValueType::STRUCTINSTANCE:
-        printf("<struct_instance>\n");
-        break;
-
-    default:
-        printf("<?>\n)");
-        break;
-    }
-}
 
 void printValue(const Value &value)
 {
@@ -275,8 +261,11 @@ void printValue(const Value &value)
         printf("%s", value.as.string->chars());
         break;
     case ValueType::FUNCTION:
-        printf("<function>");
+    {
+         int Id = value.asFunctionId();
+         printf("<function %d>", Id);        
         break;
+    }
     case ValueType::NATIVE:
         printf("<native>");
         break;
@@ -290,10 +279,10 @@ void printValue(const Value &value)
     {
         ArrayInstance *arr = value.asArray();
         printf("[");
-        for (int i = 0; i < arr->values.size(); i++)
+        for (int i = 0; i < (int)arr->values.size(); i++)
         {
             printValue(arr->values[i]);
-            if (i < arr->values.size() - 1)
+            if (i < (int)arr->values.size() - 1)
                 printf(", ");
         }
         printf("]");
@@ -307,7 +296,7 @@ void printValue(const Value &value)
 
         int i = 0;
         map->table.forEach([&](String *key, Value val)
-        {
+                           {
         if (i > 0) printf(", ");
         printf("%s: ", key->chars());
         printValue(val);
@@ -318,13 +307,16 @@ void printValue(const Value &value)
     }
 
     case ValueType::STRUCT:
-        printf("<struct>");
+    {
+         int Id = value.asStructId();
+         printf("<struct %d>", Id);        
         break;
+    }
     case ValueType::STRUCTINSTANCE:
     {
         StructInstance *instance = value.as.sInstance;
         printf("struct '%s' [", instance->def->name->chars());
-        int index = 0;
+       
 
         bool first = true;
 
@@ -340,8 +332,22 @@ void printValue(const Value &value)
             printValue(instance->values[fieldIndex]); });
 
         printf("]\n");
+        break;
     }
-    break;
+    case ValueType::CLASS:
+    {
+            int classId = value.asClassId();
+            printf("<class %d>", classId);
+        break;
+    }
+    case ValueType::CLASSINSTANCE:
+    {
+       ClassInstance* inst = value.as.sClass;
+        printf("<instance %s>", inst->klass->name->chars());
+        break;
+    }
+    
+
 
     default:
         printf("<?>");
@@ -351,52 +357,8 @@ void printValue(const Value &value)
 
 void printValueNl(const Value &value)
 {
-    switch (value.type)
-    {
-    case ValueType::NIL:
-        printf("nil\n");
-        break;
-    case ValueType::BOOL:
-        printf("%s\n", value.as.boolean ? "true" : "false");
-        break;
-    case ValueType::INT:
-        printf("%ld\n", value.as.integer);
-        break;
-    case ValueType::DOUBLE:
-        printf("%f\n", value.as.number);
-        break;
-    case ValueType::STRING:
-        printf("%s\n", value.as.string->chars());
-        break;
-    case ValueType::FUNCTION:
-        printf("<function>\n");
-        break;
-    case ValueType::NATIVE:
-        printf("<native>\n");
-        break;
-    case ValueType::PROCESS:
-        printf("<process>\n");
-        break;
-    case ValueType::PROC_NATIVES:
-        printf("<process_native>\n");
-        break;
-    case ValueType::ARRAY:
-        printf("<array>\n");
-        break;
-    case ValueType::MAP:
-        printf("<map>\n");
-        break;
-    case ValueType::STRUCT:
-        printf("<struct>\n");
-        break;
-    case ValueType::STRUCTINSTANCE:
-        printf("<struct_instance>\n");
-        break;
-
-    default:
-        printf("<?>");
-        break;
-    }
+    printValue(value);
+    printf("\n");
 }
 
 bool valuesEqual(const Value &a, const Value &b)

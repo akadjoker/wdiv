@@ -23,7 +23,7 @@ enum Opcode : uint8
     OP_NEGATE,
     OP_MODULO,
 
- // Bitwise
+    // Bitwise
     OP_BITWISE_AND,
     OP_BITWISE_OR,
     OP_BITWISE_XOR,
@@ -52,8 +52,8 @@ enum Opcode : uint8
     OP_JUMP,
     OP_JUMP_IF_FALSE,
     OP_LOOP,
-    OP_GOSUB, 
-    OP_RETURN_SUB  ,
+    OP_GOSUB,
+    OP_RETURN_SUB,
 
     // Functions
     OP_CALL,
@@ -62,22 +62,24 @@ enum Opcode : uint8
     OP_RETURN_NIL,
     OP_SPAWN,
 
-    OP_YIELD,           
-    OP_FRAME, 
-    
-    OP_EXIT,
+    OP_YIELD,
+    OP_FRAME,
 
+    OP_EXIT,
 
     OP_DEFINE_STRUCT,
     OP_DEFINE_ARRAY,
     OP_DEFINE_MAP,
 
-  
-    OP_GET_PROPERTY,    
+    OP_GET_PROPERTY,
     OP_SET_PROPERTY,
     OP_GET_INDEX,
     OP_SET_INDEX,
-    OP_INVOKE,    
+    
+    OP_INVOKE,
+    OP_INHERIT,      // Herança
+    OP_GET_SUPER,    // super.method
+    OP_SUPER_INVOKE, // super.method(args)
 
     // I/O
     OP_PRINT,

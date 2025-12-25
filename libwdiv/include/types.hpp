@@ -25,3 +25,12 @@ enum class FiberState : uint8
     SUSPENDED,
     DEAD
 };
+
+
+enum class FunctionType  : uint8
+{
+    TYPE_FUNCTION,      // def normal
+    TYPE_METHOD,        // método de class
+    TYPE_INITIALIZER,   // init (construtor)
+    TYPE_SCRIPT         // top-level script
+};

@@ -1,0 +1,49 @@
+// MAP
+def map(arr, fn) {
+    var result = [];
+    var i = 0;
+    while (i < arr.length()) {
+        result.push(fn(arr[i], i));
+        i = i + 1;
+    }
+    return result;
+}
+
+// FILTER
+def filter(arr, fn) {
+    var result = [];
+    var i = 0;
+    while (i < arr.length()) {
+        if (fn(arr[i], i)) {
+            result.push(arr[i]);
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+// REDUCE
+def reduce(arr, fn, initial) {
+    var acc = initial;
+    var i = 0;
+    while (i < arr.length()) {
+        acc = fn(acc, arr[i], i);
+        i = i + 1;
+    }
+    return acc;
+}
+
+// USO:
+var nums = [1, 2, 3, 4, 5];
+
+// Map: dobra valores
+var doubled = map(nums, def(n) { return n * 2; });
+print(doubled);  // [2, 4, 6, 8, 10]
+
+// Filter: só pares
+var evens = filter(nums, def(n) { return n % 2 == 0; });
+print(evens);  // [2, 4]
+
+// Reduce: soma
+var sum = reduce(nums, def(acc, n) { return acc + n; }, 0);
+print(sum);  // 15

@@ -86,6 +86,7 @@ struct NativeDef
 
 struct Function
 {
+    
     int arity{-1};
     Code *chunk{nullptr};
     String *name{nullptr};
@@ -96,45 +97,78 @@ struct Function
 struct StructDef
 {
     String *name;
-    HashMap<String*, uint8, StringHasher, StringEq> names;
+    HashMap<String *, uint8, StringHasher, StringEq> names;
     uint8 argCount;
+};
+
+
+
+
+struct ClassDef
+{
+    String *name{nullptr};
+    String *parent{nullptr};
+    bool inherited{false};
+    int fieldCount;                                                // Número de fields
+    Function* constructor{nullptr}; // existe na tabela
+    ClassDef *superclass; // 1 nível herança
+    
+    HashMap<String *, Function*, StringHasher, StringEq> methods;
+    HashMap<String *, uint8_t, StringHasher, StringEq> fieldNames; // field name → index
+    Function *canRegisterFunction(const char *name);
+    ~ClassDef();
+};
+
+
+
+struct BoundMethod 
+{
+    Value receiver;  // self (instance)
+    Function* method;
 };
 
 
 struct GCObject
 {
-    int refCount; 
+    int refCount;
     GCObject();
     void grab();
     void release();
 };
 
-
-struct StructInstance: public GCObject
+struct StructInstance : public GCObject
 {
-     StructDef *def;
-     Vector<Value> values;
-     StructInstance();
+    StructDef *def;
+    Vector<Value> values;
+    StructInstance();
     ~StructInstance();
 };
 
-
-struct ArrayInstance: public GCObject 
+struct ArrayInstance : public GCObject
 {
     Vector<Value> values;
     ArrayInstance();
     ~ArrayInstance();
-
 };
 
-struct MapInstance: public GCObject 
+struct MapInstance : public GCObject
 {
-    HashMap<String*, Value, StringHasher, StringEq> table;
+    HashMap<String *, Value, StringHasher, StringEq> table;
     MapInstance();
     ~MapInstance();
-
 };
 
+struct ClassInstance: public GCObject
+{
+    ClassDef *klass;
+
+    Vector<Value> fields;
+    ClassInstance();
+    ~ClassInstance();
+
+    bool getMethod(String *name,Function **func);
+
+};
 
 struct CallFrame
 {
@@ -150,9 +184,6 @@ struct VMHooks
     void (*onRender)(Process *p) = nullptr;
     void (*onDestroy)(Process *p, int exitCode) = nullptr;
 };
-
-
-
 
 struct FiberResult
 {
@@ -239,7 +270,6 @@ struct Process
     void finalize();
 };
 
-
 class Interpreter
 {
 
@@ -247,20 +277,24 @@ class Interpreter
     HashMap<String *, ProcessDef *, StringHasher, StringEq> processesMap;
     HashMap<String *, NativeDef, StringHasher, StringEq> nativesMap;
     HashMap<String *, StructDef *, StringHasher, StringEq> structsMap;
+    HashMap<String *, ClassDef *, StringHasher, StringEq> classesMap;
     HashMap<const char *, int, CStringHash, CStringEq> privateIndexMap;
 
     Vector<Function *> functions;
+    Vector<Function *> functionsClass;
     Vector<ProcessDef *> processes;
     Vector<NativeDef> natives;
     Vector<StructDef *> structs;
+    Vector<ClassDef *> classes;
     Vector<Value> globalList;
 
-    Vector<StructInstance*> structInstances;
-    Vector<ArrayInstance*> arrayInstances;
+    Vector<StructInstance *> structInstances;
+    Vector<ArrayInstance *> arrayInstances;
+    Vector<ClassInstance *> classesInstances;
 
     HashMap<String *, Value, StringHasher, StringEq> globals;
 
-//    HeapAllocator arena;
+    //    HeapAllocator arena;
 
     Vector<Process *> aliveProcesses;
     Vector<Process *> cleanProcesses;
@@ -290,6 +324,10 @@ class Interpreter
     void setPrivateTable();
     void checkType(int index, ValueType expected, const char *funcName);
 
+    void addFunctionsClasses(Function *fun);
+
+    friend class Compiler;
+
 public:
     Interpreter();
     ~Interpreter();
@@ -305,11 +343,14 @@ public:
     void destroyProcess(Process *proc);
     Process *spawnProcess(ProcessDef *proc);
 
-   
-
     StructDef *addStruct(String *nam, int *id);
 
     StructDef *registerStruct(String *nam, int *id);
+    ClassDef *registerClass(String *nam, int *id);
+
+    bool containsClassDefenition(String *name);
+    bool getClassDefenition(String *name,ClassDef *result);
+    bool tryGetClassDefenition(const char* name,ClassDef **result);
 
     uint32 getTotalProcesses() const;
     uint32 getTotalAliveProcesses() const;
@@ -355,6 +396,7 @@ public:
     String *addGlobalEx(const char *name, Value value);
     Value getGlobal(const char *name);
     Value getGlobal(uint32 index);
+    bool tryGetGlobal(const char *name, Value *value);
 
     // ===== STACK API   =====
     const Value &peek(int index); // -1 = topo, 0 = base

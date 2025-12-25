@@ -198,21 +198,41 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset)
     case OP_PRINT:
         return simpleInstruction("OP_PRINT", offset);
 
-//         // Arrays (futuros)
-// case OP_NEW_ARRAY:
-//     return byteInstruction("OP_NEW_ARRAY", chunk, offset);
-// case OP_GET_INDEX:
-//     return simpleInstruction("OP_GET_INDEX", offset);
-// case OP_SET_INDEX:
-//     return simpleInstruction("OP_SET_INDEX", offset);
+    case OP_SUPER_INVOKE:
+    {
+        if (!hasBytes(chunk, offset, 2))
+        {
+            printf("OP_INVOKE <truncated>\n");
+            return chunk.count;
+        }
 
-// // Structs (futuros)
-// case OP_NEW_STRUCT:
-//     return byteInstruction("OP_NEW_STRUCT", chunk, offset);
+        uint8_t nameIdx = chunk.code[offset + 1];
+        uint8_t argCount = chunk.code[offset + 2];
 
-// // Fibers
-// case OP_CREATE_FIBER:
-//     return simpleInstruction("OP_CREATE_FIBER", offset);
+        Value c = chunk.constants[nameIdx];
+        const char *nm = (c.isString() ? c.asString()->chars() : "<non-string>");
+
+        printf("%-16s %4u '%s' (%u args)\n",
+               "OP_SUPER_INVOKE", (unsigned)nameIdx, nm, (unsigned)argCount);
+
+        return offset + 3;
+    }
+
+        //         // Arrays (futuros)
+        // case OP_NEW_ARRAY:
+        //     return byteInstruction("OP_NEW_ARRAY", chunk, offset);
+        // case OP_GET_INDEX:
+        //     return simpleInstruction("OP_GET_INDEX", offset);
+        // case OP_SET_INDEX:
+        //     return simpleInstruction("OP_SET_INDEX", offset);
+
+        // // Structs (futuros)
+        // case OP_NEW_STRUCT:
+        //     return byteInstruction("OP_NEW_STRUCT", chunk, offset);
+
+        // // Fibers
+        // case OP_CREATE_FIBER:
+        //     return simpleInstruction("OP_CREATE_FIBER", offset);
     default:
         printf("Unknown opcode %u\n", (unsigned)instruction);
         return offset + 1;

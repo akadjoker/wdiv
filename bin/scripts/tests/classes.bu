@@ -1,0 +1,217 @@
+class Empty {
+}
+
+var e = Empty();
+print(e);  // <instance Empty>
+print("✅ Test 1 passed");
+
+class Point {
+    var x, y;
+    
+    def init(x, y) {
+        self.x = x;
+        self.y = y;
+    }
+}
+
+var p = Point(10, 20);
+print(p.x);  // 10
+print(p.y);  // 20
+print("✅ Test 2 passed");
+
+
+class Point {
+    var x, y;
+    
+    def init(x, y) {
+        self.x = x;
+        self.y = y;
+    }
+}
+
+var p = Point(10, 20);
+print(p.x);  // 10
+print(p.y);  // 20
+print("✅ Test 2 passed");
+
+
+class Counter {
+    var count;
+    
+    def init() {
+        self.count = 0;
+    }
+    
+    def increment() {
+        self.count = self.count + 1;
+    }
+    
+    def get() {
+        return self.count;
+    }
+}
+
+var c = Counter();
+c.increment();
+c.increment();
+print(c.get());  // 2
+print("✅ Test 3 passed");
+
+
+class Builder {
+    var x, y;
+    
+    def init() {
+        self.x = 0;
+        self.y = 0;
+    }
+    
+    def setX(v) {
+        self.x = v;
+        return self;
+    }
+    
+    def setY(v) {
+        self.y = v;
+        return self;
+    }
+}
+
+var b = Builder();
+b.setX(10).setY(20);
+print(b.x);  // 10
+print(b.y);  // 20
+print("✅ Test 4 passed");
+
+class Animal {
+    var name;
+    
+    def init(name) {
+        self.name = name;
+    }
+    
+    def speak() {
+        print(self.name + " makes sound");
+    }
+}
+
+class Dog : Animal {
+    def init(name) {
+        self.name = name;
+    }
+}
+
+var d = Dog("Rex");
+d.speak();  // Rex makes sound
+print("✅ Test 5 passed");
+
+
+class Animal {
+    var name;
+    
+    def init(name) {
+        self.name = name;
+        print("Animal init: " + name);
+    }
+}
+
+class Dog : Animal {
+    var breed;
+    
+    def init(name, breed) {
+        super.init(name);
+        self.breed = breed;
+        print("Dog init: " + breed);
+    }
+}
+
+var d = Dog("Rex", "Labrador");
+print(d.name);   // Rex
+print(d.breed);  // Labrador
+print("✅ Test 6 passed");
+
+
+class Animal {
+    def speak() {
+        print("Animal sound");
+    }
+}
+
+class Dog : Animal {
+    def speak() {
+        super.speak();
+        print("Woof!");
+    }
+}
+
+var d = Dog();
+d.speak();
+print("✅ Test 7 passed");
+
+class Animal {
+    def speak() {
+        print("...");
+    }
+}
+
+class Dog : Animal {
+    def speak() {
+        print("Woof!");
+    }
+}
+
+var a = Animal();
+var d = Dog();
+
+a.speak();  // ...
+d.speak();  // Woof!
+print("✅ Test 8 passed");
+
+class Animal {
+    def speak() {
+        print("...");
+    }
+}
+
+class Dog : Animal {
+    def speak() {
+        print("Woof!");
+    }
+}
+
+var a = Animal();
+var d = Dog();
+
+a.speak();  // ...
+d.speak();  // Woof!
+print("✅ Test 8 passed");
+
+var a, b, c;
+print(a);  // nil
+print(b);  // nil
+print(c);  // nil
+
+var x, y, z = 100;
+print(x);  // nil
+print(y);  // nil
+print(z);  // 100
+
+
+var global=10000;
+
+class Test {
+    var a, b, c;
+    
+    def init() {
+        self.a = 1;
+        self.b = 2;
+        self.c = global;
+    }
+}
+
+var t = Test();
+print(t.a);  // 1
+print(t.b);  // 2
+print(t.c);  // 3
+
+print("✅ Test 10 passed");

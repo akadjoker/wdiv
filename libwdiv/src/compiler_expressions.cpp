@@ -150,7 +150,7 @@ void Compiler::binary(bool canAssign)
 
 void Compiler::arrayLiteral(bool canAssign)
 {
-    (void) canAssign;
+    (void)canAssign;
     // var arr = [1, 2, 3];
 
     int count = 0;
@@ -174,4 +174,64 @@ void Compiler::arrayLiteral(bool canAssign)
     consume(TOKEN_RBRACKET, "Expect ']' after array elements");
 
     emitBytes(OP_DEFINE_ARRAY, count);
+}
+
+void Compiler::mapLiteral(bool canAssign)
+{
+    (void) canAssign;
+    // var m = {name: "Luis", age: 30};
+
+    int count = 0;
+
+    // Map vazio?
+    if (!check(TOKEN_RBRACE))
+    {
+        do
+        {
+            // KEY
+            if (match(TOKEN_IDENTIFIER))
+            {
+                // Identifier como key: {name: "Luis"}
+                Token key = previous;
+
+                // String literal da key
+                emitConstant(Value::makeString(key.lexeme.c_str()));
+
+                consume(TOKEN_COLON, "Expect ':' after map key");
+
+                // VALUE
+                expression();
+            }
+            else if (match(TOKEN_STRING))
+            {
+                // String key: {"my-key": value}
+                Token key = previous;
+
+                emitConstant(Value::makeString(key.lexeme.c_str()));
+
+                consume(TOKEN_COLON, "Expect ':' after map key");
+
+                // VALUE
+                expression();
+            }
+            else
+            {
+                error("Expect identifier or string as map key");
+                break;
+            }
+
+            count++;
+
+            if (count > 255)
+            {
+                error("Cannot have more than 255 map entries");
+                break;
+            }
+
+        } while (match(TOKEN_COMMA));
+    }
+
+    consume(TOKEN_RBRACE, "Expect '}' after map elements");
+
+    emitBytes(OP_DEFINE_MAP, count);
 }

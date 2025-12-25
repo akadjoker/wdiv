@@ -30,10 +30,14 @@ const char *valueTypeToString(ValueType type)
         return "<process>";
     case ValueType::STRUCT:
         return "<struct>";
+    case ValueType::CLASS:
+        return "<class>";
     case ValueType::PROC_NATIVES:
         return "<proces_natives>";
     case ValueType::STRUCTINSTANCE:
         return "<struct_instances>";        
+    case ValueType::CLASSINSTANCE:
+        return "<class_instances>";        
 
     }
     return "<?>";
@@ -51,6 +55,8 @@ void Interpreter::checkType(int index, ValueType expected, const char *funcName)
                      valueTypeToString(v.type));
     }
 }
+
+
 
 // int Interpreter::toInt(int index)
 // {

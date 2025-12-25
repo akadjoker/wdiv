@@ -56,6 +56,8 @@ void Compiler::initRules()
     rules[TOKEN_SEMICOLON] = {nullptr, nullptr, PREC_NONE};
 
     rules[TOKEN_DOT] = {nullptr, &Compiler::dot, PREC_CALL};
+    rules[TOKEN_SELF] = {&Compiler::self, nullptr, PREC_NONE};
+    rules[TOKEN_SUPER] = {&Compiler::super, nullptr, PREC_NONE};
 
     // Arithmetic
     rules[TOKEN_PLUS] = {nullptr, &Compiler::binary, PREC_TERM};
@@ -97,16 +99,16 @@ void Compiler::initRules()
     rules[TOKEN_FALSE] = {&Compiler::literal, nullptr, PREC_NONE};
     rules[TOKEN_NIL]      = {&Compiler::literal, nullptr, PREC_NONE};
     rules[TOKEN_LBRACKET] = {
-        &Compiler::arrayLiteral,  // ← PREFIX: [1, 2, 3]
-        &Compiler::subscript,     // ← INFIX: arr[i]
-        PREC_CALL                 // ← Mesma precedência que . e ()
+        &Compiler::arrayLiteral,  //  PREFIX: [1, 2, 3]
+        &Compiler::subscript,     //  INFIX: arr[i]
+        PREC_CALL                 //  Mesma precedência que . e ()
     };
 
-    // rules[TOKEN_LBRACE] = {
-    //     &Compiler::mapLiteral,    // ← PREFIX: {key: value}
-    //     nullptr,                  // ← Sem INFIX
-    //     PREC_NONE
-    // };
+    rules[TOKEN_LBRACE] = {
+        &Compiler::mapLiteral,    //  PREFIX: {key: value}
+        nullptr,                  //  Sem INFIX
+        PREC_NONE
+    };
 
     // Keywords (all nullptr já setados no loop)
     rules[TOKEN_EOF] = {nullptr, nullptr, PREC_NONE};
@@ -131,9 +133,11 @@ ProcessDef *Compiler::compile(const std::string &source)
     tokens = lexer->scanAll();
 
     function = vm_->addFunction("__main__", 0);
-    currentProcess = vm_->addProcess("__main_process__", function);
+    currentProcess = vm_->addProcess("__main__", function);
     currentChunk = function->chunk;
     currentFiber = &currentProcess->fibers[0];
+    currentFunctionType = FunctionType::TYPE_SCRIPT;
+    currentClass = nullptr;
 
     advance();
 
@@ -163,9 +167,11 @@ ProcessDef *Compiler::compileExpression(const std::string &source)
     tokens = lexer->scanAll();
 
     function = vm_->addFunction("__expr__", 0);
-    currentProcess = vm_->addProcess("__main_process__", function);
+    currentProcess = vm_->addProcess("__main__", function);
     currentChunk = function->chunk;
     currentFiber = &currentProcess->fibers[0];
+    currentFunctionType = FunctionType::TYPE_SCRIPT;
+    currentClass = nullptr;
 
     advance();
 
@@ -199,12 +205,14 @@ void Compiler::clear()
     currentChunk = nullptr;
     currentFiber = nullptr;
     currentProcess = nullptr;
+    currentClass = nullptr;
     hadError = false;
     panicMode = false;
     scopeDepth = 0;
     localCount_ = 0;
     loopDepth_ = 0;
     cursor = 0;
+    currentFunctionType = FunctionType::TYPE_SCRIPT;
 }
 
 // ============================================
@@ -215,7 +223,7 @@ void Compiler::advance()
 {
 
     previous = current;
-    if (cursor >= tokens.size())
+    if (cursor >= (int)tokens.size())
     {
         current.type = TOKEN_EOF;
         return;

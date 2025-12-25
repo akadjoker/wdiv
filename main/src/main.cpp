@@ -4,6 +4,9 @@
 #include <sstream>
 #include <fstream>
 #include <cstdlib>
+#include <chrono>
+#include <thread>
+
 #include "interpreter.hpp"
 #include "token.hpp"
 #include "lexer.hpp"
@@ -38,7 +41,7 @@ Value native_write(Interpreter *vm, int argCount, Value *args)
                 else if (v.isString())
                     snprintf(buffer, 64, "%s", v.asString()->chars());
                 else
-                    snprintf(buffer, 64, "<?>");
+                    snprintf(buffer, 64, "<TODO>");
 
                 result += buffer;
             }
@@ -325,43 +328,50 @@ int main()
         return 1;
     }
 
-//     vm.pushInt(10);
-//     vm.pushInt(20);
+    //     vm.pushInt(10);
+    //     vm.pushInt(20);
 
-//  if (vm.callFunction("add", 2)) {
-//     printf("Stack size: %d\n", vm.getTop());  // Deve ser 1
-    
-//     if (vm.getTop() > 0) {
-//         int result = vm.toInt(-1);
-//         printf("Result: %d\n", result);  //  Deve dar 30!
-//         vm.pop();
-//     }
-// } else {
-//     printf("Call failed!\n");
-// }
+    //  if (vm.callFunction("add", 2)) {
+    //     printf("Stack size: %d\n", vm.getTop());  // Deve ser 1
 
+    //     if (vm.getTop() > 0) {
+    //         int result = vm.toInt(-1);
+    //         printf("Result: %d\n", result);  //  Deve dar 30!
+    //         vm.pop();
+    //     }
+    // } else {
+    //     printf("Call failed!\n");
+    // }
 
-// vm.pushInt(100);
-// vm.pushInt(200);
-// vm.callProcess("enemy", 2);
+    // vm.pushInt(100);
+    // vm.pushInt(200);
+    // vm.callProcess("enemy", 2);
 
+    // vm.pushInt(100);
+    // vm.pushInt(200);
+    // vm.callProcess("enemy", 2);
 
-// vm.pushInt(100);
-// vm.pushInt(200);
-// vm.callProcess("enemy", 2);
+    // vm.pushInt(100);
+    // vm.pushInt(200);
+    // vm.callProcess("enemy", 2);
 
-
-// vm.pushInt(100);
-// vm.pushInt(200);
-// vm.callProcess("enemy", 2);
-
-    int stapes = 0;
-    // while (vm.liveProcess()>0)
-    while (stapes < 5000)
+    // Modo interativo - vê os yields acontecerem
+    for (int i = 0; i < 100; i++)
     {
-        stapes++;
-        vm.update(0.016f); // Simula um frame de 16ms
+       // printf("\n=== FRAME %d ===\n", i);
+        vm.update(0.016f);
+
+        // Pausa para ver output
+        std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
+
+    // int stapes = 0;
+    // // while (vm.liveProcess()>0)
+    // while (stapes < 80000)
+    // {
+    //     stapes++;
+    //     vm.update(0.0000016f); // Simula um frame de 16ms
+    // }
 
     // Lexer lex("3.14 name.upper() 3.method()");
 

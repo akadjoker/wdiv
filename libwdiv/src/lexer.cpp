@@ -74,7 +74,6 @@ void Lexer::initKeywords()
         {"gosub", TOKEN_GOSUB},
         {"struct", TOKEN_STRUCT},
         {"class", TOKEN_CLASS},
-        {"this", TOKEN_THIS},
         {"self", TOKEN_SELF},
         {"super", TOKEN_SUPER},
         {"include", TOKEN_INCLUDE},

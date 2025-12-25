@@ -226,53 +226,6 @@ uint32 Interpreter::getTotalAliveProcesses() const
     return uint32(aliveProcesses.size());
 }
 
-int Interpreter::addGlobal(const char *name, Value value)
-{
-    String *pName = createString(name);
-    if (globals.exist(pName))
-    {
-        destroyString(pName);
-        return -1;
-    }
-    globals.set(pName, value);
-    globalList.push(value);
-
-    return (int)(globalList.size() - 1);
-}
-
-String *Interpreter::addGlobalEx(const char *name, Value value)
-{
-    String *pName = createString(name);
-    if (globals.exist(pName))
-    {
-        destroyString(pName);
-        return nullptr;
-    }
-    globals.set(pName, value);
-    globalList.push(value);
-
-    return pName;
-}
-
-Value Interpreter::getGlobal(uint32 index)
-{
-    if (index >= globalList.size())
-        return Value::makeNil();
-    return globalList[index];
-}
-
-void Interpreter::addFiber(Process *proc, Function *func)
-{
-    if (proc->nextFiberIndex >= MAX_FIBERS)
-    {
-        runtimeError("Too many fibers in process");
-        return;
-    }
-
-    int index = proc->nextFiberIndex++;
-    initFiber(&proc->fibers[index], func);
-}
-
 void Process::release()
 {
 }
@@ -377,13 +330,14 @@ void Interpreter::run_process_step(Process *proc)
     Fiber *fiber = get_ready_fiber(proc);
     if (!fiber)
     {
-        // Warning("  [run_process_step] No ready fiber");
+         Warning("No ready fiber");
         return;
     }
 
     proc->current = fiber;
     FiberResult result = run_fiber(fiber);
 
+    //printf("  Executing Fiber %d\n", fiber - proc->fibers); 
     // Warning("  [run_process_step] result.reason=%d, instructions=%d",   (int)result.reason, result.instructionsRun);
 
     if (proc->state == FiberState::DEAD)

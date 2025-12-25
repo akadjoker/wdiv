@@ -6,6 +6,7 @@
 struct StructInstance;
 struct ArrayInstance;
 struct MapInstance;
+struct ClassInstance;
 
 class InstancePool 
 {
@@ -21,7 +22,7 @@ public:
         return pool;
     }
 
-    StructInstance* createStruct(String *name);
+    StructInstance* createStruct( );
     void freeStruct(StructInstance *proc);
 
     ArrayInstance* createArray();
@@ -30,6 +31,9 @@ public:
 
     MapInstance* createMap();
     void freeMap(MapInstance *m);
+
+    ClassInstance* creatClass();
+    void freeClass(ClassInstance *c);
 
     void clear();
  

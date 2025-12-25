@@ -234,9 +234,13 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             double da, db;
             if (!toNumberPair(a, b, da, db))
             {
-                runtimeError("Operands  must be numbers or strings");
-                printValueNl(a);
-                printValueNl(b);
+                runtimeError("Operands 'add' must be numbers or strings");
+                printf(" a: ");
+                printValue(a);
+                printf(" b: ");
+                printValue(b);
+                printf("\n");
+
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
@@ -568,8 +572,8 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             Value callee = NPEEK(argCount);
 
             // printf("Call : (");
-            // printValue(callee);
-            // printf(") count %d\n", argCount);
+            //  printValue(callee);
+            //  printf(") count %d\n", argCount);
 
             if (callee.isFunction())
             {
@@ -696,7 +700,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                 }
 
-                Value value = Value::makeStructInstance(def->name);
+                Value value = Value::makeStructInstance();
                 StructInstance *instance = value.as.sInstance;
                 instance->def = def;
                 structInstances.push(instance);
@@ -709,10 +713,63 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 PUSH(value);
                 break;
             }
+            else if (callee.isClass())
+            {
+                int classId = callee.asClassId();
+                ClassDef *klass = classes[classId];
+
+                Value value = Value::makeClassInstance();
+                ClassInstance *instance = value.as.sClass;
+                instance->klass = klass;
+                instance->fields.reserve(klass->fieldCount);
+
+                // Inicializa fields com nil
+                for (int i = 0; i < klass->fieldCount; i++)
+                {
+                    instance->fields.push(Value::makeNil());
+                }
+
+                classesInstances.push(instance);
+                // Substitui class por instance na stack
+                fiber->stackTop[-argCount - 1] = value;
+
+                if (klass->constructor)
+                {
+                    if (argCount != klass->constructor->arity)
+                    {
+                        runtimeError("init() expects %d arguments, got %d", klass->constructor->arity, argCount);
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    if (currentFiber->frameCount >= FRAMES_MAX)
+                    {
+                        runtimeError("Stack overflow");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    CallFrame *newFrame = &currentFiber->frames[currentFiber->frameCount];
+                    newFrame->func = klass->constructor;
+                    newFrame->ip = klass->constructor->chunk->code;
+                    newFrame->slots = currentFiber->stackTop - argCount - 1;
+
+                    currentFiber->frameCount++;
+
+                    STORE_FRAME();
+                    LOAD_FRAME();
+                }
+                else
+                {
+                    // Sem init - pop args
+                    fiber->stackTop -= argCount;
+                }
+
+                break;
+            }
             else
             {
 
                 runtimeError("Can only call functions");
+                printf("> ");
                 printValue(callee);
                 printf("\n");
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
@@ -750,66 +807,13 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             //  Função nested - retorna para onde estava a chamada
             CallFrame *finished = &fiber->frames[fiber->frameCount];
-            fiber->stackTop = finished->slots - 1;
+            fiber->stackTop = finished->slots;
             *fiber->stackTop++ = result;
 
             LOAD_FRAME();
             break;
         }
 
-            // case OP_RETURN:
-            // {
-            //     Value result = POP();
-
-            //     CallFrame *finished = &fiber->frames[fiber->frameCount - 1];
-            //     Value *resultSlot = finished->slots - 1;
-
-            //     fiber->frameCount--;
-
-            //     printf("    RETURN      ");
-            //     for (Value *slot = fiber->stack; slot < fiber->stackTop; slot++)
-            //     {
-            //         printf("[ ");
-            //         printValue(*slot);
-            //         printf(" ]");
-            //     }
-            //     printf("\n");
-            //     fiber->stackTop = resultSlot;
-            //     *fiber->stackTop++ = result;
-
-            //     if (fiber->frameCount == 0)
-            //     {
-            //         fiber->state = FiberState::DEAD;
-
-            //         if (fiber == &currentProcess->fibers[0])
-            //         {
-            //             // Mata TODAS as fibers do processo
-            //             for (int i = 0; i < currentProcess->nextFiberIndex; i++)
-            //             {
-            //                 currentProcess->fibers[i].state = FiberState::DEAD;
-            //             }
-
-            //             // Marca processo como morto
-            //             currentProcess->state = FiberState::DEAD;
-
-            //         }
-
-            //             //  printf("    EXIT      \n");
-            //             // for (Value *slot = fiber->stack; slot < fiber->stackTop; slot++)
-            //             // {
-            //             //     printf("[ ");
-            //             //     printValue(*slot);
-            //             //     printf(" ]");
-            //             // }
-            //             // printf("\n");
-
-            //         STORE_FRAME();
-            //         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            //     }
-
-            //     LOAD_FRAME();
-            //     break;
-            // }
             // ========== PROCESS/FIBER CONTROL ==========
 
         case OP_YIELD:
@@ -955,6 +959,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             const char *name = nameValue.asStringChars();
 
             // === STRING METHODS ===
+
             if (object.isString())
             {
 
@@ -996,9 +1001,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 }
 
                 break;
-
-                // runtimeError("Process has no property '%s'", name);
-                // return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
             if (object.isStructInstance())
@@ -1026,8 +1028,34 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 break;
             }
 
-            // === OUTROS TIPOS (futuro) ===
-            runtimeError("Type does not support property access");
+            if (object.isClassInstance())
+            {
+                ClassInstance *instance = object.asClassInstance();
+
+                bool inherited = instance->klass->inherited;
+
+                uint8_t fieldIdx;
+                if (instance->klass->fieldNames.get(nameValue.asString(), &fieldIdx))
+                {
+                    DROP();
+                    PUSH(instance->fields[fieldIdx]);
+                    break;
+                }
+                runtimeError("Undefined property '%s'", name);
+                PUSH(Value::makeNil());
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            runtimeError("Type does not support 'SET' property access");
+
+            printf("[Object: '");
+            printValue(object);
+            printf("' Property : '");
+            printValue(nameValue);
+
+            printf("']\n");
+
+            PUSH(Value::makeNil());
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
         case OP_SET_PROPERTY:
@@ -1120,6 +1148,24 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 break;
             }
 
+            if (object.isClassInstance())
+            {
+                ClassInstance *instance = object.asClassInstance();
+
+                uint8_t fieldIdx;
+                if (instance->klass->fieldNames.get(nameValue.asString(), &fieldIdx))
+                {
+                    instance->fields[fieldIdx] = value;
+                    // Pop object, mantém value
+                    DROP(); // object
+                    break;
+                }
+
+                runtimeError("Undefined property '%s'", name);
+                DROP(); // object
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
             runtimeError("Cannot set property on this type");
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
 
@@ -1139,29 +1185,29 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             const char *name = nameValue.asStringChars();
             Value receiver = NPEEK(argCount);
 
-            //             printf("\n=== OP_INVOKE DEBUG ===\n");
-            // printf("Method: %s\n", name);
-            // printf("ArgCount: %d\n", argCount);
-            // printf("Stack size: %d\n", (int)(fiber->stackTop - fiber->stack));
-            // printf("Receiver (NPEEK(%d)): ", argCount);
-            // printValue(receiver);
-            // printf("\n");
-            // printf("Type: ");
-            // if (receiver.isString()) printf("STRING");
-            // else if (receiver.isInt()) printf("INT");
-            // else if (receiver.isDouble()) printf("DOUBLE");
-            // else if (receiver.isNil()) printf("NIL");
-            // else printf("UNKNOWN");
-            // printf("\n");
+//             printf("\n=== OP_INVOKE DEBUG ===\n");
+// printf("Method: %s\n", name);
+// printf("ArgCount: %d\n", argCount);
+// printf("Stack size: %d\n", (int)(fiber->stackTop - fiber->stack));
+// printf("Receiver (NPEEK(%d)): ", argCount);
+// printValue(receiver);
+// printf("\n");
+// printf("Type: ");
+// if (receiver.isString()) printf("STRING");
+// else if (receiver.isInt()) printf("INT");
+// else if (receiver.isDouble()) printf("DOUBLE");
+// else if (receiver.isNil()) printf("NIL");
+// else printf("UNKNOWN");
+// printf("\n");
 
-            // // Mostra o stack todo
-            // printf("Full stack:\n");
-            // for (int i = 0; i < (fiber->stackTop - fiber->stack); i++) {
-            //     printf("  [%d] ", i);
-            //     printValue(fiber->stack[i]);
-            //     printf("\n");
-            // }
-            // printf("=======================\n");
+// // Mostra o stack todo
+// printf("Full stack:\n");
+// for (int i = 0; i < (fiber->stackTop - fiber->stack); i++) {
+//     printf("  [%d] ", i);
+//     printValue(fiber->stack[i]);
+//     printf("\n");
+// }
+// printf("=======================\n");
 #define ARGS_CLEANUP() fiber->stackTop -= (argCount + 1)
 
             // === STRING METHODS ===
@@ -1506,9 +1552,232 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 }
             }
 
+            // === MAP METHODS ===
+            if (receiver.isMap())
+            {
+                MapInstance *map = receiver.asMap();
+
+                if (strcmp(name, "has") == 0)
+                {
+                    if (argCount != 1)
+                    {
+                        runtimeError("has() expects 1 argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    Value key = PEEK();
+
+                    if (!key.isString())
+                    {
+                        runtimeError("Map key must be string");
+                        ARGS_CLEANUP();
+                        PUSH(Value::makeBool(false));
+                        break;
+                    }
+
+                    bool exists = map->table.exist(key.asString());
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeBool(exists));
+                    break;
+                }
+                else if (strcmp(name, "remove") == 0)
+                {
+                    if (argCount != 1)
+                    {
+                        runtimeError("remove() expects 1 argument");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    Value key = PEEK();
+
+                    if (!key.isString())
+                    {
+                        runtimeError("Map key must be string");
+                        ARGS_CLEANUP();
+                        PUSH(Value::makeNil());
+                        break;
+                    }
+
+                    //  HashMap não tem remove, mas podes setar para nil
+                    map->table.set(key.asString(), Value::makeNil());
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeNil());
+                    break;
+                }
+                else if (strcmp(name, "clear") == 0)
+                {
+                    if (argCount != 0)
+                    {
+                        runtimeError("clear() expects 0 arguments");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    map->table.destroy();
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeNil());
+                    break;
+                }
+                else if (strcmp(name, "len") == 0 || strcmp(name, "length") == 0)
+                {
+                    if (argCount != 0)
+                    {
+                        runtimeError("len() expects 0 arguments");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+                    ARGS_CLEANUP();
+                    PUSH(Value::makeInt(map->table.count));
+                    break;
+                }
+                else if (strcmp(name, "keys") == 0)
+                {
+                    if (argCount != 0)
+                    {
+                        runtimeError("keys() expects 0 arguments");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    // Retorna array de keys
+                    Value keys = Value::makeArray();
+                    ArrayInstance *keysInstance = keys.asArray();
+
+                    map->table.forEach([&](String *key, Value value)
+                                       { keysInstance->values.push(Value::makeString(key)); });
+
+                    ARGS_CLEANUP();
+                    PUSH(keys);
+                    break;
+                }
+                else if (strcmp(name, "values") == 0)
+                {
+                    if (argCount != 0)
+                    {
+                        runtimeError("values() expects 0 arguments");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    // Retorna array de values
+                    Value values = Value::makeArray();
+                    ArrayInstance *valueInstance = values.asArray();
+
+                    map->table.forEach([&](String *key, Value value)
+                                       { valueInstance->values.push(value); });
+
+                    ARGS_CLEANUP();
+                    PUSH(values);
+                    break;
+                }
+            }
+
+            // === CLASS INSTANCE METHODS ===
+            if (receiver.isClassInstance())
+            {
+                ClassInstance *instance = receiver.asClassInstance();
+                // printValueNl(receiver);
+                // printValueNl(nameValue);
+
+                Function *method;
+                if (instance->getMethod(nameValue.asString(), &method))
+                {
+                    if (argCount != method->arity)
+                    {
+                        runtimeError("Method '%s' expects %d arguments, got %d", name, method->arity, argCount);
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                  //  Debug::dumpFunction(method);
+                    fiber->stackTop[-argCount - 1] = receiver;
+
+                    // Setup call frame
+                    if (currentFiber->frameCount >= FRAMES_MAX)
+                    {
+                        runtimeError("Stack overflow in method!");
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+
+                    CallFrame *newFrame = &currentFiber->frames[currentFiber->frameCount];
+                    newFrame->func = method;
+                    newFrame->ip = method->chunk->code;
+                    newFrame->slots = currentFiber->stackTop - argCount - 1;
+
+                    currentFiber->frameCount++;
+
+                    STORE_FRAME();
+                    LOAD_FRAME();
+
+                    break;
+                }
+                runtimeError("Instance '%s' has no method '%s'", instance->klass->name->chars(), name);
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
             runtimeError("Type does not support method calls");
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
+
+        case OP_SUPER_INVOKE:
+        {
+            uint8_t nameIdx = READ_BYTE();
+            uint8_t argCount = READ_BYTE();
+
+            Value nameValue = func->chunk->constants[nameIdx];
+            String *methodName = nameValue.asString();
+
+            Value self = NPEEK(argCount); // Pega self ANTES dos args
+
+            // printf("Super member: ");
+            // printValueNl(nameValue);
+            // printf(" Super class: ");
+            // printValueNl(self);
+            // printf(" args %d \n",argCount);
+
+
+            if (!self.isClassInstance())
+            {
+                runtimeError("'super' requires an instance");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            ClassInstance *instance = self.asClassInstance();
+
+            if (!instance->klass->superclass)
+            {
+                runtimeError("Class has no superclass");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            // Procura método no SUPERCLASS )
+            Function *method;
+            if (!instance->klass->superclass->methods.get(methodName, &method))
+            {
+                runtimeError("Undefined method '%s' in superclass",methodName->chars());
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            if (argCount != method->arity)
+            {
+                runtimeError("Method '%s' expects %d arguments, got %d",
+                             methodName->chars(), method->arity, argCount);
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+            // Setup call frame
+            if (fiber->frameCount >= FRAMES_MAX)
+            {
+                runtimeError("Stack overflow");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            CallFrame *newFrame = &fiber->frames[fiber->frameCount];
+            newFrame->func = method;
+            newFrame->ip = method->chunk->code;
+            newFrame->slots = fiber->stackTop - argCount - 1; //  Aponta para self
+
+            fiber->frameCount++;
+
+            STORE_FRAME();
+            LOAD_FRAME();
+            break;
+        }
+
         case OP_GOSUB:
         {
             int16 off = (int16)READ_SHORT(); // lê u16 mas cast para signed
@@ -1533,12 +1802,38 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             uint8_t count = READ_BYTE();
             Value array = Value::makeArray();
             ArrayInstance *instance = array.asArray();
+            arrayInstances.push(instance);
             instance->values.resize(count);
             for (int i = count - 1; i >= 0; i--)
             {
                 instance->values[i] = POP();
             }
             PUSH(array);
+            break;
+        }
+        case OP_DEFINE_MAP:
+        {
+            uint8_t count = READ_BYTE();
+
+            Value map = Value::makeMap();
+            MapInstance *inst = map.asMap();
+
+            for (int i = 0; i < count; i++)
+            {
+                Value value = POP();
+                Value key = POP();
+
+                if (!key.isString())
+                {
+                    runtimeError("Map key must be string");
+                    PUSH(Value::makeNil());
+                    break;
+                }
+
+                inst->table.set(key.asString(), value);
+            }
+
+            PUSH(map);
             break;
         }
         case OP_SET_INDEX:
@@ -1579,6 +1874,23 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 {
                     arr->values[i] = value;
                 }
+
+                PUSH(value); // Assignment returns value
+                break;
+            }
+
+            // === MAP  ===
+            if (container.isMap())
+            {
+                if (!index.isString())
+                {
+                    runtimeError("Map key must be string");
+                    PUSH(value);
+                    break;
+                }
+
+                MapInstance *map = container.asMap();
+                map->table.set(index.asString(), value);
 
                 PUSH(value); // Assignment returns value
                 break;
@@ -1653,15 +1965,39 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 break;
             }
 
+            // === MAP   ===
+            if (container.isMap())
+            {
+                if (!index.isString())
+                {
+                    runtimeError("Map key must be string");
+                    PUSH(Value::makeNil());
+                    break;
+                }
+
+                MapInstance *map = container.asMap();
+                Value result;
+
+                if (map->table.get(index.asString(), &result))
+                {
+                    PUSH(result);
+                }
+                else
+                {
+                    // Key não existe - retorna nil
+                    PUSH(Value::makeNil());
+                }
+                break;
+            }
+
             runtimeError("Cannot index this type");
             PUSH(Value::makeNil());
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
-
         default:
         {
             runtimeError("Unknown opcode %d", instruction);
-            break;
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
         }
     }

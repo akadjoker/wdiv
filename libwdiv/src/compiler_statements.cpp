@@ -110,6 +110,10 @@ void Compiler::statement()
     {
         structDeclaration();
     }
+    else if (match(TOKEN_CLASS))
+    {
+        classDeclaration();
+    }
     else if (match(TOKEN_LBRACE))
     {
         beginScope();
@@ -148,29 +152,66 @@ void Compiler::expressionStatement()
 
 void Compiler::varDeclaration()
 {
-    consume(TOKEN_IDENTIFIER, "Expect variable name");
-    Token nameToken = previous;
-
-    uint8 global = identifierConstant(nameToken);
-
-    if (scopeDepth > 0)
+    do
     {
-        declareVariable();
-    }
+        consume(TOKEN_IDENTIFIER, "Expect variable name");
+        Token nameToken = previous;
 
-    if (match(TOKEN_EQUAL))
-    {
-        expression();
-    }
-    else
-    {
-        emitByte(OP_NIL);
-    }
+        uint8_t global = identifierConstant(nameToken);
+
+        if (scopeDepth > 0)
+        {
+            declareVariable();
+        }
+
+        //  Se tem '=' e NÃO tem vírgula depois
+        if (match(TOKEN_EQUAL) && !check(TOKEN_COMMA))
+        {
+            expression();
+        }
+        else
+        {
+            // Ignora '=' se tem vírgula, ou não tem '='
+            if (match(TOKEN_EQUAL))
+            {
+                expression(); // Compila mas descarta
+                emitByte(OP_POP);
+            }
+            emitByte(OP_NIL);
+        }
+
+        defineVariable(global);
+
+    } while (match(TOKEN_COMMA)); //  Continua se tem vírgula
 
     consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration");
-
-    defineVariable(global);
 }
+
+// void Compiler::varDeclaration()
+// {
+//     consume(TOKEN_IDENTIFIER, "Expect variable name");
+//     Token nameToken = previous;
+
+//     uint8 global = identifierConstant(nameToken);
+
+//     if (scopeDepth > 0)
+//     {
+//         declareVariable();
+//     }
+
+//     if (match(TOKEN_EQUAL))
+//     {
+//         expression();
+//     }
+//     else
+//     {
+//         emitByte(OP_NIL);
+//     }
+
+//     consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration");
+
+//     defineVariable(global);
+// }
 
 void Compiler::variable(bool canAssign)
 {
@@ -181,6 +222,7 @@ void Compiler::variable(bool canAssign)
 
 void Compiler::and_(bool canAssign)
 {
+    (void)canAssign;
     int endJump = emitJump(OP_JUMP_IF_FALSE);
     emitByte(OP_POP);
     parsePrecedence(PREC_AND);
@@ -189,6 +231,7 @@ void Compiler::and_(bool canAssign)
 
 void Compiler::or_(bool canAssign)
 {
+    (void)canAssign;
     int elseJump = emitJump(OP_JUMP_IF_FALSE);
     int endJump = emitJump(OP_JUMP);
 
@@ -366,7 +409,6 @@ void Compiler::addLocal(Token &name)
     // Copia string
     std::memcpy(locals_[localCount_].name, name.lexeme.c_str(), len);
     locals_[localCount_].name[len] = '\0';
-
     locals_[localCount_].length = (uint8)len;
     locals_[localCount_].depth = -1;
 
@@ -801,7 +843,7 @@ void Compiler::returnStatement()
 
     if (isProcess_)
     {
-        consume(TOKEN_SEMICOLON, "Expect ';'");
+        consume(TOKEN_SEMICOLON, "Expect ';'"); // quando usamo gosub nos processos
         emitByte(OP_RETURN_SUB);
         return;
     }
@@ -814,11 +856,15 @@ void Compiler::returnStatement()
 
     if (match(TOKEN_SEMICOLON))
     {
-        // return;
-        emitByte(OP_RETURN_NIL);
+        emitReturn();
     }
     else
     {
+        if (currentFunctionType == FunctionType::TYPE_INITIALIZER)
+        {
+            error("Cannot return a value from an initializer");
+            return;
+        }
         // return <expr>;
         expression();
         consume(TOKEN_SEMICOLON, "Expect ';' after return value");
@@ -852,6 +898,7 @@ uint8 Compiler::argumentList()
 
 void Compiler::call(bool canAssign)
 {
+    (void)canAssign;
     uint8 argCount = argumentList();
     emitByte(OP_CALL);
     emitByte(argCount);
@@ -1072,6 +1119,7 @@ void Compiler::prefixIncrement(bool canAssign)
 
 void Compiler::prefixDecrement(bool canAssign)
 {
+    (void)canAssign;
     // --i
 
     if (!check(TOKEN_IDENTIFIER))
@@ -1271,26 +1319,76 @@ void Compiler::fiberStatement()
     // emitByte(OP_POP); // descarta o nil/handle se spawn devolver algo
 }
 
+void Compiler::self(bool canAssign)
+{
+    (void)canAssign;
+    if (currentClass == nullptr)
+    {
+        error("Cannot use 'self' outside of a class");
+        return;
+    }
+    Token selfToken;
+    selfToken.lexeme = "self";
+    selfToken.type = TOKEN_IDENTIFIER;
+    namedVariable(selfToken, canAssign);
+}
+
+void Compiler::super(bool canAssign)
+{
+    Warning("SUPER");
+
+    if (currentClass == nullptr)
+    {
+        error("Cannot use 'super' outside of a class");
+        return;
+    }
+
+    if (currentClass->superclass == nullptr)
+    {
+        error("Cannot use 'super' in a class with no superclass");
+        return;
+    }
+
+    consume(TOKEN_DOT, "Expect '.' after 'super'");
+    consume(TOKEN_IDENTIFIER, "Expect superclass method name");
+    Token methodName = previous;
+    uint8_t nameIdx = identifierConstant(methodName);
+
+    consume(TOKEN_LPAREN, "Expect '(' after method name");
+
+    // SELF PRIMEIRO!
+    emitBytes(OP_GET_LOCAL, 0);
+
+    // DEPOIS ARGUMENTOS!
+    uint8_t argCount = argumentList();
+
+    // Emite OP_SUPER_INVOKE
+    emitBytes(OP_SUPER_INVOKE, nameIdx);
+    emitByte(argCount);
+}
+
 void Compiler::dot(bool canAssign)
 {
     consume(TOKEN_IDENTIFIER, "Expect property name after '.'");
     Token propName = previous;
-    uint8 nameIdx = identifierConstant(propName);
-    if (canAssign && match(TOKEN_EQUAL))
+    uint8_t nameIdx = identifierConstant(propName);
+
+    if (match(TOKEN_LPAREN))
     {
-        // obj.prop = value
-        expression();
-        emitBytes(OP_SET_PROPERTY, nameIdx);
-    }
-    else if (match(TOKEN_LPAREN))
-    {
-        uint8 argCount = argumentList(); // empilha args
+
+        uint8_t argCount = argumentList();
         emitBytes(OP_INVOKE, nameIdx);
         emitByte(argCount);
     }
+    else if (canAssign && match(TOKEN_EQUAL))
+    {
+
+        expression();
+        emitBytes(OP_SET_PROPERTY, nameIdx);
+    }
     else
     {
-        // obj.prop
+
         emitBytes(OP_GET_PROPERTY, nameIdx);
     }
 }
@@ -1384,35 +1482,282 @@ void Compiler::structDeclaration()
 {
     consume(TOKEN_IDENTIFIER, "Expect struct name");
     Token structName = previous;
-
     uint8_t nameConstant = identifierConstant(structName);
+
     consume(TOKEN_LBRACE, "Expect '{' before struct body");
 
     int index = 0;
+    StructDef *structDef = vm_->registerStruct(
+        createString(structName.lexeme.c_str()),
+        &index);
 
-    std::vector<std::string> names;
-
-    StructDef *structDef = vm_->registerStruct(createString(structName.lexeme.c_str()), &index);
     if (!structDef)
     {
-        fail("Strcut with name '%s' alredy exists.", structName.lexeme.c_str());
+        fail("Struct with name '%s' already exists", structName.lexeme.c_str());
         return;
     }
+
     structDef->argCount = 0;
-    if (!check(TOKEN_RBRACE))
+
+    // ✅ Loop externo: múltiplas linhas de fields
+    while (!check(TOKEN_RBRACE) && !check(TOKEN_EOF))
     {
+        // ✅ Opcional: pode ter 'var' ou não
+        bool hasVar = match(TOKEN_VAR);
+
+        // ✅ Loop interno: múltiplos fields separados por vírgula
         do
         {
             consume(TOKEN_IDENTIFIER, "Expect field name");
-            structDef->names.set(createString(previous.lexeme.c_str()), structDef->argCount);
+
+            String *fieldName = createString(previous.lexeme.c_str());
+            structDef->names.set(fieldName, structDef->argCount);
             structDef->argCount++;
+
         } while (match(TOKEN_COMMA));
+
+        // ✅ Se tinha 'var', precisa de ';'
+        if (hasVar)
+        {
+            consume(TOKEN_SEMICOLON, "Expect ';' after field declaration");
+        }
+        // ✅ Se não tinha 'var', aceita ',' ou '}'
     }
 
     consume(TOKEN_RBRACE, "Expect '}' after struct body");
-    consume(TOKEN_SEMICOLON, "Expect ';'");
+    consume(TOKEN_SEMICOLON, "Expect ';' after struct");
 
     emitConstant(Value::makeStruct(index));
-
     defineVariable(nameConstant);
+}
+
+void Compiler::classDeclaration()
+{
+    consume(TOKEN_IDENTIFIER, "Expect class name");
+    Token className = previous;
+    uint8_t nameConstant = identifierConstant(className);
+
+    //  Regista class blueprint na VM
+    int classId;
+    ClassDef *classDef = vm_->registerClass(
+        createString(className.lexeme.c_str()),
+        &classId);
+
+    if (!classDef)
+    {
+        fail("Class with name '%s' already exists", className.lexeme.c_str());
+        return;
+    }
+
+    // printf("ClassDef criado: %p, ID: %d\n", (void*)classDef, classId);
+    // printf("fieldCount inicial: %d\n", classDef->fieldCount);
+
+    // Emite class ID como constante
+    emitConstant(Value::makeClass(classId));
+    defineVariable(nameConstant);
+
+    // Herança?
+    if (match(TOKEN_COLON))
+    {
+        consume(TOKEN_IDENTIFIER, "Expect superclass name");
+        Token superName = previous;
+
+        const char *name = superName.lexeme.c_str();
+
+        ClassDef *classSuper = nullptr;
+        if (!vm_->tryGetClassDefenition(name, &classSuper))
+        {
+            fail("Undefined superclass '%s'", superName.lexeme.c_str());
+            return;
+        }
+        if (classSuper == classDef)
+        {
+            fail("A class cannot inherit from itself");
+            return;
+        }
+        classDef->inherited = true;
+        classDef->parent = classSuper->name;
+
+        Warning(" class %s herdar  class %s", className.lexeme.c_str(), name);
+        classDef->superclass = classSuper;
+
+        // //  COPIA MÉTODOS DO PARENT!
+        // classSuper->methods.forEach([&](String* methodName, Function* method)
+        // {
+
+        //     classDef->methods.set(methodName, method);
+        // });
+
+        // //  Copia fieldCount também ( herdar fields ??)
+        classSuper->fieldNames.forEach([&](String *fieldName, uint8_t index)
+                                       {
+            classDef->fieldNames.set(fieldName, classDef->fieldCount);
+            classDef->fieldCount++; });
+    }
+    consume(TOKEN_LBRACE, "Expect '{'");
+    // while (check(TOKEN_VAR))
+    // {
+    //     advance(); // consome 'var'
+
+    //     consume(TOKEN_IDENTIFIER, "Expect field name");
+    //     Token fieldName = previous;
+
+    //     String *name = createString(fieldName.lexeme.c_str());
+    //     classDef->fieldNames.set(name, classDef->fieldCount);
+    //     classDef->fieldCount++;
+
+    //     // Ignora inicialização (vai no init)
+    //     if (match(TOKEN_EQUAL))
+    //     {
+    //         expression();
+    //         emitByte(OP_POP);
+    //     }
+
+    //     consume(TOKEN_SEMICOLON, "Expect ';'");
+    // }
+
+    while (check(TOKEN_VAR))
+    {
+        advance(); // Consome 'var'
+        do
+        {
+            consume(TOKEN_IDENTIFIER, "Expect field name");
+            Token fieldName = previous;
+
+            String *name = createString(fieldName.lexeme.c_str());
+            classDef->fieldNames.set(name, classDef->fieldCount);
+            classDef->fieldCount++;
+
+            // Ignora inicialização (vai no init)
+            if (match(TOKEN_EQUAL) && !check(TOKEN_COMMA))
+            {
+                expression();
+                emitByte(OP_POP);
+            }
+            else if (match(TOKEN_EQUAL))
+            {
+                expression();
+                emitByte(OP_POP);
+            }
+
+        } while (match(TOKEN_COMMA)); //  Continua se tem vírgula
+
+        consume(TOKEN_SEMICOLON, "Expect ';'");
+    }
+    // Parse métodos
+    while (match(TOKEN_DEF))
+    {
+        method(classDef); // Passa ClassDef!
+    }
+
+    consume(TOKEN_RBRACE, "Expect '}'");
+
+    // emitByte(OP_POP); // Pop class
+}
+
+void Compiler::method(ClassDef *classDef)
+{
+    consume(TOKEN_IDENTIFIER, "Expect method name");
+    Token methodName = previous;
+
+    // Tipo de função
+    this->currentFunctionType = FunctionType::TYPE_METHOD;
+    // Registra função
+    //    std::string funcName = classDef->name->chars() +std::string("::") + methodName.lexeme;
+    std::string funcName = methodName.lexeme;
+    Function *func = classDef->canRegisterFunction(funcName.c_str());
+    if (!func)
+    {
+        fail("Function '%s' already exists in class '%s' ", funcName.c_str(), classDef->name->chars());
+        return;
+    }
+
+    if (funcName == "init")
+    {
+        classDef->constructor = func;
+        this->currentFunctionType = FunctionType::TYPE_INITIALIZER;
+    }
+
+    vm_->addFunctionsClasses(func);
+
+    // ===== SALVA ESTADO =====
+    Function *enclosing = this->function;
+    Code *enclosingChunk = this->currentChunk;
+    int enclosingScopeDepth = this->scopeDepth;
+    int enclosingLocalCount = this->localCount_;
+    ClassDef *enclosingClass = this->currentClass;
+
+    // ===== TROCA CONTEXTO =====
+    this->function = func;
+    this->currentChunk = func->chunk;
+    this->scopeDepth = 0;
+    this->localCount_ = 0;
+    this->currentClass = classDef;
+
+    // ===== SCOPE DA FUNÇÃO =====
+    beginScope(); // scopeDepth = 1
+
+    // ===== SELF = LOCAL[0] =====
+    Token selfToken;
+    selfToken.lexeme = "self";
+    selfToken.type = TOKEN_IDENTIFIER;
+    addLocal(selfToken);
+    markInitialized();
+
+    // ===== PARAMS =====
+    consume(TOKEN_LPAREN, "Expect '('");
+
+    if (!check(TOKEN_RPAREN))
+    {
+        do
+        {
+            func->arity++;
+            if (func->arity > 255)
+            {
+                error("Can't have more than 255 parameters");
+                break;
+            }
+
+            consume(TOKEN_IDENTIFIER, "Expect parameter name");
+            addLocal(previous);
+            markInitialized();
+
+        } while (match(TOKEN_COMMA));
+    }
+
+    consume(TOKEN_RPAREN, "Expect ')'");
+
+    // ===== CORPO =====
+    consume(TOKEN_LBRACE, "Expect '{'");
+    block(); // block() chama beginScope/endScope internamente
+
+    // Os parâmetros (self + args) ficam até o return
+
+    // ===== RETURN =====
+    if (currentFunctionType == FunctionType::TYPE_INITIALIZER)
+    {
+        // init() retorna self automaticamente
+        emitBytes(OP_GET_LOCAL, 0); // self
+        emitByte(OP_RETURN);
+        function->hasReturn = true;
+    }
+    else if (!function->hasReturn)
+    {
+        emitByte(OP_NIL);
+        emitByte(OP_RETURN);
+        // Método normal sem return - retorna self ??
+        // emitReturn();
+
+        // emitBytes(OP_GET_LOCAL, 0); // self
+        // emitByte(OP_RETURN);
+        function->hasReturn = true;
+    }
+
+    // ===== RESTAURA ESTADO =====
+    this->function = enclosing;
+    this->currentChunk = enclosingChunk;
+    this->scopeDepth = enclosingScopeDepth;
+    this->localCount_ = enclosingLocalCount;
+    this->currentClass = enclosingClass;
+    this->currentFunctionType = FunctionType::TYPE_SCRIPT;
 }
