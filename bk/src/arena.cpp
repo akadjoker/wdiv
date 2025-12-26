@@ -287,7 +287,7 @@ void HeapAllocator::Stats()
         {
             if (stats.blockStats[i] > 0)
             {
-                Info("  %3zu bytes: %4zu allocs (%zu KB) .",
+                Info("  %3zu bytes: %4zu allocs (%zu KB)",
                      s_blockSizes[i],
                      stats.blockStats[i],
                      (s_blockSizes[i] * stats.blockStats[i]) / 1024);

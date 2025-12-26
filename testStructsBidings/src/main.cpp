@@ -9,15 +9,62 @@
 #include "bidings.hpp"
 #include "interpreter.hpp"
 
-Value native_write(Interpreter *vm, int argCount, Value *args)
+// Helper: converte Value para string
+static void valueToString(const Value &v, std::string &out)
 {
-    if (argCount < 1 || !args[0].isString())
+    char buffer[256];
+
+    switch (v.type)
     {
-        vm->runtimeError("write expects string as first argument");
+    case ValueType::NIL:
+        out += "nil";
+        break;
+    case ValueType::BOOL:
+        out += v.as.boolean ? "true" : "false";
+        break;
+    case ValueType::BYTE:
+        snprintf(buffer, 256, "%u", v.as.byte);
+        out += buffer;
+        break;
+    case ValueType::INT:
+        snprintf(buffer, 256, "%d", v.as.integer);
+        out += buffer;
+        break;
+    case ValueType::UINT:
+        snprintf(buffer, 256, "%u", v.as.unsignedInteger);
+        out += buffer;
+        break;
+    case ValueType::FLOAT:
+        snprintf(buffer, 256, "%.2f", v.as.n_float);
+        out += buffer;
+        break;
+    case ValueType::DOUBLE:
+        snprintf(buffer, 256, "%.2f", v.as.number);
+        out += buffer;
+        break;
+    case ValueType::STRING:
+        out += v.as.string->chars();
+        break;
+    case ValueType::ARRAY:
+        out += "[array]";
+        break;
+    case ValueType::MAP:
+        out += "{map}";
+        break;
+    default:
+        out += "<object>";
+    }
+}
+
+Value native_format(Interpreter *vm, int argCount, Value *args)
+{
+    if (argCount < 1 || args[0].type != ValueType::STRING)
+    {
+        vm->runtimeError("format expects string as first argument");
         return Value::makeNil();
     }
 
-    const char *fmt = args[0].asString()->chars();
+    const char *fmt = args[0].as.string->chars();
     std::string result;
     int argIndex = 1;
 
@@ -25,23 +72,40 @@ Value native_write(Interpreter *vm, int argCount, Value *args)
     {
         if (fmt[i] == '{' && fmt[i + 1] == '}')
         {
-
             if (argIndex < argCount)
             {
+                valueToString(args[argIndex++], result);
+            }
+            i++;
+        }
+        else
+        {
+            result += fmt[i];
+        }
+    }
 
-                char buffer[64];
-                Value v = args[argIndex++];
+    return Value::makeString(result.c_str());
+}
 
-                if (v.isInt())
-                    snprintf(buffer, 64, "%d", v.asInt());
-                else if (v.isDouble())
-                    snprintf(buffer, 64, "%.2f", v.asDouble());
-                else if (v.isString())
-                    snprintf(buffer, 64, "%s", v.asString()->chars());
-                else
-                    snprintf(buffer, 64, "<TODO>");
+Value native_write(Interpreter *vm, int argCount, Value *args)
+{
+    if (argCount < 1 || args[0].type != ValueType::STRING)
+    {
+        vm->runtimeError("write expects string as first argument");
+        return Value::makeNil();
+    }
 
-                result += buffer;
+    const char *fmt = args[0].as.string->chars();
+    std::string result;
+    int argIndex = 1;
+
+    for (int i = 0; fmt[i] != '\0'; i++)
+    {
+        if (fmt[i] == '{' && fmt[i + 1] == '}')
+        {
+            if (argIndex < argCount)
+            {
+                valueToString(args[argIndex++], result);
             }
             i++;
         }
@@ -53,51 +117,6 @@ Value native_write(Interpreter *vm, int argCount, Value *args)
 
     printf("%s", result.c_str());
     return Value::makeNil();
-}
-
-Value native_format(Interpreter *vm, int argCount, Value *args)
-{
-    if (argCount < 1 || !args[0].isString())
-    {
-        vm->runtimeError("format expects string as first argument");
-        return Value::makeNil();
-    }
-
-    const char *fmt = args[0].asString()->chars();
-    std::string result;
-    int argIndex = 1;
-
-    for (int i = 0; fmt[i] != '\0'; i++)
-    {
-        if (fmt[i] == '{' && fmt[i + 1] == '}')
-        {
-            // Substitui {}
-            if (argIndex < argCount)
-            {
-                // Converte Value para string
-                char buffer[64];
-                Value v = args[argIndex++];
-
-                if (v.isInt())
-                    snprintf(buffer, 64, "%ld", v.asInt());
-                else if (v.isDouble())
-                    snprintf(buffer, 64, "%.2f", v.asDouble());
-                else if (v.isString())
-                    snprintf(buffer, 64, "%s", v.asString()->chars());
-                else
-                    snprintf(buffer, 64, "<TODO>");
-
-                result += buffer;
-            }
-            i++; // salta '}'
-        }
-        else
-        {
-            result += fmt[i];
-        }
-    }
-
-    return Value::makeString(result.c_str());
 }
 
 Value native_sqrt(Interpreter *vm, int argCount, Value *args)
@@ -169,13 +188,148 @@ Value native_rand_range(Interpreter *vm, int argCount, Value *args)
 {
     if (argCount != 2 || !args[0].isInt() || !args[1].isInt())
     {
-       Error("rand_range expects 2 integer arguments");
+        Error("rand_range expects 2 integer arguments");
         return Value::makeNil();
     }
     int min = args[0].asInt();
     int max = args[1].asInt();
     return Value::makeInt(GetRandomValue(min, max));
 }
+
+
+
+
+
+struct Sprite
+{
+    int id;
+    int x, y;
+    int graph;
+    const char *name;
+};
+
+int nextSpriteId = 0;
+
+// ========================================
+// SPRITE.CPP - COM VM
+// ========================================
+
+void *sprite_constructor(Interpreter *vm, int argCount, Value *args)
+{
+    Sprite *sprite = new Sprite();
+    sprite->id = nextSpriteId++;
+    sprite->graph = args[0].asInt();
+    sprite->x = args[1].asInt();
+    sprite->y = args[2].asInt();
+    sprite->name = args[3].asString()->chars();
+
+   // Info("create sprite %d", sprite->id);
+
+    return sprite;
+}
+
+void sprite_destructor(Interpreter *vm, void *instance)
+{
+    Sprite *sprite = (Sprite *)instance;
+
+   // printf("Destroying sprite: %s\n", sprite->name);
+
+    delete sprite;
+}
+
+Value sprite_move(Interpreter *vm, void *instance, int argCount, Value *args)
+{
+    if (argCount != 2)
+    {
+        vm->runtimeError("move() expects 2 arguments");
+        return Value::makeNil();
+    }
+
+    Sprite *sprite = (Sprite *)instance;
+    sprite->x += args[0].asInt();
+    sprite->y += args[1].asInt();
+
+    printf("Sprite moved: %s (%d, %d)\n", sprite->name, sprite->x, sprite->y);
+
+    return Value::makeNil();
+}
+Value sprite_draw(Interpreter *vm, void *instance, int argCount, Value *args)
+{
+    Sprite *sprite = (Sprite *)instance;
+
+    printf("Drawing sprite: %s (%d, %d)\n", sprite->name, sprite->x, sprite->y);
+
+    return Value::makeNil();
+}
+Value sprite_setPos(Interpreter *vm, void *instance, int argCount, Value *args)
+{
+    Sprite *sprite = (Sprite *)instance;
+
+    sprite->x = args[0].asInt();
+    sprite->y = args[1].asInt();
+
+    printf("Sprite moved: %s (%d, %d)\n", sprite->name, sprite->x, sprite->y);
+
+    return Value::makeNil();
+}
+
+Value sprite_getName(Interpreter *vm, void *instance, int argCount, Value *args)
+{
+    Sprite *sprite = (Sprite *)instance;
+    return Value::makeString(sprite->name);
+}
+
+Value sprite_get_x(Interpreter *vm, void *instance)
+{
+    Sprite *sprite = (Sprite *)instance;
+    return Value::makeInt(sprite->x);
+}
+
+// Setter: x
+void sprite_set_x(Interpreter *vm, void *instance, Value value)
+{
+    Sprite *sprite = (Sprite *)instance;
+    sprite->x = value.asInt();
+}
+
+// Getter: y
+Value sprite_get_y(Interpreter *vm, void *instance)
+{
+    Sprite *sprite = (Sprite *)instance;
+    return Value::makeInt(sprite->y);
+}
+
+// Setter: y
+void sprite_set_y(Interpreter *vm, void *instance, Value value)
+{
+    Sprite *sprite = (Sprite *)instance;
+    sprite->y = value.asInt();
+}
+
+// Getter: id (read-only)
+Value sprite_get_id(Interpreter *vm, void *instance)
+{
+    Sprite *sprite = (Sprite *)instance;
+    return Value::makeInt(sprite->id);
+}
+
+void registerSpriteClass(Interpreter &vm)
+{
+    NativeClassDef *spriteClass = vm.registerNativeClass(
+        "Sprite",
+        sprite_constructor,
+        sprite_destructor,
+        4 // argCount
+    );
+
+    vm.addNativeMethod(spriteClass, "draw", sprite_draw);
+    vm.addNativeMethod(spriteClass, "move", sprite_move);
+    vm.addNativeMethod(spriteClass, "setPos", sprite_setPos);
+    vm.addNativeProperty(spriteClass, "x", sprite_get_x, sprite_set_x);
+    vm.addNativeProperty(spriteClass, "y", sprite_get_y, sprite_set_y);
+    vm.addNativeProperty(spriteClass, "id", sprite_get_id); // Read-only
+}
+
 
 struct FileLoaderContext
 {
@@ -256,7 +410,7 @@ int main()
 {
 
     Interpreter vm;
- 
+    vm.addModule("raylib");
     vm.registerNative("write", native_write, -1);
     vm.registerNative("format", native_format, -1);
     vm.registerNative("sqrt", native_sqrt, 1);
@@ -268,59 +422,10 @@ int main()
     vm.registerNative("rand", native_rand, 1);
     vm.registerNative("rand_range", native_rand_range, 2);
 
-    vm.registerNative("InitWindow", RaylibBindings::native_InitWindow, 3);
-    vm.registerNative("CloseWindow", RaylibBindings::native_CloseWindow, 0);
+    RaylibBindings::registerAll(vm);
 
-    vm.registerNative("WindowShouldClose", RaylibBindings::native_WindowShouldClose, 0);
-    vm.registerNative("SetTargetFPS", RaylibBindings::native_SetTargetFPS, 1);
-    vm.registerNative("GetFPS", RaylibBindings::native_GetFPS, 0);
-    vm.registerNative("GetFrameTime", RaylibBindings::native_GetFrameTime, 0);
-    vm.registerNative("BeginDrawing", RaylibBindings::native_BeginDrawing, 0);
-    vm.registerNative("EndDrawing", RaylibBindings::native_EndDrawing, 0);
-    vm.registerNative("ClearBackground", RaylibBindings::native_ClearBackground, 1);
-
-    vm.registerNative("DrawFPS", RaylibBindings::native_DrawFps, 2);
-    vm.registerNative("DrawPixel", RaylibBindings::native_DrawPixel, 3);
-    vm.registerNative("DrawText", RaylibBindings::native_DrawText, 5);
-    vm.registerNative("DrawLine", RaylibBindings::native_DrawLine, 4);
-    vm.registerNative("DrawCircle", RaylibBindings::native_DrawCircle, 4);
-    vm.registerNative("DrawRectangle", RaylibBindings::native_DrawRectangle, 5);
-    vm.registerNative("DrawRectangleRec", RaylibBindings::native_DrawRectangleRec, 2);
-
-    // texture
-
-    vm.registerNative("DrawTexture", RaylibBindings::native_DrawTexture, 4);
-    vm.registerNative("LoadTexture", RaylibBindings::native_LoadTexture, 1);
-    vm.registerNative("UnloadTexture", RaylibBindings::native_UnloadTexture, 1);
-    // vm.registerNative("DrawTextureRec",  RaylibBindings::native_DrawTextureRec, 3);
-    // vm.registerNative("DrawTexturePro",  RaylibBindings::native_DrawTexturePro, 4);
-    // vm.registerNative("DrawTextureV",  RaylibBindings::native_DrawTextureV, 2);
-    // vm.registerNative("DrawTextureEx",  RaylibBindings::native_DrawTextureEx, 2);
-
-    // vm.registerNative("BeginMode2D",  RaylibBindings::native_BeginMode2D, 0);
-    // vm.registerNative("EndMode2D",  RaylibBindings::native_EndMode2D, 0);
-    // vm.registerNative("BeginMode3D",  RaylibBindings::native_BeginMode3D, 0);
-    // vm.registerNative("EndMode3D",  RaylibBindings::native_EndMode3D, 0);
-    // vm.registerNative("BeginTextureMode",  RaylibBindings::native_BeginTextureMode, 0);
-
-    // mouse
-
-    vm.registerNative("GetMousePosition", RaylibBindings::native_GetMousePosition, 0);
-    vm.registerNative("IsMouseButtonDown", RaylibBindings::native_IsMouseButtonDown, 1);
-    vm.registerNative("IsMouseButtonPressed", RaylibBindings::native_IsMouseButtonPressed, 1);
-    vm.registerNative("IsMouseButtonReleased", RaylibBindings::native_IsMouseButtonReleased, 1);
-    vm.registerNative("GetMouseX", RaylibBindings::native_GetMouseX, 0);
-    vm.registerNative("GetMouseY", RaylibBindings::native_GetMouseY, 0);
-
-    // vm.registerNative("GetMouseWheelMove",  RaylibBindings::native_GetMouseWheelMove, 0);
-    // vm.registerNative("GetMouseDelta",  RaylibBindings::native_GetMouseDelta, 0);
-    // vm.registerNative("SetMousePosition",  RaylibBindings::native_SetMousePosition, 2);
-
-    RaylibBindings::registerColor(vm);
-    RaylibBindings::registerRectangle(vm);
-    RaylibBindings::registerVector2(vm);
-    // RaylibBindings::registerVector3(vm);
-    // RaylibBindings::registerCamera2D(vm);
+    registerSpriteClass(vm);
+    
 
     FileLoaderContext ctx;
     ctx.searchPaths[0] = "./bin";
@@ -333,7 +438,7 @@ int main()
     std::string code((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
 
- 
+    vm.importModule("raylib");
 
     if (!vm.run(code.c_str(), false))
     {

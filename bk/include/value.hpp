@@ -50,8 +50,10 @@ struct Value
     float n_float;
     double number;
     String *string;
-    int id;
-
+    int structId;
+    int classId;
+    int nativeClassId;
+    int nativeStructId;
     uint32 unsignedInteger;
     StructInstance *sInstance;
     ArrayInstance  *array;
@@ -72,7 +74,7 @@ struct Value
   Value(Value &&other) noexcept = default;
   Value &operator=(const Value &other) = default;
   Value &operator=(Value &&other) noexcept = default;
-  
+  // ~Value() ;
 
   static Value makeNil();
   static Value makeBool(bool b);
@@ -100,10 +102,6 @@ struct Value
   static Value makePointer(void* pointer);
   static Value makeNativeStruct(int idx);
   static Value makeNativeStructInstance();
-
-  void toNil() ;
-
-  void drop();
 
   // Type checks
   bool isNumber() const;
@@ -147,8 +145,6 @@ struct Value
   int asClassNativeId() const;
   void* asPointer() const;
   int asNativeStructId() const;
-
-  
  
   String *asString() const;
   StructInstance* asStructInstance() const;
@@ -163,4 +159,3 @@ struct Value
 void printValue(const Value &value);
 bool valuesEqual(const Value &a, const Value &b);
 void printValueNl(const Value &value);
-const char* typeToString(ValueType type) ;

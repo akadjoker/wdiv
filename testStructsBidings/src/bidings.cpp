@@ -8,15 +8,47 @@ namespace RaylibBindings
     // VECTOR2
     // ========================================
 
+    static void vec2Ctor(Interpreter *vm, void *data, int argc, Value *args)
+    {
+        Vector2 *v = (Vector2 *)data;
+
+        // aceita int/double/float
+        auto toFloat = [&](int i) -> float
+        {
+            if (args[i].isFloat())
+                return args[i].asFloat();
+            if (args[i].isDouble())
+                return (float)args[i].asDouble();
+            if (args[i].isInt())
+                return (float)args[i].asInt();
+            vm->runtimeError("Vector2 expects numbers");
+            return 0.0f;
+        };
+
+        if (argc == 2)
+        {
+            v->x = toFloat(0);
+            v->y = toFloat(1);
+        }
+        else if (argc == 0)
+        {
+            v->x = 0;
+            v->y = 0;
+        }
+        else
+        {
+            vm->runtimeError("Vector2(x,y) expects 2 args");
+        }
+    }
+
     void registerVector2(Interpreter &vm)
     {
         auto *vec2 = vm.registerNativeStruct(
             "Vector2",
             sizeof(Vector2),
-            nullptr, // Sem constructor
-            nullptr  // Sem destructor
-     
-        );
+            nullptr,
+            nullptr, // Sem destructor
+            "raylib");
 
         vm.addStructField(vec2, "x", offsetof(Vector2, x), FieldType::FLOAT);
         vm.addStructField(vec2, "y", offsetof(Vector2, y), FieldType::FLOAT);
@@ -32,7 +64,7 @@ namespace RaylibBindings
             "Vector3",
             sizeof(Vector3),
             nullptr,
-            nullptr);
+            nullptr, "raylib");
 
         vm.addStructField(vec3, "x", offsetof(Vector3, x), FieldType::FLOAT);
         vm.addStructField(vec3, "y", offsetof(Vector3, y), FieldType::FLOAT);
@@ -58,7 +90,7 @@ namespace RaylibBindings
             "Rectangle",
             sizeof(Rectangle),
             rectangle_ctor,
-            nullptr);
+            nullptr, "raylib");
 
         vm.addStructField(rect, "x", offsetof(Rectangle, x), FieldType::FLOAT);
         vm.addStructField(rect, "y", offsetof(Rectangle, y), FieldType::FLOAT);
@@ -80,19 +112,13 @@ namespace RaylibBindings
         // Info("Color(%d, %d, %d, %d)", v->r, v->g, v->b, v->a);
     }
 
-    // void color_dtor(Interpreter *vm, void *buffer)
-    // {
-    //     Color *v = (Color *)buffer;
-    //     //Info("Color(%d, %d, %d, %d)", v->r, v->g, v->b, v->a);
-    // }
-
     void registerColor(Interpreter &vm)
     {
         auto *color = vm.registerNativeStruct(
             "Color",
             sizeof(Color),
             color_ctor,
-            nullptr);
+            nullptr, "raylib");
 
         vm.addStructField(color, "r", offsetof(Color, r), FieldType::BYTE);
         vm.addStructField(color, "g", offsetof(Color, g), FieldType::BYTE);
@@ -110,8 +136,8 @@ namespace RaylibBindings
             "Camera2D",
             sizeof(Camera2D),
             nullptr,
-            nullptr
-     );
+            nullptr,
+            "raylib");
 
         vm.addStructField(camera, "offset", offsetof(Camera2D, offset), FieldType::POINTER); // Vector2
         vm.addStructField(camera, "target", offsetof(Camera2D, target), FieldType::POINTER); // Vector2
@@ -202,7 +228,7 @@ namespace RaylibBindings
         int y = args[2].asInt();
         int fontSize = args[3].asInt();
 
-        DrawText(text, x, y, fontSize, *tint); 
+        DrawText(text, x, y, fontSize, *tint);
         return Value::makeNil();
     }
 
@@ -387,8 +413,21 @@ namespace RaylibBindings
     }
 
     // ========================================
-    // TEXTURES
+    // TEXTURE
     // ========================================
+
+    void texture_dtor(Interpreter *vm, void *buffer)
+    {
+        Texture *v = (Texture *)buffer;
+        if (v->id == 0)
+            return;
+        UnloadTexture(*v);
+        v->id = 0;
+        v->width = 0;
+        v->height = 0;
+        v->mipmaps = 0;
+        v->format = 0;
+    }
 
     Value native_LoadTexture(Interpreter *vm, int argc, Value *args)
     {
@@ -404,18 +443,26 @@ namespace RaylibBindings
         }
         const char *filename = args[0].asString()->chars();
 
-        Texture2D tex = LoadTexture(filename);
-        Texture2D *texPtr = new Texture2D(tex);
+        Value v = vm->createNativeStruct(vm->getLastRegisteredInstanceId(), 0, nullptr);
+        auto *inst = v.asNativeStructInstance();
 
-        return Value::makePointer(texPtr);
+        Texture2D data = LoadTexture(filename);
+
+        *(Texture2D *)inst->data = data;
+
+        return v;
     }
 
     Value native_UnloadTexture(Interpreter *vm, int argc, Value *args)
     {
-        Texture2D *tex = (Texture2D *)args[0].asPointer();
+         auto *texInst = args[0].asNativeStructInstance();
+        Texture2D *tex = (Texture2D *)texInst->data;
+
+        if (tex->id == 0)
+            return Value::makeNil();
 
         UnloadTexture(*tex);
-        delete tex;
+            tex->id = 0;
 
         return Value::makeNil();
     }
@@ -427,51 +474,53 @@ namespace RaylibBindings
             Error("DrawTexture expects 4 arguments");
             return Value::makeNil();
         }
-        if (!args[0].isPointer())
-        {
-            Error("DrawTexture expects Texture2D");
-            return Value::makeNil();
-        }
+            if (!args[0].isNativeStructInstance())
+            {
+                Error("DrawTexture expects Texture2D");
+                return Value::makeNil();
+            }
+
         if (!args[3].isNativeStructInstance())
         {
             Error("DrawTexture expects Color");
             return Value::makeNil();
         }
-        Texture2D *tex = (Texture2D *)args[0].asPointer();
+        auto *texInst = args[0].asNativeStructInstance();
+        Texture2D *tex = (Texture2D *)texInst->data;
         int x = args[1].asInt();
         int y = args[2].asInt();
-
         auto *colorInst = args[3].asNativeStructInstance();
         Color *tint = (Color *)colorInst->data;
-
         DrawTexture(*tex, x, y, *tint);
+        return Value::makeNil();
+    }
+
+    Value native_DrawTextureEx(Interpreter *vm, int argc, Value *args)
+    {
+
+        auto *texInst = args[0].asNativeStructInstance();
+        Texture2D *tex = (Texture2D *)texInst->data;
+        
+
+        auto *posInst = args[1].asNativeStructInstance();
+        Vector2 *pos = (Vector2 *)posInst->data;
+
+        float rotation = args[2].asDouble();
+        float scale = args[3].asDouble();
+
+        auto *colorInst = args[4].asNativeStructInstance();
+        Color *tint = (Color *)colorInst->data;
+
+        DrawTextureEx(*tex, *pos, rotation, scale, *tint);
         return Value::makeNil();
     }
 
     Value native_DrawTextureV(Interpreter *vm, int argc, Value *args)
     {
-        if (argc != 3)
-        {
-            Error("DrawTextureV expects 3 arguments");
-            return Value::makeNil();
-        }
-        if (!args[0].isPointer())
-        {
-            Error("DrawTextureV expects Texture2D");
-            return Value::makeNil();
-        }
-        if (!args[1].isNativeStructInstance())
-        {
-            Error("DrawTextureV expects Vector2");
-            return Value::makeNil();
-        }
-        if (!args[2].isNativeStructInstance())
-        {
-            Error("DrawTextureV expects Color");
-            return Value::makeNil();
-        }
+       
 
-        Texture2D *tex = (Texture2D *)args[0].asPointer();
+        auto *texInst = args[0].asNativeStructInstance();
+        Texture2D *tex = (Texture2D *)texInst->data;
 
         auto *posInst = args[1].asNativeStructInstance();
         Vector2 *pos = (Vector2 *)posInst->data;
@@ -482,6 +531,31 @@ namespace RaylibBindings
         DrawTextureV(*tex, *pos, *tint);
         return Value::makeNil();
     }
+
+    void registerTexture(Interpreter &vm)
+    {
+        auto *texture = vm.registerNativeStruct(
+            "Texture",
+            sizeof(Texture),
+            nullptr,
+            texture_dtor,
+            "raylib");
+
+        vm.addStructField(texture, "id", offsetof(Texture, id), FieldType::INT);
+        vm.addStructField(texture, "width", offsetof(Texture, width), FieldType::INT);
+        vm.addStructField(texture, "height", offsetof(Texture, height), FieldType::INT);
+        vm.addStructField(texture, "mipmaps", offsetof(Texture, mipmaps), FieldType::INT);
+        vm.addStructField(texture, "format", offsetof(Texture, format), FieldType::INT);
+
+        // Textures
+        vm.registerNative("LoadTexture", native_LoadTexture, 1, "raylib");
+        vm.registerNative("UnloadTexture", native_UnloadTexture, 1, "raylib");
+        vm.registerNative("DrawTexture", native_DrawTexture, 4, "raylib");
+        vm.registerNative("DrawTextureV", native_DrawTextureV, 3, "raylib");
+        vm.registerNative("DrawTextureEx", native_DrawTextureEx, 5, "raylib");
+    }
+
+    //
 
     Value native_DrawFps(Interpreter *vm, int argc, Value *args)
     {
@@ -571,10 +645,196 @@ namespace RaylibBindings
         return Value::makeInt(GetMouseY());
     }
 
+    // ========================================
+    // INPUT - KEYBOARD
+    // ========================================
+
+    Value native_IsKeyPressed(Interpreter *vm, int argc, Value *args)
+    {
+        if (argc != 1)
+        {
+            Error("IsKeyPressed expects 1 argument");
+            return Value::makeNil();
+        }
+        return Value::makeBool(IsKeyPressed(args[0].asInt()));
+    }
+
+    Value native_IsKeyDown(Interpreter *vm, int argc, Value *args)
+    {
+        if (argc != 1)
+        {
+            Error("IsKeyDown expects 1 argument");
+            return Value::makeNil();
+        }
+        return Value::makeBool(IsKeyDown(args[0].asInt()));
+    }
+
+    Value native_IsKeyReleased(Interpreter *vm, int argc, Value *args)
+    {
+        if (argc != 1)
+        {
+            Error("IsKeyReleased expects 1 argument");
+            return Value::makeNil();
+        }
+        return Value::makeBool(IsKeyReleased(args[0].asInt()));
+    }
+
+    Value native_IsKeyUp(Interpreter *vm, int argc, Value *args)
+    {
+        if (argc != 1)
+        {
+            Error("IsKeyUp expects 1 argument");
+            return Value::makeNil();
+        }
+        return Value::makeBool(IsKeyUp(args[0].asInt()));
+    }
+
+    // ========================================
+    // INPUT - MOUSE (fixar)
+    // ========================================
+
     Value native_GetMousePosition(Interpreter *vm, int argc, Value *args)
     {
-        Vector2 v = GetMousePosition();
-        return Value::makeInt(-1);
+
+        Vector2 pos = GetMousePosition();
+
+        Value v = vm->createNativeStruct(0, 0, nullptr);
+        auto *inst = v.asNativeStructInstance();
+
+        *(Vector2 *)inst->data = pos;
+
+        // auto *def = inst->def;
+
+        // NativeFieldDef fx, fy;
+        // def->fields.get(vm->internString("x"), &fx);
+        // def->fields.get(vm->internString("y"), &fy);
+
+        // *(float *)((char *)inst->data + fx.offset) = pos.x;
+        // *(float *)((char *)inst->data + fy.offset) = pos.y;
+
+        return v;
+    }
+
+    // ========================================
+    // TEXT
+    // ========================================
+
+    Value native_MeasureText(Interpreter *vm, int argc, Value *args)
+    {
+        if (argc != 2)
+        {
+            Error("MeasureText expects 2 arguments");
+            return Value::makeNil();
+        }
+        const char *text = args[0].asString()->chars();
+        int fontSize = args[1].asInt();
+
+        return Value::makeInt(MeasureText(text, fontSize));
+    }
+
+    // ========================================
+    // TIMING
+    // ========================================
+
+    Value native_GetTime(Interpreter *vm, int argc, Value *args)
+    {
+        return Value::makeDouble(GetTime());
+    }
+
+    // ========================================
+    // MATH
+    // ========================================
+
+    Value native_Clamp(Interpreter *vm, int argc, Value *args)
+    {
+        if (argc != 3)
+        {
+            Error("Clamp expects 3 arguments");
+            return Value::makeNil();
+        }
+        double value = args[0].asDouble();
+        double minVal = args[1].asDouble();
+        double maxVal = args[2].asDouble();
+
+        return Value::makeDouble((value < minVal) ? minVal : (value > maxVal) ? maxVal
+                                                                              : value);
+    }
+
+    Value native_Lerp(Interpreter *vm, int argc, Value *args)
+    {
+        if (argc != 3)
+        {
+            Error("Lerp expects 3 arguments");
+            return Value::makeNil();
+        }
+        double start = args[0].asDouble();
+        double end = args[1].asDouble();
+        double amount = args[2].asDouble();
+
+        return Value::makeDouble(start + (end - start) * amount);
+    }
+
+    // ========================================
+    // REGISTRATION
+    // ========================================
+
+    void registerAll(Interpreter &vm)
+    {
+        // Native Structs
+        registerVector2(vm);
+        registerVector3(vm);
+        registerRectangle(vm);
+        registerColor(vm);
+        registerCamera2D(vm);
+        registerTexture(vm);
+
+        // Window
+        vm.registerNative("InitWindow", native_InitWindow, 3, "raylib");
+        vm.registerNative("CloseWindow", native_CloseWindow, 0, "raylib");
+        vm.registerNative("WindowShouldClose", native_WindowShouldClose, 0, "raylib");
+        vm.registerNative("SetTargetFPS", native_SetTargetFPS, 1, "raylib");
+        vm.registerNative("GetFPS", native_GetFPS, 0, "raylib");
+        vm.registerNative("GetFrameTime", native_GetFrameTime, 0, "raylib");
+
+        // Drawing
+        vm.registerNative("BeginDrawing", native_BeginDrawing, 0, "raylib");
+        vm.registerNative("EndDrawing", native_EndDrawing, 0, "raylib");
+        vm.registerNative("ClearBackground", native_ClearBackground, 1, "raylib");
+
+        // vm.registerNative("BeginMode2D",  native_BeginMode2D, 0,"raylib");
+        // vm.registerNative("EndMode2D",  native_EndMode2D, 0,"raylib");
+        // vm.registerNative("BeginMode3D",  native_BeginMode3D, 0,"raylib");
+        // vm.registerNative("EndMode3D",  native_EndMode3D, 0,"raylib");
+        // vm.registerNative("BeginTextureMode",  native_BeginTextureMode, 0,"raylib");
+
+        vm.registerNative("DrawPixel", native_DrawPixel, 3, "raylib");
+        vm.registerNative("DrawLine", native_DrawLine, 5, "raylib");
+        vm.registerNative("DrawCircle", native_DrawCircle, 4, "raylib");
+        vm.registerNative("DrawCircleV", native_DrawCircleV, 3, "raylib");
+        vm.registerNative("DrawRectangle", native_DrawRectangle, 5, "raylib");
+        vm.registerNative("DrawRectangleRec", native_DrawRectangleRec, 2, "raylib");
+
+        // Text
+        vm.registerNative("DrawText", native_DrawText, 5, "raylib");
+        vm.registerNative("DrawFps", native_DrawFps, 2, "raylib");
+        vm.registerNative("MeasureText", native_MeasureText, 2, "raylib");
+
+        // Input - Keyboard
+        vm.registerNative("IsKeyPressed", native_IsKeyPressed, 1, "raylib");
+        vm.registerNative("IsKeyDown", native_IsKeyDown, 1, "raylib");
+        vm.registerNative("IsKeyReleased", native_IsKeyReleased, 1, "raylib");
+        vm.registerNative("IsKeyUp", native_IsKeyUp, 1, "raylib");
+
+        // Input - Mouse
+        vm.registerNative("IsMouseButtonPressed", native_IsMouseButtonPressed, 1, "raylib");
+        vm.registerNative("IsMouseButtonDown", native_IsMouseButtonDown, 1, "raylib");
+        vm.registerNative("IsMouseButtonReleased", native_IsMouseButtonReleased, 1, "raylib");
+        vm.registerNative("GetMouseX", native_GetMouseX, 0, "raylib");
+        vm.registerNative("GetMouseY", native_GetMouseY, 0, "raylib");
+        vm.registerNative("GetMousePosition", native_GetMousePosition, 0, "raylib");
+
+        // Timing
+        vm.registerNative("GetTime", native_GetTime, 0, "raylib");
     }
 
 }

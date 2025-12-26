@@ -23,10 +23,13 @@ struct HashMap
   size_t capacity = 0;
   size_t count = 0;
   size_t tombstones = 0;
+ 
 
   static constexpr float MAX_LOAD = 0.75f;
 
-  HashMap() {}
+  HashMap()  {}
+
+ 
 
   ~HashMap() { destroy(); }
 
@@ -35,7 +38,7 @@ struct HashMap
 
   void destroy()
   {
-    if (!entries)
+    if (!entries )
       return;
     aFree(entries);
     entries = nullptr;
@@ -148,7 +151,7 @@ struct HashMap
     return isNew;
   }
 
-  bool set_get(const K &key, const V &value, V *out)
+  bool set_get(const K &key, const V &value, V* out )
   {
     maybeGrow();
     size_t h = Hasher{}(key);
@@ -164,7 +167,7 @@ struct HashMap
       e->state = FILLED;
       count++;
     }
-    if (!isNew)
+    if(!isNew)
     {
       *out = e->value;
     }
@@ -184,7 +187,7 @@ struct HashMap
     return true;
   }
 
-  bool exist(const K &key) const
+    bool exist(const K &key) const
   {
     if (count == 0)
       return false;
@@ -204,20 +207,6 @@ struct HashMap
       if (entries[i].state == FILLED)
       {
         fn(entries[i].key, entries[i].value);
-      }
-    }
-  }
-
-  //  early exit
-  template <typename Fn>
-  void forEachWhile(Fn fn) const
-  {
-    for (size_t i = 0; i < capacity; i++)
-    {
-      if (entries[i].state == FILLED)
-      {
-        if (!fn(entries[i].key, entries[i].value))
-          break; // fn retorna bool
       }
     }
   }

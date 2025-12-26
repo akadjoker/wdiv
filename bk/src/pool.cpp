@@ -4,33 +4,13 @@
 #include "interpreter.hpp"
 #include <ctype.h>
 
-
-String::String():GCObject()
-{
-    hash = 0;
-    length_and_flag = 0;
-}
-
-void String::drop()
-{
-     Info("Free of string %d %s", refCount,chars());
-     destroyString(this);
-    
-}
-
 String *StringPool::create(const char *str, uint32 len)
 {
-
-    // String* out = nullptr;
-    // if (interns.get(str, &out))
-    //     return out;
-
     uint32 h = hashString(str, len);
 
     // Aloca objeto (32 bytes)
     String *s = (String *)allocator.Allocate(sizeof(String));
     s->hash = h;
-    s->refCount=1;
 
     if (len <= String::SMALL_THRESHOLD)
     {
@@ -47,10 +27,9 @@ String *StringPool::create(const char *str, uint32 len)
         std::memcpy(s->ptr, str, len);
         s->ptr[len] = '\0';
     }
- 
 
 
-    Warning(" Create string %s", s->chars());
+   // Warning(" Create string %s", s->chars());
     return s;
 }
 
@@ -59,7 +38,7 @@ void StringPool::destroy(String *s)
     if (!s)
         return;
 
-   // Warning(" Destroy string %s", s->chars());
+    //Warning(" Destroy string %s", s->chars());
     if (s->isLong())
     {
 
@@ -441,20 +420,6 @@ String *StringPool::repeat(String *str, int count)
 
     s->hash = hashString(dest, static_cast<uint32>(totalLen));
     return s;
-}
-
-String *StringPool::toString(int value)
-{
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%d", value);
-    return create(buf);
-}
-
-String *StringPool::toString(double value)
-{
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%f", value);
-    return create(buf);
 }
 
 //     // Split - divide string por separador

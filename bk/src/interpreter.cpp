@@ -6,38 +6,18 @@
 #include "debug.hpp"
 #include <new>
 #include <stdarg.h>
-#include "string.hpp"
-
-bool StringEq::operator()(String *a, String *b) const
-{
-
-    if (a == b)
-        return true;
-    if (a->length() != b->length())
-        return false;
-    return memcmp(a->chars(), b->chars(), a->length()) == 0;
-}
-
-size_t StringHasher::operator()(String *x) const
-{
-    return x->hash;
-}
 
 Interpreter::Interpreter()
 {
-    InstancePool::instance().setInterpreter(this);
-    staticFree = createString("free");
     compiler = new Compiler(this);
     setPrivateTable();
 }
 
 Interpreter::~Interpreter()
 {
-
-    InstancePool::instance().setInterpreter(nullptr);
     functionsMap.destroy();
     processesMap.destroy();
-
+    nativesMap.destroy();
     delete compiler;
     for (size_t i = 0; i < functions.size(); i++)
     {
@@ -45,14 +25,6 @@ Interpreter::~Interpreter()
         delete func;
     }
     functions.clear();
-
-    for (size_t i = 0; i < importedModules.size(); i++)
-    {
-        SymbolTable *func = importedModules[i];
-        destroyString(func->name);
-        delete func;
-    }
-    importedModules.clear();
 
     for (size_t i = 0; i < functionsClass.size(); i++)
     {
@@ -106,6 +78,27 @@ Interpreter::~Interpreter()
     }
     structs.clear();
 
+    for (size_t i = 0; i < structInstances.size(); i++)
+    {
+        StructInstance *a = structInstances[i];
+        InstancePool::instance().freeStruct(a);
+    }
+    structInstances.clear();
+
+    for (size_t i = 0; i < arrayInstances.size(); i++)
+    {
+        ArrayInstance *a = arrayInstances[i];
+        InstancePool::instance().freeArray(a);
+    }
+    arrayInstances.clear();
+
+    for (size_t i = 0; i < classesInstances.size(); i++)
+    {
+        ClassInstance *a = classesInstances[i];
+        InstancePool::instance().freeClass(a);
+    }
+    classesInstances.clear();
+
     for (size_t j = 0; j < classes.size(); j++)
     {
         ClassDef *proc = classes[j];
@@ -113,33 +106,35 @@ Interpreter::~Interpreter()
         delete proc;
     }
 
-    // for (size_t i = 0; i < nativeStructInstances.size(); i++)
-    // {
-    //     NativeStructInstance *a = nativeStructInstances[i];
-    //     if (a->def->destructor)
-    //     {
-    //         a->def->destructor(this, a->data);
-    //         heapAllocator.Free(a->data, a->def->structSize);
-    //     }
-    //     InstancePool::instance().freeNativeStruct(a);
-    // }
-    // nativeStructInstances.clear();
+    for (size_t i = 0; i < nativeStructInstances.size(); i++)
+    {
+        NativeStructInstance *a = nativeStructInstances[i];
+        if (a->def->destructor) 
+        {
+            a->def->destructor(this, a->data);
+            heapAllocator.Free(a->data, a->def->structSize);
+        }
+        InstancePool::instance().freeNativeStruct(a);
+    }
+    nativeStructInstances.clear();
+
 
     for (size_t i = 0; i < nativeStructs.size(); i++)
     {
-        NativeStructDef *a = nativeStructs[i];
+        NativeStructDef  *a = nativeStructs[i];
         destroyString(a->name);
         delete a;
     }
     nativeStructs.clear();
+    
 
-    // for (size_t i = 0; i < nativeInstances.size(); i++)
-    // {
-    //     NativeInstance *a = nativeInstances[i];
-    //     a->klass->destructor(this, a->userData); // so depois apagamos as def
-    //     InstancePool::instance().freeNativeClass(a);
-    // }
-    // nativeInstances.clear();
+    for (size_t i = 0; i < nativeInstances.size(); i++)
+    {
+        NativeInstance *a = nativeInstances[i];
+        a->klass->destructor(this, a->userData); // so depois apagamos as def
+        InstancePool::instance().freeNativeClass(a);
+    }
+    nativeInstances.clear();
     for (size_t j = 0; j < nativeClasses.size(); j++)
     {
         NativeClassDef *proc = nativeClasses[j];
@@ -152,29 +147,9 @@ Interpreter::~Interpreter()
     heapAllocator.Stats();
     heapAllocator.Clear();
 
+    
     StringPool::instance().clear();
     InstancePool::instance().clear();
-}
-
-bool Interpreter::addModule(const char *name)
-{
-
-    SymbolTable *module = new SymbolTable();
-    module->name = createString(name);
-
-    if (modules.exist(module->name))
-    {
-        Error("Module %s already loaded", name);
-        destroyString(module->name);
-        delete module;
-        return false;
-    }
-
-    int index = loadModules.size();
-    Info("Add module %s at index %d", name, index);
-    modules.set(module->name, index);
-    loadModules.push(module);
-    return true;
 }
 
 void Interpreter::setFileLoader(FileLoaderCallback loader, void *userdata)
@@ -182,50 +157,19 @@ void Interpreter::setFileLoader(FileLoaderCallback loader, void *userdata)
     compiler->setFileLoader(loader, userdata);
 }
 
-NativeClassDef *Interpreter::registerNativeClass(const char *name, NativeConstructor ctor, NativeDestructor dtor, int argCount, const char *moduleName)
+NativeClassDef *Interpreter::registerNativeClass(const char *name, NativeConstructor ctor, NativeDestructor dtor, int argCount)
 {
     NativeClassDef *klass = new NativeClassDef();
     klass->name = createString(name);
     int id = nativeClasses.size();
-    klass->id = id;
     klass->constructor = ctor;
     klass->destructor = dtor;
     klass->argCount = argCount;
 
     nativeClasses.push(klass);
 
-    if (moduleName == nullptr)
-    {
-        if (!globals.set(klass->name, Value::makeNativeClass(id)))
-        {
-
-            Error("Native class '%s' already exists", name);
-            return nullptr;
-        }
-
-        globals.set(klass->name, Value::makeNativeClass(id));
-
-        return klass;
-    }
-
-    int result = 0;
-    String *modName = createString(moduleName);
-    if (modules.get(modName, &result))
-    {
-        destroyString(modName);
-        SymbolTable *mod = loadModules[result];
-        if (!mod->symbols.set(klass->name, Value::makeNativeClass(id)))
-        {
-            destroyString(modName);
-            Error("Native class '%s' already exists", name);
-            return nullptr;
-        }
-
-        return klass;
-    }
-    Error("Module '%s' not found %d ", moduleName, result);
-
-    //    setGlobal(klass->name, Value::makeNativeClass(id));
+    // Define global
+    globals.set(klass->name, Value::makeNativeClass(id));
 
     return klass;
 }
@@ -251,55 +195,7 @@ void Interpreter::addNativeProperty(
     klass->properties.set(name, prop);
 }
 
-int Interpreter::registerNative(const char *name, NativeFunction func, int arity, const char *module)
-{
-
-    NativeDef def;
-    def.name = createString(name);
-    def.func = func;
-    def.arity = arity;
-    def.index = natives.size();
-
-    if (module == nullptr)
-    {
-        if (!globals.set(def.name, Value::makeNative(def.index)))
-        {
-            destroyString(def.name);
-            Error("Native '%s' already exists", name);
-            return -1;
-        }
-
-        globals.set(def.name, Value::makeNative(def.index));
-        natives.push(def);
-        return def.index;
-    }
-
-    int result = 0;
-    String *modName = createString(module);
-    if (modules.get(modName, &result))
-    {
-        destroyString(modName);
-        SymbolTable *mod = loadModules[result];
-        if (!mod->symbols.set(def.name, Value::makeNative(def.index)))
-        {
-            destroyString(modName);
-            Error("Native '%s' already exists in module '%s'", name, module);
-            return -1;
-        }
-
-        natives.push(def);
-        return def.index;
-    }
-    Error("Module '%s' not found %d ", module, result);
-
-    //   Info("Registered native: %s (index=%d)", name, def.index);
-
-    // if (!setGlobal(def.name, Value::makeNative(def.index)))
-
-    return -1;
-}
-
-NativeStructDef *Interpreter::registerNativeStruct(const char *name, size_t structSize, NativeStructCtor ctor, NativeStructDtor dtor, const char *moduleName)
+NativeStructDef *Interpreter::registerNativeStruct(const char *name, size_t structSize, NativeStructCtor ctor, NativeStructDtor dtor)
 {
     NativeStructDef *klass = new NativeStructDef();
     klass->name = createString(name);
@@ -307,45 +203,8 @@ NativeStructDef *Interpreter::registerNativeStruct(const char *name, size_t stru
     klass->destructor = dtor;
     klass->structSize = structSize;
     int id = nativeStructs.size();
-    lastInstanceId=id;
-    klass->id = id;
-    nativeStructs.push(klass);
-
-    if (moduleName == nullptr)
-    {
-        if (!globals.set(klass->name, Value::makeNativeStruct(id)))
-        {
-
-            Error("Struct '%s' already exists", name);
-            return nullptr;
-        }
-
-        globals.set(klass->name, Value::makeNativeStruct(id));
-
-
-        return klass;
-    }
-
-    int result = 0;
-    String *modName = createString(moduleName);
-    if (modules.get(modName, &result))
-    {
-        destroyString(modName);
-        SymbolTable *mod = loadModules[result];
-        if (!mod->symbols.set(klass->name, Value::makeNativeStruct(id)))
-        {
-            destroyString(modName);
-            Error("Struct '%s' already exists in module '%s'", name, moduleName);
-            return nullptr;
-        }
-        Info("Registered struct: %s (index=%d)", name, id);
-
-        return klass;
-    }
-    Error("Module '%s' not found %d ", moduleName, result);
-
-    // setGlobal(klass->name, Value::makeNativeStruct(id));
-
+    nativeStructs.push(klass);    
+    globals.set(klass->name, Value::makeNativeStruct( id));
     return klass;
 }
 
@@ -363,6 +222,16 @@ void Interpreter::addStructField(NativeStructDef *def, const char *fieldName, si
     def->fields.set(name, field);
 }
 
+bool Interpreter::getGlobal(String *name, Value *out) const
+{
+   
+    return globals.get(name, out);
+}
+
+bool Interpreter::setGlobal(String *name, Value val)
+{
+    return globals.set(name, val);
+}
 void Interpreter::disassemble()
 {
 
@@ -463,23 +332,6 @@ void Interpreter::disassemble()
     printf("========================================\n\n");
 }
 
-Value Interpreter::createNativeStruct(int structId, int argc, Value *args )
-{
-    NativeStructDef *def = nativeStructs[structId];
-    void *data = heapAllocator.Allocate(def->structSize);
-    std::memset(data, 0, def->structSize);
-    if (def->constructor)
-    {
-        def->constructor(this, data, argc, args);
-    }
-
-    Value literal = Value::makeNativeStructInstance();
-    NativeStructInstance *instance = literal.asNativeStructInstance();
-    instance->def = def;
-    instance->data = data;
-    return literal;
-}
-
 void Interpreter::print(Value value)
 {
     printValue(value);
@@ -562,7 +414,7 @@ void Interpreter::runtimeError(const char *format, ...)
     }
 #endif
 
-    // resetFiber();
+    resetFiber();
 }
 
 void Interpreter::resetFiber()
@@ -574,7 +426,7 @@ void Interpreter::resetFiber()
         currentFiber->frameCount = 0;
         currentFiber->state = FiberState::DEAD;
     }
-    // hasFatalError_ = false;
+    hasFatalError_ = false;
 }
 
 bool Interpreter::isTruthy(const Value &value)
@@ -755,52 +607,52 @@ bool Interpreter::tryGetClassDefenition(const char *name, ClassDef **out)
     return result;
 }
 
-// int Interpreter::addGlobal(const char *name, Value value,const char *module)
-// {
-//     String *pName = createString(name);
-//     if (globals.exist(pName))
-//     {
-//         destroyString(pName);
-//         return -1;
-//     }
-//     globals.set(pName, value);
-//     globalList.push(value);
+int Interpreter::addGlobal(const char *name, Value value)
+{
+    String *pName = createString(name);
+    if (globals.exist(pName))
+    {
+        destroyString(pName);
+        return -1;
+    }
+    globals.set(pName, value);
+    globalList.push(value);
 
-//     return (int)(globalList.size() - 1);
-// }
+    return (int)(globalList.size() - 1);
+}
 
-// String *Interpreter::addGlobalEx(const char *name, Value value, const char *module)
-// {
-//     String *pName = createString(name);
-//     if (globals.exist(pName))
-//     {
-//         destroyString(pName);
-//         return nullptr;
-//     }
-//     globals.set(pName, value);
-//     globalList.push(value);
+String *Interpreter::addGlobalEx(const char *name, Value value)
+{
+    String *pName = createString(name);
+    if (globals.exist(pName))
+    {
+        destroyString(pName);
+        return nullptr;
+    }
+    globals.set(pName, value);
+    globalList.push(value);
 
-//     return pName;
-// }
+    return pName;
+}
 
-// Value Interpreter::getGlobal(uint32 index, const char *module)
-// {
-//     if (index >= globalList.size())
-//         return Value::makeNil();
-//     return globalList[index];
-// }
+Value Interpreter::getGlobal(uint32 index)
+{
+    if (index >= globalList.size())
+        return Value::makeNil();
+    return globalList[index];
+}
 
-// bool Interpreter::tryGetGlobal(const char *name, Value *value, const char *module)
-// {
-//     String *pName = createString(name);
-//     bool result = false;
-//     if (globals.get(pName, value))
-//     {
-//         result = true;
-//     }
-//     destroyString(pName);
-//     return result;
-// }
+bool Interpreter::tryGetGlobal(const char *name, Value *value)
+{
+    String *pName = createString(name);
+    bool result = false;
+    if (globals.get(pName, value))
+    {
+        result = true;
+    }
+    destroyString(pName);
+    return result;
+}
 
 void Interpreter::addFiber(Process *proc, Function *func)
 {
@@ -814,97 +666,21 @@ void Interpreter::addFiber(Process *proc, Function *func)
     initFiber(&proc->fibers[index], func);
 }
 
-String *Interpreter::internString(const char *str)
-{
-    String *pStr = createString(str);
-    return pStr;
-}
-
 void Interpreter::addFunctionsClasses(Function *fun)
 {
     functionsClass.push(fun);
 }
 
-bool Interpreter::importModule(const char *name)
-{
-
-    String *pName = createString(name);
-    int result = 0;
-    bool imported = false;
-    if (!modules.get(pName, &result))
-    {
-        Error("Module %s not found", name);
-        return false;
-    }
-    else
-    {
-
-        uint8 index = 0;
-        if (importedModulesNames.get(pName, &index))
-        {
-            Warning("Module %s already imported", name);
-            imported = true;
-        }
-        else
-        {
-            importedModulesNames.set(pName, importedModules.size());
-            importedModules.push(loadModules[result]);
-
-            // SymbolTable *mod = importedModules[importedModules.size() - 1];
-
-            // mod->symbols.forEach([&](String *name, Value value) {
-            //     Info("Importing %s", name->chars());
-            // });
-
-            Info("Module %s  imported", pName->chars());
-            imported = true;
-        }
-    }
-
-    return imported;
-}
-
-bool Interpreter::getGlobal(String *name, Value *out) const
-{
-    // if (globalTable->get(name, out))
-    //     return true;
-    // for (uint32 i = 0; i < importedModules.size(); i++)
-    // {
-    //     if (importedModules[i]->get(name, out))
-    //         return true;
-    // }
-    // return false;
-
-    return globals.get(name, out);
-}
-
-bool Interpreter::setGlobal(String *name, Value val)
-{
-    return globals.set(name, val);
-}
-
 StructInstance::StructInstance() : GCObject(), def(nullptr)
 {
-   // Info("create struct %d", refCount);
 }
 
- 
-
-void StructInstance::drop()
+StructInstance::~StructInstance()
 {
-   // Info("drop struct %d", refCount);
-    for (size_t i = 0; i < values.size(); i++)
-    {
-        values[i].drop();
-    }
-    InstancePool::instance().freeStruct(this);
+    Info("destroy struct %d", refCount);
 }
 
 GCObject::GCObject() : refCount(1)
-{
-}
-
-GCObject::~GCObject()
 {
 }
 
@@ -916,50 +692,31 @@ void GCObject::grab()
 void GCObject::release()
 {
     refCount--;
-    if (refCount == 0)
-        drop();
-   
 }
 
 ArrayInstance::ArrayInstance() : GCObject()
 {
-    
 }
 
- 
-
-void ArrayInstance::drop()
+ArrayInstance::~ArrayInstance()
 {
-   // Warning("drop array %d", refCount);
-    for (size_t i = 0; i < values.size(); i++)
-    {
-       values[i].drop();
-    }
-    values.clear();
-    InstancePool::instance().freeArray(this);
 }
 
 MapInstance::MapInstance() : GCObject()
 {
 }
- 
-void MapInstance::drop()
+
+MapInstance::~MapInstance()
 {
-    table.forEach([&](String *key, Value value) 
-    {
-        (void)key;
-        value.drop();
-    });
-    table.destroy();
-    InstancePool::instance().freeMap(this);
 }
 
 ClassInstance::ClassInstance() : GCObject()
 {
-   // Info("create class %d", refCount);
 }
 
-
+ClassInstance::~ClassInstance()
+{
+}
 
 bool ClassInstance::getMethod(String *name, Function **out)
 {
@@ -977,20 +734,22 @@ bool ClassInstance::getMethod(String *name, Function **out)
     return false;
 }
 
-void ClassInstance::drop()
-{
-   // Warning("drop class %d", refCount);
+// bool ClassInstance::getMethod(String *name, Function **out)
+// {
+//     if(klass->methods.get(name, out))
+//     {
+//         return true;
+//     }
 
-
-
-    for (size_t i = 0; i < fields.size(); i++)
-    {
-        fields[i].drop();
-    }
-    fields.clear();
-    InstancePool::instance().freeClass(this);
-    
-}
+//     if (klass->inherited)
+//     {
+//         if(klass->superclass->methods.get(name,out));
+//         {
+//             return true;
+//         }
+//     }
+//     return false;
+// }
 
 Function *ClassDef::canRegisterFunction(const char *name)
 {
@@ -1018,33 +777,4 @@ NativeClassDef::~NativeClassDef()
 {
     methods.destroy();
     properties.destroy();
-    
-}
-
-
-NativeStructInstance::NativeStructInstance() : GCObject(), def(nullptr)
-{
-     //Info(" Create of struct instance %ld ", sizeof(NativeStructInstance));
-}
-
- 
-
-void NativeStructInstance::drop()
-{
-       //Info("Free of struct instance %s ", def->name->chars());
-       InstancePool::instance().freeNativeStruct(this);
-}
-
-NativeInstance::NativeInstance(): GCObject()
-{
-}
- 
-
-void NativeInstance::drop()
-{
-   // Info("Free of class instance %s ", klass->name->chars());
-
-
- 
-    InstancePool::instance().freeNativeClass(this);
 }

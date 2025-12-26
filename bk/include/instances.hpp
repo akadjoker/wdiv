@@ -9,21 +9,10 @@ struct MapInstance;
 struct ClassInstance;
 struct NativeInstance;
 struct NativeStructInstance;
-struct Interpreter;
 
 class InstancePool 
 {
     HeapAllocator arena;
-    Interpreter *interpreter;
-
-  //  Vector<StructInstance *> structInstances;
-  //  Vector<ArrayInstance *> arrayInstances;
-  //  Vector<ClassInstance *> classesInstances;
-
-  void setInterpreter(Interpreter *interpreter);
-  Interpreter *getInterpreter();
-
-  friend class Interpreter;
  
 public:
     InstancePool();
@@ -38,7 +27,7 @@ public:
     StructInstance* createStruct( );
     void freeStruct(StructInstance *proc);
 
-    ArrayInstance* createArray(int reserve=0);
+    ArrayInstance* createArray();
     void freeArray(ArrayInstance *a);
 
 

@@ -139,9 +139,10 @@ void Compiler::printStatement()
 
 void Compiler::expressionStatement()
 {
+
     // Expressão normal
     expression();
-    consume(TOKEN_SEMICOLON, "Expression statemnt Expect ';'");
+    consume(TOKEN_SEMICOLON, "Expresion statemnt Expect ';'");
     emitByte(OP_POP);
 }
 
@@ -1366,6 +1367,7 @@ void Compiler::super(bool canAssign)
     emitByte(argCount);
 }
 
+
 void Compiler::dot(bool canAssign)
 {
     consume(TOKEN_IDENTIFIER, "Expect property name after '.'");
@@ -1453,32 +1455,6 @@ void Compiler::dot(bool canAssign)
         emitBytes(OP_GET_PROPERTY, nameIdx);
     }
 }
-
-// void Compiler::dot(bool canAssign)
-// {
-//     consume(TOKEN_IDENTIFIER, "Expect property name after '.'");
-//     Token propName = previous;
-//     uint8_t nameIdx = identifierConstant(propName);
-
-//     if (match(TOKEN_LPAREN))
-//     {
-
-//         uint8_t argCount = argumentList();
-//         emitBytes(OP_INVOKE, nameIdx);
-//         emitByte(argCount);
-//     }
-//     else if (canAssign && match(TOKEN_EQUAL))
-//     {
-
-//         expression();
-//         emitBytes(OP_SET_PROPERTY, nameIdx);
-//     }
-//     else
-//     {
-
-//         emitBytes(OP_GET_PROPERTY, nameIdx);
-//     }
-// }
 
 void Compiler::subscript(bool canAssign)
 {

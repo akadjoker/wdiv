@@ -97,11 +97,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
         uint8 instruction = READ_BYTE();
 
-        if (hasFatalError_)
-        {
-            return {FiberResult::ERROR, 0, 0, 0};
-        }
-
         switch (instruction)
         {
             // ========== CONSTANTS ==========
@@ -171,47 +166,31 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
         case OP_GET_GLOBAL:
         {
+
             Value name = READ_CONSTANT();
             Value value;
-            String *key = name.asString();
 
-            // 1. Procura globals
-            if (globals.get(key, &value))
+            //if (!globals.get(name.asString(), &value))
+            if (!getGlobal(name.asString(), &value))
             {
-                PUSH(value);
-                break;
-            }
-
-            // 2. Procura modules
-            bool found = false;
-            for (uint32 i = 0; i < importedModules.size(); i++)
-            {
-                if (importedModules[i]->symbols.get(key, &value))
-                {
-                    PUSH(value);
-                    found = true;
-                    break;
-                }
-            }
-
-            // 3. Erro se não encontrou
-            if (!found)
-            {
-                runtimeError("Undefined variable '%s'", key->chars());
+                runtimeError("Undefined variable '%s'", name.asString()->chars());
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
+            PUSH(value);
             break;
         }
 
         case OP_SET_GLOBAL:
         {
-            String *key = READ_CONSTANT().asString();
+
+            Value name = READ_CONSTANT();
             Value value = PEEK();
-            Value out;
-            if (!globals.set_get(key, value, &out))
+            //if (globals.set(name.asString(), value))
+                if (setGlobal(name.asString(), value))
             {
-                out.drop();
-                Info("assign %s  exists", key->chars());
+            }
+            else
+            {
             }
             break;
         }
@@ -220,13 +199,8 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         {
 
             Value name = READ_CONSTANT();
-            Value value = POP();
-
-            if (!globals.set(name.asString(), value))
-            {
-                Warning("Global %s already exists", name.asString()->chars());
-            }
-
+            //globals.set(name.asString(), POP());
+            setGlobal(name.asString(), POP());
             break;
         }
 
@@ -243,22 +217,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 break;
             }
 
-            if (a.isString() && b.isDouble())
-            {
-                String *right = StringPool::instance().toString(b.asDouble());
-                String *result = StringPool::instance().concat(a.asString(), right);
-                PUSH(Value::makeString(result));
-                break;
-            }
-            if (a.isString() && b.isInt())
-            {
-                String *right = StringPool::instance().toString(b.asInt());
-                String *result = StringPool::instance().concat(a.asString(), right);
-                PUSH(Value::makeString(result));
-                break;
-            }
-          
-            if (a.isInt() && b.isInt())
+             if (a.isInt() && b.isInt())
             {
                 PUSH(Value::makeInt(a.asInt() + b.asInt()));
                 break;
@@ -275,6 +234,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 PUSH(Value::makeDouble(a.asDouble() + b.asInt()));
                 break;
             }
+
 
             double da, db;
             if (!toNumberPair(a, b, da, db))
@@ -308,12 +268,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             double da, db;
             if (!toNumberPair(a, b, da, db))
             {
-                runtimeError("Operands 'subtract' must be numbers");
-                printf(" a: ");
-                printValue(a);
-                printf(" b: ");
-                printValue(b);
-                printf("\n");
+                runtimeError("Operands must be numbers");
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
@@ -334,12 +289,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             double da, db;
             if (!toNumberPair(a, b, da, db))
             {
-                runtimeError("Operands 'multiply' must be numbers");
-                  printf(" a: ");
-                printValue(a);
-                printf(" b: ");
-                printValue(b);
-                printf("\n");
+                runtimeError("Operands must be numbers");
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
@@ -352,7 +302,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             BINARY_OP_PREP();
             if (a.isInt() && b.isInt())
             {
-                int valueB = b.asInt();
+                long valueB = b.asInt();
                 if (valueB == 0)
                 {
                     runtimeError("Division by zero");
@@ -366,7 +316,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 double da, db;
                 if (!toNumberPair(a, b, da, db))
                 {
-                    runtimeError("Operands  'divide' must be numbers");
+                    runtimeError("Operands must be numbers");
                     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                 }
 
@@ -403,12 +353,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             double da, db;
             if (!toNumberPair(a, b, da, db))
             {
-                runtimeError("Operands  'modulo' must be numbers");
-                  printf(" a: ");
-                printValue(a);
-                printf(" b: ");
-                printValue(b);
-                printf("\n");
+                runtimeError("Operands must be numbers");
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
@@ -437,11 +382,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             }
             else
             {
-                runtimeError("Operand  'negate' must be a number");
-                printf(" a: ");
-                printValue(a);
-             
-                printf("\n");
+                runtimeError("Operand must be a number");
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
             break;
@@ -476,12 +417,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             double da, db;
             if (!toNumberPair(a, b, da, db))
             {
-                runtimeError("Operands 'greater' must be numbers");
-                  printf(" a: ");
-                printValue(a);
-                printf(" b: ");
-                printValue(b);
-                printf("\n");
+                runtimeError("Operands must be numbers");
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
@@ -496,12 +432,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             double da, db;
             if (!toNumberPair(a, b, da, db))
             {
-                runtimeError("Operands 'greater equal' must be numbers");
-                  printf(" a: ");
-                printValue(a);
-                printf(" b: ");
-                printValue(b);
-                printf("\n");
+                runtimeError("Operands must be numbers");
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
             PUSH(Value::makeBool(da >= db));
@@ -511,13 +442,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         case OP_LESS:
         {
             BINARY_OP_PREP();
-   
 
             double da, db;
             if (!toNumberPair(a, b, da, db))
             {
-                runtimeError("Operands 'less' must be numbers");
- 
+                runtimeError("Operands must be numbers");
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
             PUSH(Value::makeBool(da < db));
@@ -530,12 +459,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             double da, db;
             if (!toNumberPair(a, b, da, db))
             {
-                runtimeError("Operands  'less equal' must be numbers");
-                  printf(" a: ");
-                printValue(a);
-                printf(" b: ");
-                printValue(b);
-                printf("\n");
+                runtimeError("Operands must be numbers");
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
             PUSH(Value::makeBool(da <= db));
@@ -771,7 +695,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             }
             else if (callee.isStruct())
             {
-                int index = callee.asStructId();
+                int index = callee.as.structId;
 
                 StructDef *def = structs[index];
 
@@ -784,6 +708,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 Value value = Value::makeStructInstance();
                 StructInstance *instance = value.as.sInstance;
                 instance->def = def;
+                structInstances.push(instance);
                 instance->values.reserve(argCount);
                 for (int i = argCount - 1; i >= 0; i--)
                 {
@@ -809,6 +734,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     instance->fields.push(Value::makeNil());
                 }
 
+                classesInstances.push(instance);
                 // Substitui class por instance na stack
                 fiber->stackTop[-argCount - 1] = value;
 
@@ -865,8 +791,8 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 }
                 Value literal = Value::makeNativeClassInstance();
                 // Cria instance wrapper
-                NativeInstance *instance = literal.asNativeClassInstance();
-                //nativeInstances.push(instance);
+                NativeInstance *instance = literal.as.sClassInstance;
+                nativeInstances.push(instance);
                 instance->klass = klass;
                 instance->userData = userData;
                 instance->refCount = 1;
@@ -893,7 +819,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 Value literal = Value::makeNativeStructInstance();
                 // Cria instance wrapper
                 NativeStructInstance *instance = literal.as.sNativeStruct;
-                //nativeStructInstances.push(instance);
+                nativeStructInstances.push(instance);
                 instance->def = def;
                 instance->data = data;
 
@@ -1150,7 +1076,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     runtimeError("Struct is null");
                     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                 }
-               
                 uint8 value = 0;
                 if (inst->def->names.get(nameValue.asString(), &value))
                 {
@@ -1211,7 +1136,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             {
 
                 NativeStructInstance *inst = object.asNativeStructInstance();
-
                 NativeStructDef *def = inst->def;
 
                 NativeFieldDef field;
@@ -1229,22 +1153,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 Value result;
                 switch (field.type)
                 {
-                case FieldType::BYTE:
-                {
-                    result = Value::makeByte(*(uint8 *)ptr);
-                    break;
-                }
                 case FieldType::INT:
                     result = Value::makeInt(*(int *)ptr);
                     break;
 
-                case FieldType::UINT:
-                    result = Value::makeUInt(*(uint32 *)ptr);
-                    break;
-
                 case FieldType::FLOAT:
-                    result = Value::makeFloat(*(float *)ptr);
-                    break;
                 case FieldType::DOUBLE:
                     result = Value::makeDouble(*(double *)ptr);
                     break;
@@ -1434,22 +1347,8 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 }
                 char *base = (char *)inst->data;
                 char *ptr = base + field.offset;
-                switch (field.type)
+                switch(field.type)
                 {
-                case FieldType::BYTE:
-                {
-                    if (!value.isByte())
-                    {
-                        runtimeError("Field expects byte");
-                        DROP();
-                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                    }
-                    *(uint8 *)ptr = (uint8)value.asByte();
-                    break;
-
-        
-                }
-
                 case FieldType::INT:
                     if (!value.isInt())
                     {
@@ -1459,34 +1358,16 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     }
                     *(int *)ptr = value.asInt();
                     break;
-                case FieldType::UINT:
-                    if (!value.isUInt())
-                    {
-                        runtimeError("Field expects uint");
-                        DROP();
-                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                    }
-                    *(uint32 *)ptr = value.asUInt();
-                    break;
+
                 case FieldType::FLOAT:
-                {
-                    if (!value.isFloat())
-                    {
-                        runtimeError("Field expects float");
-                        DROP();
-                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                    }
-                    *(float *)ptr = value.asFloat();
-                    break;
-                }
                 case FieldType::DOUBLE:
-                    if (!value.isDouble())
+                    if (!value.isDouble() && !value.isInt())
                     {
-                        runtimeError("Field expects double");
+                        runtimeError("Field expects number");
                         DROP();
                         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                     }
-                    *(double *)ptr = value.asDouble();
+                    *(double *)ptr = value.isDouble() ? value.asDouble() : (double)value.asInt();
                     break;
 
                 case FieldType::BOOL:
@@ -1500,25 +1381,25 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     break;
 
                 case FieldType::POINTER:
-                    if (!value.isPointer())
+                    if (!value.isPointer() && !value.isNil())
                     {
                         runtimeError("Field expects pointer");
                         DROP();
                         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                     }
-                    *(void **)ptr = value.asPointer();
+                    *(void **)ptr = value.isPointer() ? value.asPointer() : nullptr;
                     break;
 
                 case FieldType::STRING:
                 {
-                    if (!value.isString())
+                    if (!value.isString() && !value.isNil())
                     {
                         runtimeError("Field expects string");
                         DROP();
                         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                     }
                     String **fieldPtr = (String **)ptr;
-                    *fieldPtr = value.asString();
+                    *fieldPtr = value.isString() ? value.asString() : nullptr;
                     break;
                 }
                 }
@@ -1553,71 +1434,30 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             const char *name = nameValue.asStringChars();
             Value receiver = NPEEK(argCount);
 
- 
+//             printf("\n=== OP_INVOKE DEBUG ===\n");
+// printf("Method: %s\n", name);
+// printf("ArgCount: %d\n", argCount);
+// printf("Stack size: %d\n", (int)(fiber->stackTop - fiber->stack));
+// printf("Receiver (NPEEK(%d)): ", argCount);
+// printValue(receiver);
+// printf("\n");
+// printf("Type: ");
+// if (receiver.isString()) printf("STRING");
+// else if (receiver.isInt()) printf("INT");
+// else if (receiver.isDouble()) printf("DOUBLE");
+// else if (receiver.isNil()) printf("NIL");
+// else printf("UNKNOWN");
+// printf("\n");
+
+// // Mostra o stack todo
+// printf("Full stack:\n");
+// for (int i = 0; i < (fiber->stackTop - fiber->stack); i++) {
+//     printf("  [%d] ", i);
+//     printValue(fiber->stack[i]);
+//     printf("\n");
+// }
+// printf("=======================\n");
 #define ARGS_CLEANUP() fiber->stackTop -= (argCount + 1)
-
-
-            
-            if (compareString(nameValue.asString(), staticFree))
-            {
-                    if (argCount != 0)
-                    {
-                        runtimeError("free() expects 0 arguments");
-                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                    }
-                    if(receiver.type == ValueType::NATIVESTRUCTINSTANCE)
-                    {
-                        ARGS_CLEANUP();
-                        NativeStructInstance *inst = receiver.as.sNativeStruct;
-                        inst->release();
-                        PUSH(Value::makeNil());
-                        break;
-                    }  else if(receiver.type == ValueType::NATIVECLASSINSTANCE)
-                    {
-                        ARGS_CLEANUP();
-                        NativeInstance *inst = receiver.as.sClassInstance;
-                        inst->release();
-                        PUSH(Value::makeNil());
-                        break;
-                    }
-                    else if(receiver.type == ValueType::STRUCTINSTANCE)
-                    {
-                        ARGS_CLEANUP();
-                        StructInstance *inst = receiver.as.sInstance;
-                        inst->release();
-                        PUSH(Value::makeNil());
-                        break;
-                    }else if (receiver.type == ValueType::CLASSINSTANCE) 
-                    {
-                        ARGS_CLEANUP();
-                        ClassInstance *inst = receiver.as.sClass;
-                        inst->release();
-                        PUSH(Value::makeNil());
-                        break;
-                    }
-                    else if (receiver.type == ValueType::ARRAY)
-                    {
-                    ARGS_CLEANUP();
-                        ArrayInstance *inst = receiver.as.array;
-                        inst->release();
-                        PUSH(Value::makeNil());
-                        break;
-                    } else if (receiver.type == ValueType::MAP)
-                    {
-                        ARGS_CLEANUP();
-                        MapInstance *inst = receiver.as.map;
-                        inst->release();
-                        PUSH(Value::makeNil());
-                        break;
-                    }
-                    else
-                    {
-                        runtimeError("This Type is not supported by free()");
-                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                    }
-                   
-            }
-     
 
             // === STRING METHODS ===
             if (receiver.isString())
@@ -1954,18 +1794,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     PUSH(Value::makeNil());
                     break;
                 }
-                else if (compareString(nameValue.asString(), staticFree))
-                {
-                    if (argCount != 0)
-                    {
-                        runtimeError("free() expects 0 arguments");
-                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                    }
-                    arr->release();
-                    ARGS_CLEANUP();
-                    PUSH(Value::makeNil());
-                    break;
-                }
                 else
                 {
                     runtimeError("Array has no method '%s'", name);
@@ -2025,7 +1853,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     PUSH(Value::makeNil());
                     break;
                 }
-                else if (compareString(nameValue.asString(), staticFree))
+                else if (strcmp(name, "clear") == 0)
                 {
                     if (argCount != 0)
                     {
@@ -2034,19 +1862,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     }
 
                     map->table.destroy();
-                    ARGS_CLEANUP();
-                    PUSH(Value::makeNil());
-                    break;
-                }
-                 else if (compareString(nameValue.asString(), staticFree))
-                {
-                    if (argCount != 0)
-                    {
-                        runtimeError("free() expects 0 arguments");
-                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                    }
-
-                    map->release();
                     ARGS_CLEANUP();
                     PUSH(Value::makeNil());
                     break;
@@ -2075,7 +1890,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     ArrayInstance *keysInstance = keys.asArray();
 
                     map->table.forEach([&](String *key, Value value)
-                                       { (void) value;keysInstance->values.push(Value::makeString(key)); });
+                                       { keysInstance->values.push(Value::makeString(key)); });
 
                     ARGS_CLEANUP();
                     PUSH(keys);
@@ -2094,7 +1909,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     ArrayInstance *valueInstance = values.asArray();
 
                     map->table.forEach([&](String *key, Value value)
-                                       {(void)key; valueInstance->values.push(value); });
+                                       { valueInstance->values.push(value); });
 
                     ARGS_CLEANUP();
                     PUSH(values);
@@ -2108,8 +1923,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 ClassInstance *instance = receiver.asClassInstance();
                 // printValueNl(receiver);
                 // printValueNl(nameValue);
-
-                
 
                 Function *method;
                 if (instance->getMethod(nameValue.asString(), &method))
@@ -2148,21 +1961,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             if (receiver.isNativeClassInstance())
             {
-               
+                printValueNl(receiver);
+                printValueNl(nameValue);
+
                 NativeInstance *instance = receiver.asNativeClassInstance();
                 NativeClassDef *klass = instance->klass;
-
-                if (compareString(nameValue.asString(), staticFree))
-                {
-                    if (argCount != 0)
-                    {
-                        runtimeError("clear() expects 0 arguments");
-                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                    }
-                    instance->release();    
-                    PUSH(Value::makeNil());
-                    break;
-                }
 
                 NativeMethod method;
                 if (!instance->klass->methods.get(nameValue.asString(), &method))
@@ -2179,12 +1982,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 break;
             }
 
-            
-
-        
-
-
-            runtimeError("Call Type  does not support '%s' method .", name);
+            runtimeError("Type does not support method calls");
 
             printf(": ");
             printValue(receiver);
@@ -2280,6 +2078,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             uint8_t count = READ_BYTE();
             Value array = Value::makeArray();
             ArrayInstance *instance = array.asArray();
+            arrayInstances.push(instance);
             instance->values.resize(count);
             for (int i = count - 1; i >= 0; i--)
             {
@@ -2343,7 +2142,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 if (i < 0)
                     i += size;
 
-                if (i < 0 || i >= static_cast<int>(size))
+                if (i < 0 || i >= size)
                 {
                     runtimeError("Array index %d out of bounds (size=%d)", i, size);
                 }
@@ -2414,7 +2213,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 if (i < 0)
                     i += size;
 
-                if (i < 0 || i >= static_cast<int>(size))
+                if (i < 0 || i >= size)
                 {
                     runtimeError("Array index %d out of bounds (size=%d)", i, size);
                     PUSH(Value::makeNil());

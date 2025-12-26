@@ -39,7 +39,7 @@ endif()
 
 
 elseif(CMAKE_BUILD_TYPE MATCHES Release)
-    target_compile_options(testStructsBidings PRIVATE -O3   -DNDEBUG -s)
+    target_compile_options(testStructsBidings PRIVATE -O3   -DNDEBUG )
     target_link_options(testStructsBidings PRIVATE -O3   -DNDEBUG )
 endif()
 

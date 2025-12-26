@@ -5,16 +5,6 @@
 #include <ctype.h>
 #include <new>
 
-void InstancePool::setInterpreter(Interpreter * interpreter)
-{
-    this->interpreter = interpreter;
-}
-
-Interpreter *InstancePool::getInterpreter()
-{
-    return interpreter;
-}
-
 InstancePool::InstancePool()
 {
 }
@@ -23,11 +13,10 @@ InstancePool::~InstancePool()
 {
 }
 
-StructInstance *InstancePool::createStruct()
+StructInstance *InstancePool::createStruct( )
 {
     void *mem = (StructInstance *)arena.Allocate(sizeof(StructInstance)); // 40kb
     StructInstance *instance = new (mem) StructInstance();
-    //structInstances.push(instance);
     return instance;
 }
 
@@ -36,20 +25,17 @@ void InstancePool::freeStruct(StructInstance *s)
     s->~StructInstance();
     arena.Free(s, sizeof(StructInstance));
 }
-ArrayInstance *InstancePool::createArray(int reserve)
+ArrayInstance *InstancePool::createArray()
 {
     void *mem = (ArrayInstance *)arena.Allocate(sizeof(ArrayInstance)); // 32kb
     ArrayInstance *instance = new (mem) ArrayInstance();
-    if(reserve!=0)
-        instance->values.reserve(reserve);
-    //arrayInstances.push(instance);
-    // Info("array size %ld",sizeof(ArrayInstance));
+   // Info("array size %ld",sizeof(ArrayInstance));
     return instance;
 }
 
 void InstancePool::freeArray(ArrayInstance *a)
 {
-
+ 
     a->~ArrayInstance();
     arena.Free(a, sizeof(ArrayInstance));
 }
@@ -58,7 +44,6 @@ MapInstance *InstancePool::createMap()
 {
     void *mem = (MapInstance *)arena.Allocate(sizeof(MapInstance)); // 40kb
     MapInstance *instance = new (mem) MapInstance();
-    
     // Info("map size %ld",sizeof(MapInstance));
     return instance;
 }
@@ -73,8 +58,7 @@ ClassInstance *InstancePool::creatClass()
 {
     void *mem = (MapInstance *)arena.Allocate(sizeof(ClassInstance)); // 40kb
     ClassInstance *instance = new (mem) ClassInstance();
-   // classesInstances.push(instance);
-    // Info("class size %ld", sizeof(ClassInstance));
+    //Info("class size %ld", sizeof(ClassInstance));
     return instance;
 }
 
@@ -88,21 +72,13 @@ NativeInstance *InstancePool::createNativeClass()
 {
     void *mem = (NativeInstance *)arena.Allocate(sizeof(NativeInstance)); // 32kb
     NativeInstance *instance = new (mem) NativeInstance();
-    //    Info(" Create of class instance %ld ", sizeof(NativeInstance));
+//    Info(" Create of class instance %ld ", sizeof(NativeInstance));
     return instance;
 }
 
 void InstancePool::freeNativeClass(NativeInstance *n)
 {
-    // Info("Fre of class instance %s ", n->klass->name->chars());
-
-    
-    if(n->klass->destructor)
-    {
-        n->klass->destructor(this->interpreter,n->userData);
-    }
-
-
+   // Info("Fre of class instance %s ", n->klass->name->chars());
     n->~NativeInstance();
     arena.Free(n, sizeof(NativeInstance));
 }
@@ -111,13 +87,13 @@ NativeStructInstance *InstancePool::createNativeStruct()
 {
     void *mem = (NativeStructInstance *)arena.Allocate(sizeof(NativeStructInstance)); // 32kb
     NativeStructInstance *instance = new (mem) NativeStructInstance();
-    // Info(" Create of struct instance %ld ", sizeof(NativeStructInstance));
+   // Info(" Create of struct instance %ld ", sizeof(NativeStructInstance));
     return instance;
 }
 
 void InstancePool::freeNativeStruct(NativeStructInstance *n)
 {
-     //  Info("Fre of struct instance %s ", n->def->name->chars());
+ //   Info("Fre of struct instance %s ", n->def->name->chars());
     n->~NativeStructInstance();
     arena.Free(n, sizeof(NativeStructInstance));
 }
@@ -125,28 +101,6 @@ void InstancePool::freeNativeStruct(NativeStructInstance *n)
 void InstancePool::clear()
 {
     Info("Instance pool stats:");
-
-    // for (size_t i = 0; i < structInstances.size(); i++)
-    // {
-    //     StructInstance *a = structInstances[i];
-    //     InstancePool::instance().freeStruct(a);
-    // }
-    // structInstances.clear();
-
-    // for (size_t i = 0; i < arrayInstances.size(); i++)
-    // {
-    //     ArrayInstance *a = arrayInstances[i];
-    //     InstancePool::instance().freeArray(a);
-    // }
-    // arrayInstances.clear();
-
-    // for (size_t i = 0; i < classesInstances.size(); i++)
-    // {
-    //     ClassInstance *a = classesInstances[i];
-    //     InstancePool::instance().freeClass(a);
-    // }
-    // classesInstances.clear();
-
     arena.Stats();
     arena.Clear();
 }

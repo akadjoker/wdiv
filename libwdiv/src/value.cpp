@@ -5,17 +5,10 @@
 
 Value::Value() : type(ValueType::NIL)
 {
-    as.integer = 0;
+    as.boolean = false;
 }
 
-// Value::~Value()
-// {
-//     if(type==ValueType::STRUCT)
-//     {
-//          printValue(*this);
-//          printf("Destroy \n");
-//     }
-// }
+ 
 
 Value Value::makeNil()
 {
@@ -68,7 +61,7 @@ Value Value::makeFloat(float f)
 {
     Value v;
     v.type = ValueType::FLOAT;
-    v.as.number = f;
+    v.as.n_float = f;
     return v;
 }
 
@@ -108,7 +101,7 @@ Value Value::makeNativeClass(int idx)
 {
     Value v;
     v.type = ValueType::NATIVECLASS;
-    v.as.nativeClassId = idx;
+    v.as.id = idx;
     return v;
 }
 
@@ -120,13 +113,11 @@ Value Value::makeNativeClassInstance()
     return v;
 }
 
-
-
 Value Value::makeProcess(int idx)
 {
     Value v;
     v.type = ValueType::PROCESS;
-    v.as.processId = idx;
+    v.as.id = idx;
     return v;
 }
 
@@ -134,11 +125,11 @@ Value Value::makeStruct(int idx)
 {
     Value v;
     v.type = ValueType::STRUCT;
-    v.as.structId = idx;
+    v.as.id = idx;
     return v;
 }
 
-Value Value::makeStructInstance( )
+Value Value::makeStructInstance()
 {
     Value v;
     v.type = ValueType::STRUCTINSTANCE;
@@ -162,19 +153,17 @@ Value Value::makeArray()
     return v;
 }
 
- 
-
 Value Value::makeClass(int idx)
 {
     Value v;
     v.type = ValueType::CLASS;
-    v.as.classId = idx;
+    v.as.id = idx;
     return v;
 }
 
 Value Value::makeClassInstance()
 {
-     Value v;
+    Value v;
     v.type = ValueType::CLASSINSTANCE;
     v.as.sClass = InstancePool::instance().creatClass();
     return v;
@@ -192,7 +181,7 @@ Value Value::makeNativeStruct(int idx)
 {
     Value v;
     v.type = ValueType::NATIVESTRUCT;
-    v.as.nativeStructId = idx;
+    v.as.id = idx;
     return v;
 }
 
@@ -204,9 +193,58 @@ Value Value::makeNativeStructInstance()
     return v;
 }
 
+
+void Value::toNil()
+{
+
+   
+    type = ValueType::NIL;
+
+}
+
+void Value::drop()
+{
+
+
+    // if (type == ValueType::STRUCTINSTANCE)
+    // {
+    //     as.sInstance->release();
+    // }
+    // else if (type == ValueType::STRING)
+    // {
+    //     //InstancePool::instance().freeString(as.string);
+    // }
+    // else if (type == ValueType::ARRAY)
+    // {
+    //     as.array->release();
+    // }
+    // else if (type == ValueType::MAP)
+    // {
+    //     as.map->release();
+    // }
+    // else if (type == ValueType::CLASSINSTANCE)
+    // {
+    //     as.sClass->release();
+    // }
+    // else if (type == ValueType::NATIVESTRUCTINSTANCE)
+    // {
+    //   as.sNativeStruct->release();
+    // } else if (type == ValueType::NATIVECLASSINSTANCE)
+    // {
+    //     as.sClassInstance->release();
+    // }
+
+    if (type == ValueType::STRING)
+    {  
+        as.string->release();
+        Info("Drop value %s %d %s", typeToString(type), as.string->refCount, as.string->chars()); 
+    }
+
+}
+
 bool Value::isNumber() const
 {
-    return ((type == ValueType::INT) || (type == ValueType::DOUBLE) || (type == ValueType::BYTE) );
+    return ((type == ValueType::INT) || (type == ValueType::DOUBLE) || (type == ValueType::BYTE));
 }
 
 bool Value::asBool() const { return as.boolean; }
@@ -247,14 +285,17 @@ float Value::asFloat() const
     else if (type == ValueType::INT)
     {
         return static_cast<float>(as.integer);
-    } else if (type == ValueType::BYTE)
+    }
+    else if (type == ValueType::BYTE)
     {
         return static_cast<float>(as.byte);
-    } else if (type == ValueType::FLOAT)
+    }
+    else if (type == ValueType::FLOAT)
     {
         return as.n_float;
     }
     Warning("Wrong type conversion to float");
+    printValueNl(*this);
     return 0;
 }
 const char *Value::asStringChars() const { return as.string->chars(); }
@@ -266,17 +307,17 @@ int Value::asProcessId() const { return as.processId; }
 
 int Value::asStructId() const
 {
-    return as.structId;
+    return as.id;
 }
 
 int Value::asClassId() const
 {
-    return as.classId;
+    return as.id;
 }
 
 int Value::asClassNativeId() const
 {
-    return as.nativeClassId;
+    return as.id;
 }
 
 void *Value::asPointer() const
@@ -286,7 +327,7 @@ void *Value::asPointer() const
 
 int Value::asNativeStructId() const
 {
-    return as.nativeStructId;
+    return as.id;
 }
 
 StructInstance *Value::asStructInstance() const
@@ -328,151 +369,123 @@ double Value::asNumber() const
     else if (type == ValueType::INT)
     {
         return static_cast<double>(as.integer);
-    } else if (type == ValueType::BYTE)
+    }
+    else if (type == ValueType::BYTE)
     {
         return static_cast<double>(as.byte);
     }
     Warning("Wrong type conversion to number");
     return 0;
 }
-
+static void printValueIndented(const Value &value, int depth = 0)
+{
+    switch (value.type) {
+        case ValueType::NIL:
+            printf("nil");
+            break;
+        case ValueType::BOOL:
+            printf("%s", value.as.boolean ? "true" : "false");
+            break;
+        case ValueType::BYTE:
+            printf("%u", value.as.byte);
+            break;
+        case ValueType::INT:
+            printf("%d", value.as.integer);
+            break;
+        case ValueType::UINT:
+            printf("%u", value.as.unsignedInteger);
+            break;
+        case ValueType::FLOAT:
+            printf("%.2f", value.as.n_float);
+            break;
+        case ValueType::DOUBLE:
+            printf("%.2f", value.as.number);
+            break;
+        case ValueType::STRING:
+            printf("\"%s\"", value.as.string->chars());
+            break;
+        case ValueType::FUNCTION:
+            printf("<function:%d>", value.as.id);
+            break;
+        case ValueType::NATIVE:
+            printf("<native>");
+            break;
+        case ValueType::PROCESS:
+            printf("<process:%d>", value.as.id);
+            break;
+        case ValueType::ARRAY: {
+            ArrayInstance *arr = value.as.array;
+            printf("[");
+            for (int i = 0; i < (int)arr->values.size(); i++) {
+                printValueIndented(arr->values[i], depth + 1);
+                if (i < (int)arr->values.size() - 1)
+                    printf(", ");
+            }
+            printf("]");
+            break;
+        }
+        case ValueType::MAP: {
+            MapInstance *map = value.as.map;
+            printf("{");
+            int i = 0;
+            map->table.forEach([&](String *key, Value val) {
+                if (i > 0) printf(", ");
+                printf("%s: ", key->chars());
+                printValueIndented(val, depth + 1);
+                i++;
+            });
+            printf("}");
+            break;
+        }
+        case ValueType::STRUCTINSTANCE: 
+        {
+            StructInstance *inst = value.as.sInstance;
+            printf("struct_instance{%s: ", inst->def->name->chars());
+            bool first = true;
+            inst->def->names.forEach([&](String *key, int idx) {
+                if (!first) printf(", ");
+                printf("%s=", key->chars());
+                printValueIndented(inst->values[idx], depth + 1);
+                first = false;
+            });
+            printf("}");
+            break;
+        }
+        case ValueType::CLASSINSTANCE: {
+            ClassInstance *inst = value.as.sClass;
+            printf("<class_instance:%s>", inst->klass->name->chars());
+            break;
+        }
+        case ValueType::NATIVECLASSINSTANCE: {
+            NativeInstance *inst = value.as.sClassInstance;
+            printf("<native_class_instance:%s,%i>", inst->klass->name->chars(), inst->klass->id);
+            break;
+        }
+        case ValueType::NATIVESTRUCTINSTANCE: {
+            NativeStructInstance *inst = value.as.sNativeStruct;
+            printf("<native_struct_instance:%s,%d>", inst->def->name->chars(), inst->def->id);
+            break;
+        }
+        case ValueType::POINTER:
+            printf("<ptr:%p>", value.as.pointer);
+            break;
+        case ValueType::STRUCT:
+            printf("<struct:%d>", value.as.id);
+            break;
+        case ValueType::NATIVESTRUCT:
+            printf("<native_struct:%d>", value.as.id);
+            break;
+        case ValueType::CLASS:
+            printf("<class:%d>", value.as.id);
+            break;
+        default:
+            printf("<?unknown>");
+    }
+}
 
 void printValue(const Value &value)
 {
-    switch (value.type)
-    {
-    case ValueType::NIL:
-        printf("nil");
-        break;
-    case ValueType::BOOL:
-        printf("%s", value.as.boolean ? "true" : "false");
-        break;
-    case ValueType::BYTE:
-        printf("%d", value.as.byte);
-        break;
-    case ValueType::INT:
-        printf("%d", value.as.integer);
-        break;
-    case ValueType::UINT:
-        printf("%u", value.as.unsignedInteger);
-        break;
-    case ValueType::FLOAT:
-        printf("%f", value.as.n_float);
-        break;
-    case ValueType::DOUBLE:
-        printf("%f", value.as.number);
-        break;
-    case ValueType::STRING:
-        printf("%s", value.as.string->chars());
-        break;
-    case ValueType::FUNCTION:
-    {
-         int Id = value.asFunctionId();
-         printf("<function %d>", Id);        
-        break;
-    }
-    case ValueType::NATIVE:
-        printf("<native>");
-        break;
-    case ValueType::PROCESS:
-        printf("<process>");
-        break;
- 
-    case ValueType::ARRAY:
-    {
-        ArrayInstance *arr = value.asArray();
-        printf("[");
-        for (int i = 0; i < (int)arr->values.size(); i++)
-        {
-            printValue(arr->values[i]);
-            if (i < (int)arr->values.size() - 1)
-                printf(", ");
-        }
-        printf("]");
-        break;
-    }
-    case ValueType::MAP:
-    {
-
-        MapInstance *map = value.asMap();
-        printf("{");
-
-        int i = 0;
-        map->table.forEach([&](String *key, Value val)
-                           {
-        if (i > 0) printf(", ");
-        printf("%s: ", key->chars());
-        printValue(val);
-        i++; });
-
-        printf("}");
-        break;
-    }
-
-    case ValueType::STRUCT:
-    {
-         int Id = value.asStructId();
-         printf("<struct %d>", Id);        
-        break;
-    }
-    case ValueType::STRUCTINSTANCE:
-    {
-        StructInstance *instance = value.as.sInstance;
-        printf("struct '%s' [", instance->def->name->chars());
-       
-
-        bool first = true;
-
-        instance->def->names.forEach([&](String *key, int fieldIndex)
-                                     {
-             if (!first) 
-            {
-                printf(", ");
-            }
-            first = false;
-
-            printf("%s = ", key->chars());
-            printValue(instance->values[fieldIndex]); });
-
-        printf("]\n");
-        break;
-    }
-    case ValueType::CLASS:
-    {
-            int classId = value.asClassId();
-            printf("<class %d>", classId);
-        break;
-    }
-    case ValueType::CLASSINSTANCE:
-    {
-        ClassInstance* inst = value.as.sClass;
-        printf("<instance %s>", inst->klass->name->chars());
-        break;
-    }
-    case ValueType::NATIVECLASSINSTANCE:
-    {
-        NativeInstance* inst = value.as.sClassInstance;
-        printf("<native_instance %s>", inst->klass->name->chars());
-        break;
-    }   
-    case ValueType::NATIVESTRUCTINSTANCE:
-    {
-        NativeStructInstance* inst = value.as.sNativeStruct;
-        printf("<native_struct_instance %s>", inst->def->name->chars());
-        break;
-    }
-    case ValueType::POINTER:
-    {
-        
-        printf("<pointer %p>", value.as.pointer);
-        break;
-    }
-
-
-    default:
-        printf("<?>");
-        break;
-    }
+    printValueIndented(value, 0);
 }
 
 void printValueNl(const Value &value)
@@ -481,6 +494,52 @@ void printValueNl(const Value &value)
     printf("\n");
 }
 
+const char* typeToString(ValueType type) 
+{
+    switch (type) {
+        case ValueType::NIL:
+            return "nil";
+        case ValueType::BOOL:
+            return "bool";
+        case ValueType::BYTE:
+            return "byte";
+        case ValueType::INT:
+            return "int";
+        case ValueType::UINT:
+            return "uint";
+        case ValueType::FLOAT:
+            return "float";
+        case ValueType::DOUBLE:
+            return "double";
+        case ValueType::STRING:
+            return "string";
+        case ValueType::FUNCTION:
+            return "function";
+        case ValueType::NATIVE:
+            return "native";
+        case ValueType::PROCESS:
+            return "process";
+        case ValueType::ARRAY:
+            return "array";
+        case ValueType::MAP:
+            return "map";
+        case ValueType::STRUCT:
+            return "struct";
+        case ValueType::STRUCTINSTANCE:
+            return "struct_instance";
+        case ValueType::CLASSINSTANCE:
+            return "class_instance";
+        case ValueType::NATIVECLASSINSTANCE:
+            return "native_class_instance";
+        case ValueType::NATIVESTRUCTINSTANCE:
+            return "native_struct_instance";
+        default:
+            return "unknown";
+    }
+    
+}
+
+
 bool valuesEqual(const Value &a, const Value &b)
 {
     if (a.type != b.type)
@@ -488,23 +547,36 @@ bool valuesEqual(const Value &a, const Value &b)
 
     switch (a.type)
     {
-    case ValueType::INT:
-        return a.asInt() == b.asInt();
-    case ValueType::BOOL:
-        return a.asBool() == b.asBool();
     case ValueType::NIL:
         return true;
-    case ValueType::STRING:
-        return a.asString() == b.asString();
+    case ValueType::BOOL:
+        return a.as.boolean == b.as.boolean;
+    case ValueType::BYTE:
+        return a.as.byte == b.as.byte;
+    case ValueType::INT:
+        return a.as.integer == b.as.integer;
+    case ValueType::UINT:
+        return a.as.unsignedInteger == b.as.unsignedInteger;
+    case ValueType::FLOAT:
+        return a.as.n_float == b.as.n_float;
     case ValueType::DOUBLE:
-        return a.asDouble() == b.asDouble();
-    case ValueType::STRUCT:
-    case ValueType::MAP:
+        return a.as.number == b.as.number;
+    case ValueType::STRING:
+        return a.as.string == b.as.string;
     case ValueType::ARRAY:
-    case ValueType::FUNCTION:
-    case ValueType::PROCESS:
-    case ValueType::CLASS:
-        return a.type == b.type;
+        return a.as.array == b.as.array;
+    case ValueType::MAP:
+        return a.as.map == b.as.map;
+    case ValueType::STRUCTINSTANCE:
+        return a.as.sInstance == b.as.sInstance;
+    case ValueType::CLASSINSTANCE:
+        return a.as.sClass == b.as.sClass;
+    case ValueType::NATIVECLASSINSTANCE:
+        return a.as.sClassInstance == b.as.sClassInstance;
+    case ValueType::NATIVESTRUCTINSTANCE:
+        return a.as.sNativeStruct == b.as.sNativeStruct;
+    case ValueType::POINTER:
+        return a.as.pointer == b.as.pointer;
     default:
         return false;
     }

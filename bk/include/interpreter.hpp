@@ -6,7 +6,6 @@
 #include "arena.hpp"
 #include "code.hpp"
 #include "types.hpp"
-#include "pool.hpp"
 
 #ifdef NDEBUG
 #define WDIV_ASSERT(condition, ...) ((void)0)
@@ -34,16 +33,45 @@ struct IntEq
     bool operator()(int a, int b) const { return a == b; }
 };
 
-
-
 struct StringEq
 {
-    bool operator()(String *a, String *b) const;
+    bool operator()(String *a, String *b) const
+    {
+        if (a == b)
+            return true;
+        if (a->length() != b->length())
+            return false;
+        return memcmp(a->chars(), b->chars(), a->length()) == 0;
+    }
 };
 
 struct StringHasher
 {
-    size_t operator()(String *x) const;
+    size_t operator()(String *x) const { return x->hash; }
+};
+
+struct CStringHash
+{
+    size_t operator()(const char *str) const
+    {
+        // FNV-1a hash
+        size_t hash = 2166136261u;
+        while (*str)
+        {
+            hash ^= (unsigned char)*str++;
+            hash *= 16777619u;
+        }
+        return hash;
+    }
+};
+
+// Eq para const char*
+struct CStringEq
+{
+    bool operator()(const char *a, const char *b) const
+    {
+        return strcmp(a, b) == 0;
+    }
 };
 
 enum class FieldType : uint8_t
@@ -58,6 +86,7 @@ enum class FieldType : uint8_t
     STRING,  // String*
 };
 
+
 typedef Value (*NativeFunction)(Interpreter *vm, int argCount, Value *args);
 typedef Value (*NativeMethod)(Interpreter *vm, void *instance, int argCount, Value *args);
 typedef void *(*NativeConstructor)(Interpreter *vm, int argCount, Value *args);
@@ -66,12 +95,6 @@ typedef Value (*NativeGetter)(Interpreter *vm, void *instance);
 typedef void (*NativeSetter)(Interpreter *vm, void *instance, Value value);
 typedef void (*NativeStructCtor)(Interpreter *vm, void *buffer, int argc, Value *args);
 typedef void (*NativeStructDtor)(Interpreter *vm, void *buffer);
-
-struct SymbolTable
-{
-    String *name;
-    HashMap<String *, Value, StringHasher, StringEq> symbols;
-};
 
 struct NativeProperty
 {
@@ -122,17 +145,22 @@ struct ClassDef
 struct NativeClassDef
 {
     String *name;
-
     NativeConstructor constructor;
     NativeDestructor destructor;
-    
+
     HashMap<String *, NativeMethod, StringHasher, StringEq> methods;
     HashMap<String *, NativeProperty, StringHasher, StringEq> properties;
-    
+
     ~NativeClassDef();
 
     int argCount; // Args do constructor
-    int id;
+};
+
+struct NativeInstance
+{
+    NativeClassDef *klass;
+    void *userData; //  Ponteiro para struct C++
+    int refCount;
 };
 
 struct NativeFieldDef
@@ -144,7 +172,6 @@ struct NativeFieldDef
 
 struct NativeStructDef
 {
-    int id;
     String *name;
     size_t structSize;
     HashMap<String *, NativeFieldDef, StringHasher, StringEq> fields;
@@ -152,53 +179,40 @@ struct NativeStructDef
     NativeStructDtor destructor;  // nullable
 };
 
-
-
-struct NativeStructInstance : public GCObject
+struct NativeStructInstance
 {
- 
     NativeStructDef *def;
     void *data; // Malloc'd block (structSize bytes)
-    NativeStructInstance();
- 
-
-    void drop() override;
 };
+
+struct GCObject
+{
+    int refCount;
+    GCObject();
+    void grab();
+    void release();
+};
+
 struct StructInstance : public GCObject
 {
     StructDef *def;
     Vector<Value> values;
     StructInstance();
- 
-
-    void drop() override;
+    ~StructInstance();
 };
 
 struct ArrayInstance : public GCObject
 {
     Vector<Value> values;
     ArrayInstance();
- 
-
-    void drop() override;
-};
-
-struct NativeInstance : public GCObject
-{
-    NativeClassDef *klass;
-    void *userData; //  Ponteiro para struct C++
-    int refCount;
-    NativeInstance();
- 
-    void drop() override;
+    ~ArrayInstance();
 };
 
 struct MapInstance : public GCObject
 {
     HashMap<String *, Value, StringHasher, StringEq> table;
     MapInstance();
-    
-    void drop() override;
+    ~MapInstance();
 };
 
 struct ClassInstance : public GCObject
@@ -207,11 +221,9 @@ struct ClassInstance : public GCObject
 
     Vector<Value> fields;
     ClassInstance();
- 
+    ~ClassInstance();
 
     bool getMethod(String *name, Function **func);
-
-    void drop() override;
 };
 
 struct CallFrame
@@ -319,7 +331,7 @@ class Interpreter
 
     HashMap<String *, Function *, StringHasher, StringEq> functionsMap;
     HashMap<String *, ProcessDef *, StringHasher, StringEq> processesMap;
-    // HashMap<String *, NativeDef , StringHasher, StringEq> nativesMap;
+    HashMap<String *, NativeDef, StringHasher, StringEq> nativesMap;
     HashMap<String *, StructDef *, StringHasher, StringEq> structsMap;
     HashMap<String *, ClassDef *, StringHasher, StringEq> classesMap;
     HashMap<const char *, int, CStringHash, CStringEq> privateIndexMap;
@@ -332,20 +344,17 @@ class Interpreter
     Vector<ClassDef *> classes;
     Vector<Value> globalList;
 
+    Vector<StructInstance *> structInstances;
+    Vector<ArrayInstance *> arrayInstances;
+    Vector<ClassInstance *> classesInstances;
+
     Vector<NativeClassDef *> nativeClasses;
-    // Vector<NativeInstance *> nativeInstances;
+    Vector<NativeInstance *> nativeInstances;
 
     Vector<NativeStructDef *> nativeStructs;
-    HashMap<String *, NativeStructDef *, StringHasher, StringEq> nativeStructNames;
-    // Vector<NativeStructInstance *> nativeStructInstances;
-    int lastInstanceId = 0;
+    Vector<NativeStructInstance *> nativeStructInstances;
 
     HashMap<String *, Value, StringHasher, StringEq> globals;
-    HashMap<String *, int, StringHasher, StringEq> modules;
-    Vector<SymbolTable *> loadModules;
-
-    HashMap<String *, uint8, StringHasher, StringEq> importedModulesNames;
-    Vector<SymbolTable *> importedModules;
 
     Vector<Process *> aliveProcesses;
     Vector<Process *> cleanProcesses;
@@ -379,12 +388,14 @@ class Interpreter
 
     void addFunctionsClasses(Function *fun);
 
+        
     bool getGlobal(String *name, Value *out) const;
     bool setGlobal(String *name, Value val);
+ 
+
+    
 
     friend class Compiler;
-
-    String* staticFree;
 
 public:
     Interpreter();
@@ -395,19 +406,13 @@ public:
 
     uint32 liveProcess();
 
-    bool addModule(const char *name);
-
     void setFileLoader(FileLoaderCallback loader, void *userdata = nullptr);
-
-    bool importModule(const char *name);
-
-    int registerNative(const char *name, NativeFunction func, int arity, const char *moduleName = nullptr);
 
     NativeClassDef *registerNativeClass(
         const char *name,
         NativeConstructor ctor,
         NativeDestructor dtor,
-        int argCount, const char *moduleName = nullptr);
+        int argCount);
     void addNativeMethod(
         NativeClassDef *klass,
         const char *methodName,
@@ -419,11 +424,11 @@ public:
         NativeSetter setter = nullptr // null = read-only
     );
 
-    NativeStructDef *registerNativeStruct(const char *name,
-                                          size_t structSize,
-                                          NativeStructCtor ctor = nullptr,
-                                          NativeStructDtor dtor = nullptr,
-                                          const char *moduleName = nullptr);
+    NativeStructDef *registerNativeStruct(
+        const char *name,
+        size_t structSize,
+        NativeStructCtor ctor = nullptr,
+        NativeStructDtor dtor = nullptr);
 
     void addStructField(
         NativeStructDef *def,
@@ -431,8 +436,6 @@ public:
         size_t offset,
         FieldType type,
         bool readOnly = false);
-
-    int getLastRegisteredInstanceId() const { return lastInstanceId; }
 
     ProcessDef *addProcess(const char *name, Function *func);
     void destroyProcess(Process *proc);
@@ -453,7 +456,7 @@ public:
     void destroyFunction(Function *func);
     void addFiber(Process *proc, Function *func);
 
-    String *internString(const char *str);
+    int registerNative(const char *name, NativeFunction func, int arity);
 
     void print(Value value);
 
@@ -487,13 +490,11 @@ public:
 
     void disassemble();
 
-    Value createNativeStruct(int structId, int argc, Value *args);
-
-    // int addGlobal(const char *name, Value value, const char *module = nullptr);
-    // String *addGlobalEx(const char *name, Value value, const char *module = nullptr);
-    // Value getGlobal(const char *name, const char *module = nullptr);
-    // Value getGlobal(uint32 index, const char *module = nullptr);
-    // bool tryGetGlobal(const char *name, Value *value, const char *module = nullptr);
+    int addGlobal(const char *name, Value value);
+    String *addGlobalEx(const char *name, Value value);
+    Value getGlobal(const char *name);
+    Value getGlobal(uint32 index);
+    bool tryGetGlobal(const char *name, Value *value);
 
     // ===== STACK API   =====
     const Value &peek(int index); // -1 = topo, 0 = base

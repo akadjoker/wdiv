@@ -34,15 +34,3 @@ enum class FunctionType  : uint8
     TYPE_INITIALIZER,   // init (construtor)
     TYPE_SCRIPT         // top-level script
 };
-
-struct GCObject
-{
-    int refCount;
-    GCObject();
-    virtual ~GCObject();
-    void grab();
-    void release();
-    virtual void drop() {}
-};
-
-

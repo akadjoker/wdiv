@@ -2,37 +2,12 @@
 #include "config.hpp"
 #include "string.hpp"
 #include "vector.hpp"
-#include "map.hpp"  
-#include "types.hpp"  
+
 
 struct Value;
 struct Process;
 
  
- 
- struct CStringHash
-{
-    size_t operator()(const char *str) const
-    {
-        // FNV-1a hash
-        size_t hash = 2166136261u;
-        while (*str)
-        {
-            hash ^= (unsigned char)*str++;
-            hash *= 16777619u;
-        }
-        return hash;
-    }
-};
-
-
-struct CStringEq
-{
-    bool operator()(const char *a, const char *b) const
-    {
-        return strcmp(a, b) == 0;
-    }
-};
 
 class StringPool
 {
@@ -67,14 +42,10 @@ public:
     String *at(String *str, int index);
     String *repeat(String *str, int count);
 
-    String *toString(int value);
-    String *toString(double value);
-
     void destroy(String *s);
 
     void clear();
 
-    HashMap<const char*, String *, CStringHash, CStringEq> interns;
 
     static StringPool &instance()
     {
@@ -104,23 +75,7 @@ public:
     void clear();
 
 };
-
-
-inline bool compareString(String *a, String *b)
-{
-    if (a == nullptr || b == nullptr)
-        return false;
-
-  //  Info("Compare string %s %s hash %d %d len %d %d", a->chars(), b->chars(), a->hash, b->hash, a->length(), b->length());
-
-    if (a->hash != b->hash)
-        return false;
-    if (a == b)
-        return true;
-    if (a->length() != b->length())
-        return false;
-    return memcmp(a->chars(), b->chars(), a->length()) == 0;
-}
+ 
 
 inline String *createString(const char *str, uint32 len)
 {
