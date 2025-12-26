@@ -32,11 +32,27 @@ Value Value::makeBool(bool b)
     return v;
 }
 
-Value Value::makeInt(long i)
+Value Value::makeByte(uint8 b)
+{
+    Value v;
+    v.type = ValueType::BYTE;
+    v.as.byte = b;
+    return v;
+}
+
+Value Value::makeInt(int i)
 {
     Value v;
     v.type = ValueType::INT;
     v.as.integer = i;
+    return v;
+}
+
+Value Value::makeUInt(uint32 i)
+{
+    Value v;
+    v.type = ValueType::UINT;
+    v.as.unsignedInteger = i;
     return v;
 }
 
@@ -51,7 +67,7 @@ Value Value::makeDouble(double d)
 Value Value::makeFloat(float f)
 {
     Value v;
-    v.type = ValueType::DOUBLE;
+    v.type = ValueType::FLOAT;
     v.as.number = f;
     return v;
 }
@@ -146,13 +162,7 @@ Value Value::makeArray()
     return v;
 }
 
-Value Value::makeProcNative(int idx)
-{
-    Value v;
-    v.type = ValueType::PROC_NATIVES;
-    v.as.procNativesId = idx;
-    return v;
-}
+ 
 
 Value Value::makeClass(int idx)
 {
@@ -196,13 +206,23 @@ Value Value::makeNativeStructInstance()
 
 bool Value::isNumber() const
 {
-    return ((type == ValueType::INT) || (type == ValueType::DOUBLE));
+    return ((type == ValueType::INT) || (type == ValueType::DOUBLE) || (type == ValueType::BYTE) );
 }
 
 bool Value::asBool() const { return as.boolean; }
-long Value::asInt() const
+int Value::asInt() const
 {
     return as.integer;
+}
+
+uint8 Value::asByte() const
+{
+    return as.byte;
+}
+
+uint32 Value::asUInt() const
+{
+    return as.unsignedInteger;
 }
 
 double Value::asDouble() const
@@ -227,6 +247,12 @@ float Value::asFloat() const
     else if (type == ValueType::INT)
     {
         return static_cast<float>(as.integer);
+    } else if (type == ValueType::BYTE)
+    {
+        return static_cast<float>(as.byte);
+    } else if (type == ValueType::FLOAT)
+    {
+        return as.n_float;
     }
     Warning("Wrong type conversion to float");
     return 0;
@@ -293,15 +319,18 @@ NativeStructInstance *Value::asNativeStructInstance() const
     return as.sNativeStruct;
 }
 
-long Value::asNumber() const
+double Value::asNumber() const
 {
     if (type == ValueType::DOUBLE)
     {
-        return static_cast<long>(as.number);
+        return static_cast<double>(as.number);
     }
     else if (type == ValueType::INT)
     {
-        return static_cast<long>(as.integer);
+        return static_cast<double>(as.integer);
+    } else if (type == ValueType::BYTE)
+    {
+        return static_cast<double>(as.byte);
     }
     Warning("Wrong type conversion to number");
     return 0;
@@ -318,8 +347,17 @@ void printValue(const Value &value)
     case ValueType::BOOL:
         printf("%s", value.as.boolean ? "true" : "false");
         break;
+    case ValueType::BYTE:
+        printf("%d", value.as.byte);
+        break;
     case ValueType::INT:
-        printf("%ld", value.as.integer);
+        printf("%d", value.as.integer);
+        break;
+    case ValueType::UINT:
+        printf("%u", value.as.unsignedInteger);
+        break;
+    case ValueType::FLOAT:
+        printf("%f", value.as.n_float);
         break;
     case ValueType::DOUBLE:
         printf("%f", value.as.number);
@@ -339,9 +377,7 @@ void printValue(const Value &value)
     case ValueType::PROCESS:
         printf("<process>");
         break;
-    case ValueType::PROC_NATIVES:
-        printf("<process_native>");
-        break;
+ 
     case ValueType::ARRAY:
     {
         ArrayInstance *arr = value.asArray();
@@ -467,7 +503,7 @@ bool valuesEqual(const Value &a, const Value &b)
     case ValueType::ARRAY:
     case ValueType::FUNCTION:
     case ValueType::PROCESS:
-    case ValueType::PROC_NATIVES:
+    case ValueType::CLASS:
         return a.type == b.type;
     default:
         return false;

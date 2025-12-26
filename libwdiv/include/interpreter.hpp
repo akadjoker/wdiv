@@ -76,13 +76,16 @@ struct CStringEq
 
 enum class FieldType : uint8_t
 {
+    BYTE,    // byte
     INT,     // int
+    UINT,    // uint
     FLOAT,   // float
     DOUBLE,  // double
     BOOL,    // bool
     POINTER, // void*
     STRING,  // String*
 };
+
 
 typedef Value (*NativeFunction)(Interpreter *vm, int argCount, Value *args);
 typedef Value (*NativeMethod)(Interpreter *vm, void *instance, int argCount, Value *args);

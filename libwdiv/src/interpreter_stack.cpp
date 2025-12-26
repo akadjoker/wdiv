@@ -32,8 +32,7 @@ const char *valueTypeToString(ValueType type)
         return "<struct>";
     case ValueType::CLASS:
         return "<class>";
-    case ValueType::PROC_NATIVES:
-        return "<proces_natives>";
+ 
     case ValueType::STRUCTINSTANCE:
         return "<struct_instances>";        
     case ValueType::CLASSINSTANCE:

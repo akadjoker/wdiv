@@ -18,11 +18,8 @@ endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
-add_compile_options(
-    -Wall 
-   -Wextra
- 
-)
+
+
 
 
 file(GLOB SOURCES "src/*.cpp")
@@ -42,7 +39,7 @@ endif()
 
 
 elseif(CMAKE_BUILD_TYPE MATCHES Release)
-    target_compile_options(testStructsBidings PRIVATE -O3   -DNDEBUG )
+    target_compile_options(testStructsBidings PRIVATE -O3   -DNDEBUG -s)
     target_link_options(testStructsBidings PRIVATE -O3   -DNDEBUG )
 endif()
 

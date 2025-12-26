@@ -14,23 +14,28 @@ enum class ValueType : uint8
 {
   NIL,
   BOOL,
+  CHAR,
+  BYTE,
   INT,
+  UINT,
+  LONG,
+  ULONG,
+  FLOAT,
   DOUBLE,
   STRING,
   ARRAY,
   MAP,
   STRUCT,
-  NATIVESTRUCT,
   STRUCTINSTANCE,
   FUNCTION,
   NATIVE,
   NATIVECLASS,
   NATIVECLASSINSTANCE,
+  NATIVESTRUCT,
   NATIVESTRUCTINSTANCE,
   CLASS,
   CLASSINSTANCE,
   PROCESS,
-  PROC_NATIVES,
   POINTER,
 };
 
@@ -40,13 +45,16 @@ struct Value
   union
   {
     bool boolean;
-    long integer;
+    uint8 byte;
+    int integer;
+    float n_float;
     double number;
     String *string;
     int structId;
     int classId;
     int nativeClassId;
     int nativeStructId;
+    uint32 unsignedInteger;
     StructInstance *sInstance;
     ArrayInstance  *array;
     MapInstance    *map;
@@ -72,7 +80,9 @@ struct Value
   static Value makeBool(bool b);
   static Value makeTrue() { return makeBool(true); }
   static Value makeFalse() { return makeBool(false); }
-  static Value makeInt(long i);
+  static Value makeByte(uint8 b);
+  static Value makeInt(int i);
+  static Value makeUInt(uint32 i);
   static Value makeDouble(double d);
   static Value makeFloat(float f);
   static Value makeString(const char *str);
@@ -86,7 +96,7 @@ struct Value
   static Value makeStructInstance( );
   static Value makeMap( );
   static Value makeArray();
-  static Value makeProcNative(int idx);
+
   static Value makeClass(int idx);
   static Value makeClassInstance();
   static Value makePointer(void* pointer);
@@ -98,7 +108,10 @@ struct Value
   bool isNil() const { return type == ValueType::NIL; }
   bool isBool() const { return type == ValueType::BOOL; }
   bool isInt() const { return type == ValueType::INT; }
+  bool isByte() const { return type == ValueType::BYTE; }
   bool isDouble() const { return type == ValueType::DOUBLE; }
+  bool isFloat() const { return type == ValueType::FLOAT; }
+  bool isUInt() const { return type == ValueType::UINT; }
   bool isString() const { return type == ValueType::STRING; }
   bool isFunction() const { return type == ValueType::FUNCTION; }
   bool isNative() const { return type == ValueType::NATIVE; }
@@ -108,7 +121,6 @@ struct Value
   bool isStructInstance() const { return type == ValueType::STRUCTINSTANCE; }
   bool isMap() const { return type == ValueType::MAP; }
   bool isArray() const { return type == ValueType::ARRAY; }
-  bool isProcNative() const { return type == ValueType::PROC_NATIVES; }
   bool isClass() const { return type == ValueType::CLASS; }
   bool isClassInstance(){ return type == ValueType::CLASSINSTANCE; }
   bool isNativeClassInstance(){ return type == ValueType::NATIVECLASSINSTANCE; }
@@ -118,9 +130,12 @@ struct Value
 
   // Conversions
   bool asBool() const;
-  long asInt() const;
+  int asInt() const;
+  uint8 asByte() const;
+  uint32 asUInt() const;
   double asDouble() const;
   float asFloat() const;
+  double asNumber() const;
   const char *asStringChars() const;
   int asFunctionId() const;
   int asNativeId() const;
@@ -139,7 +154,6 @@ struct Value
   NativeInstance *asNativeClassInstance() const;
   NativeStructInstance *asNativeStructInstance() const;
 
-  long asNumber() const;
 };
 
 void printValue(const Value &value);

@@ -214,22 +214,24 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 break;
             }
 
-            if (a.isInt() && b.isInt())
+             if (a.isInt() && b.isInt())
             {
                 PUSH(Value::makeInt(a.asInt() + b.asInt()));
                 break;
             }
 
-            // if (a.isString() && b.isNumber())
-            // {
-            //     PUSH(Value::makeString(a.asInt() + b.asInt()));
-            //     break;
-            // }
-            // if (a.isString() && b.isInt())
-            // {
-            //     PUSH(Value::makeString(a.asInt() + b.asInt()));
-            //     break;
-            // }
+            if (a.isInt() && b.isDouble())
+            {
+                PUSH(Value::makeInt(a.asInt() + b.asDouble()));
+                break;
+            }
+
+            if (a.isDouble() && b.isInt())
+            {
+                PUSH(Value::makeDouble(a.asDouble() + b.asInt()));
+                break;
+            }
+
 
             double da, db;
             if (!toNumberPair(a, b, da, db))

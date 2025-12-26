@@ -4,7 +4,7 @@
 #include <raylib.h>
 
 namespace RaylibBindings
-{
+{ 
 
     // ========================================
     // NATIVE STRUCTS
@@ -57,6 +57,7 @@ namespace RaylibBindings
     // ========================================
 
     Value native_DrawText(Interpreter *vm, int argc, Value *args);
+    Value native_DrawFps(Interpreter *vm, int argc, Value *args);
     Value native_MeasureText(Interpreter *vm, int argc, Value *args);
     Value native_LoadFont(Interpreter *vm, int argc, Value *args);
     Value native_UnloadFont(Interpreter *vm, int argc, Value *args);
@@ -78,6 +79,7 @@ namespace RaylibBindings
 
     Value native_IsMouseButtonPressed(Interpreter *vm, int argc, Value *args);
     Value native_IsMouseButtonDown(Interpreter *vm, int argc, Value *args);
+    Value native_IsMouseButtonReleased(Interpreter *vm, int argc, Value *args);
     Value native_GetMousePosition(Interpreter *vm, int argc, Value *args);
     Value native_GetMouseX(Interpreter *vm, int argc, Value *args);
     Value native_GetMouseY(Interpreter *vm, int argc, Value *args);
