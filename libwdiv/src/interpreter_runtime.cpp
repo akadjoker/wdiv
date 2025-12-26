@@ -267,6 +267,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             if (a.isInt() && b.isDouble())
             {
                 PUSH(Value::makeInt(a.asInt() + b.asDouble()));
+                //PUSH(Value::makeDouble(a.asInt() + b.asDouble()));
                 break;
             }
 
