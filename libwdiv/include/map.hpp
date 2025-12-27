@@ -148,6 +148,27 @@ struct HashMap
     return isNew;
   }
 
+
+    bool set_move(const K &key,  V &&value)
+  {
+    maybeGrow();
+    size_t h = Hasher{}(key);
+    Entry *e = findSlot(key, h);
+
+    bool isNew = (e->state != FILLED);
+    if (isNew)
+    {
+      if (e->state == TOMBSTONE)
+        tombstones--;
+      e->key = key;
+      e->hash = h;
+      e->state = FILLED;
+      count++;
+    }
+    e->value = std::move(value);
+    return isNew;
+  }
+
   bool set_get(const K &key, const V &value, V *out)
   {
     maybeGrow();

@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <cstdio>
 #include <cmath>
+#include <utility> 
 
 typedef signed char int8;
 typedef signed short int16;
@@ -60,7 +61,7 @@ void aFree(void* mem);
 
 const char *longToString(long value);
 const char *doubleToString(double value);
-
+size_t getGlobalMemoryUsage();
 
 
 
@@ -97,3 +98,4 @@ static inline size_t  GROW_CAPACITY(size_t capacity)
 {
     return ((capacity) < 8 ? 8 : (capacity) * 2);
 }
+

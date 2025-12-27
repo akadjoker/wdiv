@@ -22,7 +22,10 @@ add_subdirectory(libwdiv)
 add_subdirectory(main)
 add_subdirectory(game)
 add_subdirectory(tests)
+add_subdirectory(fisica)
 
+add_subdirectory(testPool)
+add_subdirectory(testNatives)
 add_subdirectory(testStructs)
 add_subdirectory(testStructsBidings)
 

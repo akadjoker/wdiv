@@ -40,8 +40,8 @@ struct GCObject
     int refCount;
     GCObject();
     virtual ~GCObject();
-    void grab();
-    void release();
+    virtual void grab();
+    virtual void release();
     virtual void drop() {}
 };
 

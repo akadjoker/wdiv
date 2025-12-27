@@ -36,7 +36,7 @@ const char *valueTypeToString(ValueType type)
             return "struct";
         case ValueType::STRUCTINSTANCE:
             return "struct_instance";
-        case ValueType::CLASS:
+        case ValueType::CLASSID:
             return "class";
         case ValueType::CLASSINSTANCE:
             return "class_instance";

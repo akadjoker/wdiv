@@ -1586,13 +1586,13 @@ void Compiler::structDeclaration()
 
     structDef->argCount = 0;
 
-    // ✅ Loop externo: múltiplas linhas de fields
+    // Loop externo: múltiplas linhas de fields
     while (!check(TOKEN_RBRACE) && !check(TOKEN_EOF))
     {
-        // ✅ Opcional: pode ter 'var' ou não
+        // Opcional: pode ter 'var' ou não
         bool hasVar = match(TOKEN_VAR);
 
-        // ✅ Loop interno: múltiplos fields separados por vírgula
+        // Loop interno: múltiplos fields separados por vírgula
         do
         {
             consume(TOKEN_IDENTIFIER, "Expect field name");
@@ -1603,12 +1603,12 @@ void Compiler::structDeclaration()
 
         } while (match(TOKEN_COMMA));
 
-        // ✅ Se tinha 'var', precisa de ';'
+        // Se tinha 'var', precisa de ';'
         if (hasVar)
         {
             consume(TOKEN_SEMICOLON, "Expect ';' after field declaration");
         }
-        // ✅ Se não tinha 'var', aceita ',' ou '}'
+        // Se não tinha 'var', aceita ',' ou '}'
     }
 
     consume(TOKEN_RBRACE, "Expect '}' after struct body");
@@ -1678,30 +1678,11 @@ void Compiler::classDeclaration()
         // //  Copia fieldCount também ( herdar fields ??)
         classSuper->fieldNames.forEach([&](String *fieldName, uint8_t index)
                                        {
-            classDef->fieldNames.set(fieldName, classDef->fieldCount);
+                                        (void)index;            classDef->fieldNames.set(fieldName, classDef->fieldCount);
             classDef->fieldCount++; });
     }
     consume(TOKEN_LBRACE, "Expect '{'");
-    // while (check(TOKEN_VAR))
-    // {
-    //     advance(); // consome 'var'
 
-    //     consume(TOKEN_IDENTIFIER, "Expect field name");
-    //     Token fieldName = previous;
-
-    //     String *name = createString(fieldName.lexeme.c_str());
-    //     classDef->fieldNames.set(name, classDef->fieldCount);
-    //     classDef->fieldCount++;
-
-    //     // Ignora inicialização (vai no init)
-    //     if (match(TOKEN_EQUAL))
-    //     {
-    //         expression();
-    //         emitByte(OP_POP);
-    //     }
-
-    //     consume(TOKEN_SEMICOLON, "Expect ';'");
-    // }
 
     while (check(TOKEN_VAR))
     {

@@ -9,7 +9,6 @@ struct ClassInstance;
 struct NativeInstance;
 struct NativeStructInstance;
 
-
 enum class ValueType : uint8
 {
   NIL,
@@ -33,7 +32,7 @@ enum class ValueType : uint8
   NATIVECLASSINSTANCE,
   NATIVESTRUCT,
   NATIVESTRUCTINSTANCE,
-  CLASS,
+  CLASSID,
   CLASSINSTANCE,
   PROCESS,
   POINTER,
@@ -49,17 +48,17 @@ struct Value
     int integer;
     float n_float;
     double number;
-    String *string;
     int id;
 
     uint32 unsignedInteger;
+    String *string;
     StructInstance *sInstance;
-    ArrayInstance  *array;
-    MapInstance    *map;
-    ClassInstance  *sClass;
+    ArrayInstance *array;
+    MapInstance *map;
+    ClassInstance *sClass;
     NativeInstance *sClassInstance;
-    NativeStructInstance   *sNativeStruct;
-    void* pointer;
+    NativeStructInstance *sNativeStruct;
+    void *pointer;
 
     int functionId;
     int nativeId;
@@ -68,11 +67,21 @@ struct Value
   } as;
 
   Value();
-  Value(const Value &other) = default;
-  Value(Value &&other) noexcept = default;
-  Value &operator=(const Value &other) = default;
-  Value &operator=(Value &&other) noexcept = default;
-  
+
+ 
+  ~Value();
+
+  // Copy constructor - grab when copying
+  Value(const Value &other);
+
+  // Copy assignment
+  Value &operator=(const Value &other);
+
+  // Move assignment
+  Value &operator=(Value &&other) noexcept;
+
+  // Move constructor - steal reference
+  Value(Value &&other) noexcept;
 
   static Value makeNil();
   static Value makeBool(bool b);
@@ -91,17 +100,15 @@ struct Value
   static Value makeNativeClassInstance();
   static Value makeProcess(int idx);
   static Value makeStruct(int idx);
-  static Value makeStructInstance( );
-  static Value makeMap( );
+  static Value makeStructInstance();
+  static Value makeMap();
   static Value makeArray();
 
   static Value makeClass(int idx);
   static Value makeClassInstance();
-  static Value makePointer(void* pointer);
+  static Value makePointer(void *pointer);
   static Value makeNativeStruct(int idx);
-  static Value makeNativeStructInstance();
-
-  void toNil() ;
+  static Value makeNativeStructInstance(uint32 structSize);
 
   void drop();
 
@@ -123,12 +130,12 @@ struct Value
   bool isStructInstance() const { return type == ValueType::STRUCTINSTANCE; }
   bool isMap() const { return type == ValueType::MAP; }
   bool isArray() const { return type == ValueType::ARRAY; }
-  bool isClass() const { return type == ValueType::CLASS; }
-  bool isClassInstance(){ return type == ValueType::CLASSINSTANCE; }
-  bool isNativeClassInstance(){ return type == ValueType::NATIVECLASSINSTANCE; }
-  bool isPointer(){ return type == ValueType::POINTER; }
-  bool isNativeStruct(){ return type == ValueType::NATIVESTRUCT; }
-  bool isNativeStructInstance(){ return type == ValueType::NATIVESTRUCTINSTANCE; }
+  bool isClass() const { return type == ValueType::CLASSID; }
+  bool isClassInstance() { return type == ValueType::CLASSINSTANCE; }
+  bool isNativeClassInstance() { return type == ValueType::NATIVECLASSINSTANCE; }
+  bool isPointer() { return type == ValueType::POINTER; }
+  bool isNativeStruct() { return type == ValueType::NATIVESTRUCT; }
+  bool isNativeStructInstance() { return type == ValueType::NATIVESTRUCTINSTANCE; }
 
   // Conversions
   bool asBool() const;
@@ -145,22 +152,19 @@ struct Value
   int asStructId() const;
   int asClassId() const;
   int asClassNativeId() const;
-  void* asPointer() const;
+  void *asPointer() const;
   int asNativeStructId() const;
 
-  
- 
   String *asString() const;
-  StructInstance* asStructInstance() const;
-  ArrayInstance* asArray() const;
-  MapInstance* asMap() const;
+  StructInstance *asStructInstance() const;
+  ArrayInstance *asArray() const;
+  MapInstance *asMap() const;
   ClassInstance *asClassInstance() const;
   NativeInstance *asNativeClassInstance() const;
   NativeStructInstance *asNativeStructInstance() const;
-
 };
 
 void printValue(const Value &value);
 bool valuesEqual(const Value &a, const Value &b);
 void printValueNl(const Value &value);
-const char* typeToString(ValueType type) ;
+const char *typeToString(ValueType type);

@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <climits>
 
+
 size_t HeapAllocator::s_blockSizes[blockSizes] =
 	{
 		16,	 // 0
@@ -84,6 +85,9 @@ HeapAllocator::~HeapAllocator()
 	}
 
 	aFree(m_chunks);
+
+	// size_t lastMem = getMemoryUsage();
+    // Info("Heap released used: %zu KB", lastMem);
 }
 
 void *HeapAllocator::Allocate(size_t size)
@@ -92,6 +96,8 @@ void *HeapAllocator::Allocate(size_t size)
 		return NULL;
 
 	assert(0 < size);
+
+	MemoryTracker::onAllocate(size);
 
 	if (size > maxBlockSize)
 	{
@@ -163,6 +169,8 @@ void HeapAllocator::Free(void *p, size_t size)
 	}
 
 	assert(0 < size);
+
+	MemoryTracker::onFree(size);
 
 	if (size > maxBlockSize)
 	{
@@ -360,3 +368,13 @@ size_t StackAllocator::GetMaxAllocation() const
 {
 	return m_maxAllocation;
 }
+
+
+size_t MemoryTracker::totalAllocated = 0;
+size_t MemoryTracker::totalFreed = 0;
+
+size_t getMemoryUsage()
+{
+    return MemoryTracker::getUsage();
+}
+

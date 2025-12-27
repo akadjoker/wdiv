@@ -12,7 +12,7 @@ struct String : public GCObject
 
   size_t hash;
   size_t length_and_flag;
-
+ 
   union
   {
     char *ptr;
@@ -20,12 +20,13 @@ struct String : public GCObject
   };
 
   bool isLong() const { return length_and_flag & IS_LONG_FLAG; }
-  size_t length() const { return length_and_flag & ~IS_LONG_FLAG; }
+  size_t length() const ;
 
   const char *chars() const { return isLong() ? ptr : data; }
   char *chars() { return isLong() ? ptr : data; }
 
   String();
+  virtual ~String();
   void drop() override;
 
 

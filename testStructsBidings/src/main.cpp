@@ -9,6 +9,8 @@
 #include "bidings.hpp"
 #include "interpreter.hpp"
 
+extern size_t getMemoryUsage();
+
 // Helper: converte Value para string
 static void valueToString(const Value &v, std::string &out)
 {
@@ -119,6 +121,11 @@ Value native_write(Interpreter *vm, int argCount, Value *args)
     return Value::makeNil();
 }
 
+Value native_getMemoryUsage(Interpreter *vm, int argCount, Value *args)
+{
+    return Value::makeInt(getMemoryUsage());
+}
+
 Value native_sqrt(Interpreter *vm, int argCount, Value *args)
 {
     if (argCount != 1)
@@ -210,126 +217,8 @@ struct Sprite
 
 int nextSpriteId = 0;
 
-// ========================================
-// SPRITE.CPP - COM VM
-// ========================================
-
-void *sprite_constructor(Interpreter *vm, int argCount, Value *args)
-{
-    Sprite *sprite = new Sprite();
-    sprite->id = nextSpriteId++;
-    sprite->graph = args[0].asInt();
-    sprite->x = args[1].asInt();
-    sprite->y = args[2].asInt();
-    sprite->name = args[3].asString()->chars();
-
-   // Info("create sprite %d", sprite->id);
-
-    return sprite;
-}
-
-void sprite_destructor(Interpreter *vm, void *instance)
-{
-    Sprite *sprite = (Sprite *)instance;
-
-   // printf("Destroying sprite: %s\n", sprite->name);
-
-    delete sprite;
-}
-
-Value sprite_move(Interpreter *vm, void *instance, int argCount, Value *args)
-{
-    if (argCount != 2)
-    {
-        vm->runtimeError("move() expects 2 arguments");
-        return Value::makeNil();
-    }
-
-    Sprite *sprite = (Sprite *)instance;
-    sprite->x += args[0].asInt();
-    sprite->y += args[1].asInt();
-
-    printf("Sprite moved: %s (%d, %d)\n", sprite->name, sprite->x, sprite->y);
-
-    return Value::makeNil();
-}
-Value sprite_draw(Interpreter *vm, void *instance, int argCount, Value *args)
-{
-    Sprite *sprite = (Sprite *)instance;
-
-    printf("Drawing sprite: %s (%d, %d)\n", sprite->name, sprite->x, sprite->y);
-
-    return Value::makeNil();
-}
-Value sprite_setPos(Interpreter *vm, void *instance, int argCount, Value *args)
-{
-    Sprite *sprite = (Sprite *)instance;
-
-    sprite->x = args[0].asInt();
-    sprite->y = args[1].asInt();
-
-    printf("Sprite moved: %s (%d, %d)\n", sprite->name, sprite->x, sprite->y);
-
-    return Value::makeNil();
-}
-
-Value sprite_getName(Interpreter *vm, void *instance, int argCount, Value *args)
-{
-    Sprite *sprite = (Sprite *)instance;
-    return Value::makeString(sprite->name);
-}
-
-Value sprite_get_x(Interpreter *vm, void *instance)
-{
-    Sprite *sprite = (Sprite *)instance;
-    return Value::makeInt(sprite->x);
-}
-
-// Setter: x
-void sprite_set_x(Interpreter *vm, void *instance, Value value)
-{
-    Sprite *sprite = (Sprite *)instance;
-    sprite->x = value.asInt();
-}
-
-// Getter: y
-Value sprite_get_y(Interpreter *vm, void *instance)
-{
-    Sprite *sprite = (Sprite *)instance;
-    return Value::makeInt(sprite->y);
-}
-
-// Setter: y
-void sprite_set_y(Interpreter *vm, void *instance, Value value)
-{
-    Sprite *sprite = (Sprite *)instance;
-    sprite->y = value.asInt();
-}
-
-// Getter: id (read-only)
-Value sprite_get_id(Interpreter *vm, void *instance)
-{
-    Sprite *sprite = (Sprite *)instance;
-    return Value::makeInt(sprite->id);
-}
-
-void registerSpriteClass(Interpreter &vm)
-{
-    NativeClassDef *spriteClass = vm.registerNativeClass(
-        "Sprite",
-        sprite_constructor,
-        sprite_destructor,
-        4 // argCount
-    );
-
-    vm.addNativeMethod(spriteClass, "draw", sprite_draw);
-    vm.addNativeMethod(spriteClass, "move", sprite_move);
-    vm.addNativeMethod(spriteClass, "setPos", sprite_setPos);
-    vm.addNativeProperty(spriteClass, "x", sprite_get_x, sprite_set_x);
-    vm.addNativeProperty(spriteClass, "y", sprite_get_y, sprite_set_y);
-    vm.addNativeProperty(spriteClass, "id", sprite_get_id); // Read-only
-}
-
+ 
+ 
 
 struct FileLoaderContext
 {
@@ -412,6 +301,7 @@ int main()
     Interpreter vm;
     vm.addModule("raylib");
     vm.registerNative("write", native_write, -1);
+    vm.registerNative("getMemoryUsage", native_getMemoryUsage, -1);
     vm.registerNative("format", native_format, -1);
     vm.registerNative("sqrt", native_sqrt, 1);
     vm.registerNative("clock", native_clock, 0);
@@ -424,7 +314,7 @@ int main()
 
     RaylibBindings::registerAll(vm);
 
-    registerSpriteClass(vm);
+    //registerSpriteClass(vm);
     
 
     FileLoaderContext ctx;

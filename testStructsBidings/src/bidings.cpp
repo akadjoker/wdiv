@@ -109,7 +109,14 @@ namespace RaylibBindings
         v->g = args[1].asByte();
         v->b = args[2].asByte();
         v->a = args[3].asByte();
-        // Info("Color(%d, %d, %d, %d)", v->r, v->g, v->b, v->a);
+      //   Info("Create Color(%d, %d, %d, %d)", v->r, v->g, v->b, v->a);
+    }
+
+     void color_dtor(Interpreter *vm, void *buffer)
+    {
+        Color *v = (Color *)buffer;
+ 
+      //   Info("Delet Color(%d, %d, %d, %d)", v->r, v->g, v->b, v->a);
     }
 
     void registerColor(Interpreter &vm)
@@ -118,7 +125,7 @@ namespace RaylibBindings
             "Color",
             sizeof(Color),
             color_ctor,
-            nullptr, "raylib");
+            color_dtor, "raylib");
 
         vm.addStructField(color, "r", offsetof(Color, r), FieldType::BYTE);
         vm.addStructField(color, "g", offsetof(Color, g), FieldType::BYTE);

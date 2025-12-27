@@ -1,16 +1,42 @@
 #include "config.hpp"
+
 #include <cstdio>
 #include <time.h>
 #include <stdarg.h>
+
+// size_t getGlobalMemoryUsage()
+// {
+// #ifdef _WIN32
+// 	PROCESS_MEMORY_COUNTERS pmc;
+// 	if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)))
+// 		return pmc.WorkingSetSize;
+// 	return 0;
+// #else
+// 	// Linux
+// 	FILE *f = fopen("/proc/self/status", "r");
+// 	if (!f)
+// 		return 0;
+
+// 	size_t vmrss = 0;
+// 	char line[256];
+// 	while (fgets(line, sizeof(line), f))
+// 	{
+// 		if (sscanf(line, "VmRSS: %zu kB", &vmrss) == 1)
+// 			break;
+// 	}
+// 	fclose(f);
+// 	return vmrss * 1024;
+// #endif
+// }
 
 void *aAlloc(size_t size)
 {
 	return std::malloc(size);
 }
 
-void *aRealloc(void *buffer,size_t size)
+void *aRealloc(void *buffer, size_t size)
 {
-     return std::realloc(buffer,size);
+	return std::realloc(buffer, size);
 }
 
 void aFree(void *mem)
@@ -33,9 +59,6 @@ const char *longToString(long value)
 	snprintf(buffer, BUFFER_SIZE, "%ld", value);
 	return buffer;
 }
-
- 
-
 
 static void Log(int severity, const char *fmt, va_list args)
 {
@@ -90,7 +113,7 @@ static void Log(int severity, const char *fmt, va_list args)
 	va_end(argsCopy);
 }
 
-void Trace(int severity,  const char *fmt, ...)
+void Trace(int severity, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
@@ -98,8 +121,7 @@ void Trace(int severity,  const char *fmt, ...)
 	va_end(args);
 }
 
-
-void Warning( const char *fmt, ...)
+void Warning(const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
@@ -107,7 +129,7 @@ void Warning( const char *fmt, ...)
 	va_end(args);
 }
 
-void Info( const char *fmt, ...)
+void Info(const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
@@ -115,8 +137,7 @@ void Info( const char *fmt, ...)
 	va_end(args);
 }
 
-
-void Error( const char *fmt, ...)
+void Error(const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
@@ -124,7 +145,7 @@ void Error( const char *fmt, ...)
 	va_end(args);
 }
 
-void Print( const char *fmt, ...)
+void Print(const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
@@ -134,49 +155,53 @@ void Print( const char *fmt, ...)
 
 char *LoadTextFile(const char *fileName)
 {
-    char *text = nullptr;
+	char *text = nullptr;
 
-    if (fileName != nullptr)
-    {
-        FILE *file = fopen(fileName, "rt");
+	if (fileName != nullptr)
+	{
+		FILE *file = fopen(fileName, "rt");
 
-        if (file != nullptr)
-        {
-            fseek(file, 0, SEEK_END);
-            long fileSize = ftell(file);
-            fseek(file, 0, SEEK_SET);
+		if (file != nullptr)
+		{
+			fseek(file, 0, SEEK_END);
+			long fileSize = ftell(file);
+			fseek(file, 0, SEEK_SET);
 
-            if (fileSize > 0)
-            {
-                size_t size = static_cast<size_t>(fileSize);
-                text = (char *)aAlloc(size + 1);  // malloc em vez de realloc(NULL)
-                
-                if (text != nullptr)
-                {
-                    size_t count = fread(text, sizeof(char), size, file);
-                    
-                    // Shrink se leu menos (opcional)
-                    if (count < size) {
-                        char* newText = (char *)aRealloc(text, count + 1);
-                        if (newText) {
-                            text = newText;
-                        }
-                    }
-                    
-                    text[count] = '\0';
-                }
-                else {
-                    Trace(1, "Failed to allocate memory for %s reading", fileName);
-                }
-            }
-            else {
-                Trace(1, "Failed to read text from %s", fileName);
-            }
+			if (fileSize > 0)
+			{
+				size_t size = static_cast<size_t>(fileSize);
+				text = (char *)aAlloc(size + 1); // malloc em vez de realloc(NULL)
 
-            fclose(file);
-        }
-    }
-    return text;
+				if (text != nullptr)
+				{
+					size_t count = fread(text, sizeof(char), size, file);
+
+					// Shrink se leu menos (opcional)
+					if (count < size)
+					{
+						char *newText = (char *)aRealloc(text, count + 1);
+						if (newText)
+						{
+							text = newText;
+						}
+					}
+
+					text[count] = '\0';
+				}
+				else
+				{
+					Trace(1, "Failed to allocate memory for %s reading", fileName);
+				}
+			}
+			else
+			{
+				Trace(1, "Failed to read text from %s", fileName);
+			}
+
+			fclose(file);
+		}
+	}
+	return text;
 }
 
 void FreeTextFile(char *text)

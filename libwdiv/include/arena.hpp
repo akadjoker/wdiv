@@ -110,3 +110,29 @@ private:
 	StackEntry m_entries[maxStackEntries];
 	size_t m_entryCount;
 };
+
+
+
+class MemoryTracker
+{
+    static size_t totalAllocated;
+    static size_t totalFreed;
+
+public:
+    static void onAllocate(size_t size)
+    {
+        totalAllocated += size;
+    }
+
+    static void onFree(size_t size)
+    {
+        totalFreed += size;
+    }
+
+    static size_t getUsage()
+    {
+        return totalAllocated - totalFreed;
+    }
+};
+
+size_t getMemoryUsage();

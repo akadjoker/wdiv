@@ -25,6 +25,7 @@ size_t StringHasher::operator()(String *x) const
 
 Interpreter::Interpreter()
 {
+
     InstancePool::instance().setInterpreter(this);
     staticFree = createString("free");
     compiler = new Compiler(this);
@@ -34,9 +35,16 @@ Interpreter::Interpreter()
 Interpreter::~Interpreter()
 {
 
+    // size_t currenMem = getMemoryUsage();
+    // Info("Interpreter released used: %zu KB", currenMem);
+
+    Info("Interpreter released");
+    InstancePool::instance().clear();
     InstancePool::instance().setInterpreter(nullptr);
     functionsMap.destroy();
     processesMap.destroy();
+ 
+    globals.destroy();
 
     delete compiler;
     for (size_t i = 0; i < functions.size(); i++)
@@ -148,12 +156,14 @@ Interpreter::~Interpreter()
 
     classes.clear();
 
-    Info("Heap stats:");
-    heapAllocator.Stats();
+    // Info("Heap stats:");
+    // heapAllocator.Stats();
     heapAllocator.Clear();
 
     StringPool::instance().clear();
-    InstancePool::instance().clear();
+
+    // size_t lastMem = getMemoryUsage();
+    // Info("Interpreter released used: %zu KB", lastMem);
 }
 
 bool Interpreter::addModule(const char *name)
@@ -205,6 +215,8 @@ NativeClassDef *Interpreter::registerNativeClass(const char *name, NativeConstru
 
         globals.set(klass->name, Value::makeNativeClass(id));
 
+        nativesClassesMap.set(klass->name, klass);
+
         return klass;
     }
 
@@ -220,7 +232,7 @@ NativeClassDef *Interpreter::registerNativeClass(const char *name, NativeConstru
             Error("Native class '%s' already exists", name);
             return nullptr;
         }
-
+        nativesClassesMap.set(klass->name, klass);
         return klass;
     }
     Error("Module '%s' not found %d ", moduleName, result);
@@ -307,7 +319,7 @@ NativeStructDef *Interpreter::registerNativeStruct(const char *name, size_t stru
     klass->destructor = dtor;
     klass->structSize = structSize;
     int id = nativeStructs.size();
-    lastInstanceId=id;
+    lastInstanceId = id;
     klass->id = id;
     nativeStructs.push(klass);
 
@@ -321,7 +333,6 @@ NativeStructDef *Interpreter::registerNativeStruct(const char *name, size_t stru
         }
 
         globals.set(klass->name, Value::makeNativeStruct(id));
-
 
         return klass;
     }
@@ -463,20 +474,16 @@ void Interpreter::disassemble()
     printf("========================================\n\n");
 }
 
-Value Interpreter::createNativeStruct(int structId, int argc, Value *args )
+Value Interpreter::createNativeStruct(int structId, int argc, Value *args)
 {
     NativeStructDef *def = nativeStructs[structId];
-    void *data = heapAllocator.Allocate(def->structSize);
-    std::memset(data, 0, def->structSize);
-    if (def->constructor)
-    {
-        def->constructor(this, data, argc, args);
-    }
-
-    Value literal = Value::makeNativeStructInstance();
+    Value literal = Value::makeNativeStructInstance(def->structSize);
     NativeStructInstance *instance = literal.asNativeStructInstance();
     instance->def = def;
-    instance->data = data;
+    if (def->constructor)
+    {
+        def->constructor(this, instance->data, argc, args);
+    }
     return literal;
 }
 
@@ -885,14 +892,22 @@ bool Interpreter::setGlobal(String *name, Value val)
 
 StructInstance::StructInstance() : GCObject(), def(nullptr)
 {
-   // Info("create struct %d", refCount);
+     Info("create struct %d", refCount);
 }
 
- 
+StructInstance::~StructInstance()
+{
+    Info("Delete struct %d", refCount);
+}
 
 void StructInstance::drop()
 {
-   // Info("drop struct %d", refCount);
+    if (!this->def)
+    {
+        Warning("Deleting struct %d with no defenition", refCount);
+        return;
+    }
+    Info("Srop struct %s", def->name->chars());
     for (size_t i = 0; i < values.size(); i++)
     {
         values[i].drop();
@@ -910,30 +925,36 @@ GCObject::~GCObject()
 
 void GCObject::grab()
 {
+    //  Info("[GRAB] refCount: %d → %d", refCount, refCount + 1);
     refCount++;
 }
 
 void GCObject::release()
 {
+  //   Info("[RELEASE] refCount: %d → %d", refCount, refCount - 1);
     refCount--;
     if (refCount == 0)
+    {
+
         drop();
-   
+    }
 }
 
 ArrayInstance::ArrayInstance() : GCObject()
 {
-    
 }
 
- 
+ArrayInstance::~ArrayInstance()
+{
+    Warning("drop array %d", refCount);
+}
 
 void ArrayInstance::drop()
 {
-   // Warning("drop array %d", refCount);
+    // Warning("drop array %d", refCount);
     for (size_t i = 0; i < values.size(); i++)
     {
-       values[i].drop();
+        values[i].drop();
     }
     values.clear();
     InstancePool::instance().freeArray(this);
@@ -942,24 +963,26 @@ void ArrayInstance::drop()
 MapInstance::MapInstance() : GCObject()
 {
 }
- 
+
 void MapInstance::drop()
 {
-    table.forEach([&](String *key, Value value) 
-    {
+    table.forEach([&](String *key, Value value)
+                  {
         (void)key;
-        value.drop();
-    });
+        value.drop(); });
     table.destroy();
     InstancePool::instance().freeMap(this);
 }
 
 ClassInstance::ClassInstance() : GCObject()
 {
-   // Info("create class %d", refCount);
+    // Info("create class %d", refCount);
 }
 
-
+ClassInstance::~ClassInstance()
+{
+   // Info("Delete class %d", refCount);
+}
 
 bool ClassInstance::getMethod(String *name, Function **out)
 {
@@ -977,19 +1000,35 @@ bool ClassInstance::getMethod(String *name, Function **out)
     return false;
 }
 
+void ClassInstance::grab()
+{
+    refCount++;
+    printf("[GRAB] ClassInstance grab(), refCount now = %d\n", refCount);
+}
+
+void ClassInstance::release()
+{
+    refCount--;
+    printf("[RELEASE] ClassInstance release(), refCount now = %d\n", refCount);
+}
+ 
+
+
 void ClassInstance::drop()
 {
-   // Warning("drop class %d", refCount);
 
-
-
+    if(!klass)
+    {
+        Warning("Deleting class %d with no defenition", refCount);
+        return;
+    }
+    Warning("DROP class %d", refCount);
     for (size_t i = 0; i < fields.size(); i++)
     {
         fields[i].drop();
     }
     fields.clear();
     InstancePool::instance().freeClass(this);
-    
 }
 
 Function *ClassDef::canRegisterFunction(const char *name)
@@ -1018,33 +1057,51 @@ NativeClassDef::~NativeClassDef()
 {
     methods.destroy();
     properties.destroy();
-    
 }
-
 
 NativeStructInstance::NativeStructInstance() : GCObject(), def(nullptr)
 {
-     //Info(" Create of struct instance %ld ", sizeof(NativeStructInstance));
+  // Info(" Create of struct instance");
 }
 
- 
+NativeStructInstance::~NativeStructInstance()
+{
+  // Info("Free of struct instance  %s", def->name->chars());
+}
 
 void NativeStructInstance::drop()
 {
-       //Info("Free of struct instance %s ", def->name->chars());
-       InstancePool::instance().freeNativeStruct(this);
+    //Info("Drop native struct instance ");
+    if (!data || !def)
+    {
+      //  Warning("Drop native struct instance  with no data");
+        return;
+    }
+
+    InstancePool::instance().freeNativeStruct(this);
+
 }
 
-NativeInstance::NativeInstance(): GCObject()
+
+
+NativeInstance::NativeInstance() : GCObject()
 {
+ //   Info(" Create of class instance ");
 }
- 
+
+NativeInstance::~NativeInstance()
+{
+   // Info("Free of class instance  %s", klass->name->chars());
+}
 
 void NativeInstance::drop()
 {
-   // Info("Free of class instance %s ", klass->name->chars());
+     //Info("Drop of class instance %s ", klass->name->chars());
+     if(!klass || !userData )
+     {
+        Warning("Drop native class instance  with no data");
+        return;
+     }
 
-
- 
     InstancePool::instance().freeNativeClass(this);
 }

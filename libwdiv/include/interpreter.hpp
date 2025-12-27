@@ -34,8 +34,6 @@ struct IntEq
     bool operator()(int a, int b) const { return a == b; }
 };
 
-
-
 struct StringEq
 {
     bool operator()(String *a, String *b) const;
@@ -125,10 +123,10 @@ struct NativeClassDef
 
     NativeConstructor constructor;
     NativeDestructor destructor;
-    
+
     HashMap<String *, NativeMethod, StringHasher, StringEq> methods;
     HashMap<String *, NativeProperty, StringHasher, StringEq> properties;
-    
+
     ~NativeClassDef();
 
     int argCount; // Args do constructor
@@ -152,15 +150,16 @@ struct NativeStructDef
     NativeStructDtor destructor;  // nullable
 };
 
-
-
 struct NativeStructInstance : public GCObject
 {
- 
+
     NativeStructDef *def;
     void *data; // Malloc'd block (structSize bytes)
     NativeStructInstance();
- 
+    ~NativeStructInstance();
+
+    NativeStructInstance(const NativeStructInstance &) = delete;
+    NativeStructInstance &operator=(const NativeStructInstance &) = delete;
 
     void drop() override;
 };
@@ -169,7 +168,9 @@ struct StructInstance : public GCObject
     StructDef *def;
     Vector<Value> values;
     StructInstance();
- 
+    ~StructInstance();
+    StructInstance(const StructInstance &) = delete;
+    StructInstance &operator=(const StructInstance &) = delete;
 
     void drop() override;
 };
@@ -178,7 +179,11 @@ struct ArrayInstance : public GCObject
 {
     Vector<Value> values;
     ArrayInstance();
- 
+
+    ~ArrayInstance();
+
+    ArrayInstance(const ArrayInstance &) = delete;
+    ArrayInstance &operator=(const ArrayInstance &) = delete;
 
     void drop() override;
 };
@@ -189,7 +194,11 @@ struct NativeInstance : public GCObject
     void *userData; //  Ponteiro para struct C++
     int refCount;
     NativeInstance();
- 
+    ~NativeInstance();
+
+    NativeInstance(const NativeInstance &) = delete;
+    NativeInstance &operator=(const NativeInstance &) = delete;
+
     void drop() override;
 };
 
@@ -197,7 +206,10 @@ struct MapInstance : public GCObject
 {
     HashMap<String *, Value, StringHasher, StringEq> table;
     MapInstance();
-    
+
+    MapInstance(const MapInstance &) = delete;
+    MapInstance &operator=(const MapInstance &) = delete;
+
     void drop() override;
 };
 
@@ -207,11 +219,16 @@ struct ClassInstance : public GCObject
 
     Vector<Value> fields;
     ClassInstance();
- 
+    ~ClassInstance();
+
+    ClassInstance(const ClassInstance &) = delete;
+    ClassInstance &operator=(const ClassInstance &) = delete;
 
     bool getMethod(String *name, Function **func);
 
     void drop() override;
+     void grab() override;
+     void release() override;
 };
 
 struct CallFrame
@@ -333,6 +350,7 @@ class Interpreter
     Vector<Value> globalList;
 
     Vector<NativeClassDef *> nativeClasses;
+    HashMap<String *, NativeClassDef *, StringHasher, StringEq> nativesClassesMap;
     // Vector<NativeInstance *> nativeInstances;
 
     Vector<NativeStructDef *> nativeStructs;
@@ -384,7 +402,7 @@ class Interpreter
 
     friend class Compiler;
 
-    String* staticFree;
+    String *staticFree;
 
 public:
     Interpreter();

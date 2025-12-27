@@ -9,26 +9,29 @@ struct MapInstance;
 struct ClassInstance;
 struct NativeInstance;
 struct NativeStructInstance;
-struct Interpreter;
+class Interpreter;
 
 class InstancePool 
 {
     HeapAllocator arena;
     Interpreter *interpreter;
 
-  //  Vector<StructInstance *> structInstances;
-  //  Vector<ArrayInstance *> arrayInstances;
-  //  Vector<ClassInstance *> classesInstances;
+   Vector<StructInstance *> structInstances;
+   Vector<ArrayInstance *> arrayInstances;
+   Vector<ClassInstance *> classesInstances;
 
-  void setInterpreter(Interpreter *interpreter);
-  Interpreter *getInterpreter();
+   Vector<NativeInstance *> nativeInstances;
+   Vector<NativeStructInstance *> nativeStructInstances;
 
-  friend class Interpreter;
- 
-public:
-    InstancePool();
-    ~InstancePool() ;
-
+   
+   friend class Interpreter;
+   
+   public:
+   InstancePool();
+   ~InstancePool() ;
+   
+   void setInterpreter(Interpreter *interpreter);
+   Interpreter *getInterpreter();
     static InstancePool &instance()
     {
         static InstancePool pool;
@@ -51,7 +54,7 @@ public:
     NativeInstance* createNativeClass();
     void freeNativeClass(NativeInstance *n);
 
-    NativeStructInstance* createNativeStruct();
+    NativeStructInstance* createNativeStruct(uint32 structSize);
     void freeNativeStruct(NativeStructInstance *n);
 
     void clear();

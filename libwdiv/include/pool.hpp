@@ -38,15 +38,24 @@ class StringPool
 {
 private:
     HeapAllocator allocator;
-
-public:
+    //Vector<String *> strings;
+    HashMap<const char *, int, CStringHash, CStringEq> pool;
+    
+    public:
     StringPool() = default;
-    ~StringPool() = default;
+    ~StringPool();
+    
+    Vector<String *> map;
+
+    String *allocString();
+    void  deallocString (String *s);
+
 
     String *create(const char *str, uint32 len);
 
     String *create(const char *str);
 
+    String *format(const char *fmt, ...);  
 
 
     int indexOf(String *str, String *substr, int startIndex = 0);
@@ -134,5 +143,6 @@ inline String *createString(const char *str)
 
 inline void destroyString(String *s)
 {
-    StringPool::instance().destroy(s);
+    (void)s;
+   // s->release();
 }

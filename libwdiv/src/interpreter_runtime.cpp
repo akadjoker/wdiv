@@ -36,15 +36,14 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 #define PEEK() (*(fiber->stackTop - 1))
 #define PEEK2() (*(fiber->stackTop - 2))
 
-#define POP() (*(--fiber->stackTop))
-#define PUSH(value) (*fiber->stackTop++ = value)
-#define NPEEK(n) (fiber->stackTop[-1 - (n)])
+    // #define POP() (*(--fiber->stackTop))
 
-    // if (frame->ip == nullptr)
-    // {
-    //     runtimeError("FATAL: frame->ip is NULL! Code was not initialized properly.");
-    //     return {FiberResult::FIBER_DONE, 0, 0, 0};
-    // }
+    // #define PUSH(value) (*fiber->stackTop++ = value)
+
+#define PUSH(value) (*fiber->stackTop++ = std::move(value))
+#define POP() std::move(*(--fiber->stackTop))
+
+#define NPEEK(n) (fiber->stackTop[-1 - (n)])
 
 #define READ_BYTE() (*ip++)
 #define READ_SHORT() (ip += 2, (uint16)((ip[-2] << 8) | ip[-1]))
@@ -55,7 +54,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
     fiber->stackTop -= 2
 
 #define STORE_FRAME() frame->ip = ip
-
+#define PUSH_CONSTANT() PUSH(READ_CONSTANT())  // Push direto sem variável intermediária
 #define LOAD_FRAME()                                   \
     do                                                 \
     {                                                  \
@@ -67,6 +66,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
     } while (false)
 
 #define READ_CONSTANT() (func->chunk->constants[READ_BYTE()])
+
     LOAD_FRAME();
 
     // printf("[DEBUG] Starting run_fiber: ip=%p, func=%s, offset=%ld\n",
@@ -108,8 +108,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
         case OP_CONSTANT:
         {
-            Value constant = READ_CONSTANT();
-            PUSH(constant);
+            PUSH_CONSTANT();
             break;
         }
 
@@ -134,7 +133,15 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
         case OP_POP:
         {
-            DROP();
+            //DROP();
+             Value v = POP();
+            // if (IS_RAII(v))
+            // {
+
+            //     printf("Popping value: ");
+            //     printValue(v);
+            //     printf("\n");
+            // }
 
             break;
         }
@@ -151,7 +158,8 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         case OP_SET_LOCAL:
         {
             uint8 slot = READ_BYTE();
-            stackStart[slot] = PEEK();
+            Value oldValue = std::move(stackStart[slot]); // Move antigo pra fora (destruir automaticamente)
+            stackStart[slot] = std::move(PEEK());         // Move novo, sem grab
             break;
         }
 
@@ -165,7 +173,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         case OP_SET_PRIVATE:
         {
             uint8 index = READ_BYTE();
-            currentProcess->privates[index] = PEEK();
+            currentProcess->privates[index] = std::move(PEEK());
             break;
         }
 
@@ -205,13 +213,14 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
         case OP_SET_GLOBAL:
         {
-            String *key = READ_CONSTANT().asString();
-            Value value = PEEK();
-            Value out;
-            if (!globals.set_get(key, value, &out))
+            Value keuValue = READ_CONSTANT();
+            String *key = keuValue.asString();
+            Value value = POP(); // PEEK();
+
+            if (!globals.set_move(key, std::move(value)))
             {
-                out.drop();
-                Info("assign %s  exists", key->chars());
+                //  Warning("Assign %s  string", key->chars());
+                // printValueNl(value);
             }
             break;
         }
@@ -222,9 +231,9 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             Value name = READ_CONSTANT();
             Value value = POP();
 
-            if (!globals.set(name.asString(), value))
+            if (!globals.set_move(name.asString(), std::move(value)))
             {
-                Warning("Global %s already exists", name.asString()->chars());
+                Warning("Variable %s already  defined", name.asString()->chars());
             }
 
             break;
@@ -257,7 +266,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 PUSH(Value::makeString(result));
                 break;
             }
-          
+
             if (a.isInt() && b.isInt())
             {
                 PUSH(Value::makeInt(a.asInt() + b.asInt()));
@@ -267,7 +276,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             if (a.isInt() && b.isDouble())
             {
                 PUSH(Value::makeInt(a.asInt() + b.asDouble()));
-                //PUSH(Value::makeDouble(a.asInt() + b.asDouble()));
+                // PUSH(Value::makeDouble(a.asInt() + b.asDouble()));
                 break;
             }
 
@@ -336,7 +345,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             if (!toNumberPair(a, b, da, db))
             {
                 runtimeError("Operands 'multiply' must be numbers");
-                  printf(" a: ");
+                printf(" a: ");
                 printValue(a);
                 printf(" b: ");
                 printValue(b);
@@ -405,7 +414,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             if (!toNumberPair(a, b, da, db))
             {
                 runtimeError("Operands  'modulo' must be numbers");
-                  printf(" a: ");
+                printf(" a: ");
                 printValue(a);
                 printf(" b: ");
                 printValue(b);
@@ -441,7 +450,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 runtimeError("Operand  'negate' must be a number");
                 printf(" a: ");
                 printValue(a);
-             
+
                 printf("\n");
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
@@ -478,7 +487,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             if (!toNumberPair(a, b, da, db))
             {
                 runtimeError("Operands 'greater' must be numbers");
-                  printf(" a: ");
+                printf(" a: ");
                 printValue(a);
                 printf(" b: ");
                 printValue(b);
@@ -498,7 +507,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             if (!toNumberPair(a, b, da, db))
             {
                 runtimeError("Operands 'greater equal' must be numbers");
-                  printf(" a: ");
+                printf(" a: ");
                 printValue(a);
                 printf(" b: ");
                 printValue(b);
@@ -512,13 +521,12 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         case OP_LESS:
         {
             BINARY_OP_PREP();
-   
 
             double da, db;
             if (!toNumberPair(a, b, da, db))
             {
                 runtimeError("Operands 'less' must be numbers");
- 
+
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
             PUSH(Value::makeBool(da < db));
@@ -532,7 +540,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             if (!toNumberPair(a, b, da, db))
             {
                 runtimeError("Operands  'less equal' must be numbers");
-                  printf(" a: ");
+                printf(" a: ");
                 printValue(a);
                 printf(" b: ");
                 printValue(b);
@@ -683,6 +691,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 CallFrame *newFrame = &fiber->frames[fiber->frameCount++];
                 newFrame->func = func;
                 newFrame->ip = func->chunk->code;
+
                 newFrame->slots = fiber->stackTop - argCount; // Argumentos começam aqui
             }
             else if (callee.isNative())
@@ -796,6 +805,18 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             }
             else if (callee.isClass())
             {
+
+                // printf("Stack COMPLETA (stackTop=%p):\n", fiber->stackTop);
+                // for (Value *v = fiber->stack; v < fiber->stackTop; v++)
+                // {
+                //     printf("  [%ld] ", v - fiber->stack);
+                //     printValue(*v);
+                //     printf("\n");
+                // }
+                // printf("  callee = stackTop[-%d] = ", argCount + 1);
+                // printValue(NPEEK(argCount));
+                // printf("\n\n");
+
                 int classId = callee.asClassId();
                 ClassDef *klass = classes[classId];
 
@@ -811,7 +832,14 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 }
 
                 // Substitui class por instance na stack
-                fiber->stackTop[-argCount - 1] = value;
+                fiber->stackTop[-argCount - 1] = std::move(value);
+                // printf(" Stack DEPOIS da substituição:\n");
+                // for (Value* v = fiber->stack; v < fiber->stackTop; v++)
+                // {
+                //     printf("  [%ld] ", v - fiber->stack);
+                //     printValue(*v);
+                //     printf("\n");
+                // }
 
                 if (klass->constructor)
                 {
@@ -831,6 +859,8 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     newFrame->func = klass->constructor;
                     newFrame->ip = klass->constructor->chunk->code;
                     newFrame->slots = currentFiber->stackTop - argCount - 1;
+
+                    //   Debug::dumpFunction(klass->constructor);
 
                     currentFiber->frameCount++;
 
@@ -867,7 +897,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 Value literal = Value::makeNativeClassInstance();
                 // Cria instance wrapper
                 NativeInstance *instance = literal.asNativeClassInstance();
-                //nativeInstances.push(instance);
+                // nativeInstances.push(instance);
                 instance->klass = klass;
                 instance->userData = userData;
                 instance->refCount = 1;
@@ -882,22 +912,15 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             {
                 int structId = callee.asNativeStructId();
                 NativeStructDef *def = nativeStructs[structId];
-
-                void *data = heapAllocator.Allocate(def->structSize);
-                std::memset(data, 0, def->structSize);
+                // Cria instance wrapper
+                Value literal = Value::makeNativeStructInstance(def->structSize);
+                NativeStructInstance *instance = literal.as.sNativeStruct;
+                instance->def = def;
                 if (def->constructor)
                 {
                     Value *args = fiber->stackTop - argCount;
-                    def->constructor(this, data, argCount, args);
+                    def->constructor(this, instance->data, argCount, args);
                 }
-
-                Value literal = Value::makeNativeStructInstance();
-                // Cria instance wrapper
-                NativeStructInstance *instance = literal.as.sNativeStruct;
-                //nativeStructInstances.push(instance);
-                instance->def = def;
-                instance->data = data;
-
                 // Remove args + callee, push instance
                 fiber->stackTop -= (argCount + 1);
                 PUSH(literal);
@@ -952,6 +975,63 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             LOAD_FRAME();
             break;
         }
+
+            // case OP_RETURN:
+            // {
+            //     Value result = POP();
+
+            //     //  GUARDA frame ANTES de decrementar
+            //     CallFrame *finishingFrame = &fiber->frames[fiber->frameCount - 1];
+
+            //     //  DROP de todos os locals/args deste frame
+            //     Value *slotsStart = finishingFrame->slots;
+            //     Value *slotsEnd = fiber->stackTop; // stackTop já não tem o result (POP acima)
+
+            //     for (Value *slot = slotsStart; slot < slotsEnd; slot++)
+            //     {
+
+            //         if (
+            //             slot->type == ValueType::ARRAY ||
+            //             slot->type == ValueType::MAP ||
+            //             slot->type == ValueType::CLASSINSTANCE ||
+            //             slot->type == ValueType::STRUCTINSTANCE ||
+            //             slot->type == ValueType::NATIVECLASSINSTANCE ||
+            //             slot->type == ValueType::NATIVESTRUCTINSTANCE)
+            //         {
+            //             slot->drop();
+            //         }
+            //     }
+
+            //     fiber->frameCount--;
+
+            //     if (fiber->frameCount == 0)
+            //     {
+            //         fiber->stackTop = fiber->stack;
+            //         *fiber->stackTop++ = result;
+
+            //         fiber->state = FiberState::DEAD;
+
+            //         if (fiber == &currentProcess->fibers[0])
+            //         {
+            //             for (int i = 0; i < currentProcess->nextFiberIndex; i++)
+            //             {
+            //                 currentProcess->fibers[i].state = FiberState::DEAD;
+            //             }
+            //             currentProcess->state = FiberState::DEAD;
+            //         }
+
+            //         STORE_FRAME();
+            //         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            //     }
+
+            //     // Função nested - retorna para onde estava a chamada
+            //     CallFrame *finished = &fiber->frames[fiber->frameCount];
+            //     fiber->stackTop = finished->slots;
+            //     *fiber->stackTop++ = result;
+
+            //     LOAD_FRAME();
+            //     break;
+            // }
 
             // ========== PROCESS/FIBER CONTROL ==========
 
@@ -1151,7 +1231,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     runtimeError("Struct is null");
                     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                 }
-               
+
                 uint8 value = 0;
                 if (inst->def->names.get(nameValue.asString(), &value))
                 {
@@ -1447,8 +1527,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     }
                     *(uint8 *)ptr = (uint8)value.asByte();
                     break;
-
-        
                 }
 
                 case FieldType::INT:
@@ -1554,71 +1632,69 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             const char *name = nameValue.asStringChars();
             Value receiver = NPEEK(argCount);
 
- 
 #define ARGS_CLEANUP() fiber->stackTop -= (argCount + 1)
 
-
-            
             if (compareString(nameValue.asString(), staticFree))
             {
-                    if (argCount != 0)
-                    {
-                        runtimeError("free() expects 0 arguments");
-                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                    }
-                    if(receiver.type == ValueType::NATIVESTRUCTINSTANCE)
-                    {
-                        ARGS_CLEANUP();
-                        NativeStructInstance *inst = receiver.as.sNativeStruct;
-                        inst->release();
-                        PUSH(Value::makeNil());
-                        break;
-                    }  else if(receiver.type == ValueType::NATIVECLASSINSTANCE)
-                    {
-                        ARGS_CLEANUP();
-                        NativeInstance *inst = receiver.as.sClassInstance;
-                        inst->release();
-                        PUSH(Value::makeNil());
-                        break;
-                    }
-                    else if(receiver.type == ValueType::STRUCTINSTANCE)
-                    {
-                        ARGS_CLEANUP();
-                        StructInstance *inst = receiver.as.sInstance;
-                        inst->release();
-                        PUSH(Value::makeNil());
-                        break;
-                    }else if (receiver.type == ValueType::CLASSINSTANCE) 
-                    {
-                        ARGS_CLEANUP();
-                        ClassInstance *inst = receiver.as.sClass;
-                        inst->release();
-                        PUSH(Value::makeNil());
-                        break;
-                    }
-                    else if (receiver.type == ValueType::ARRAY)
-                    {
+                if (argCount != 0)
+                {
+                    runtimeError("free() expects 0 arguments");
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                if (receiver.type == ValueType::NATIVESTRUCTINSTANCE)
+                {
                     ARGS_CLEANUP();
-                        ArrayInstance *inst = receiver.as.array;
-                        inst->release();
-                        PUSH(Value::makeNil());
-                        break;
-                    } else if (receiver.type == ValueType::MAP)
-                    {
-                        ARGS_CLEANUP();
-                        MapInstance *inst = receiver.as.map;
-                        inst->release();
-                        PUSH(Value::makeNil());
-                        break;
-                    }
-                    else
-                    {
-                        runtimeError("This Type is not supported by free()");
-                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                    }
-                   
+                    NativeStructInstance *inst = receiver.as.sNativeStruct;
+                    inst->release();
+                    PUSH(Value::makeNil());
+                    break;
+                }
+                else if (receiver.type == ValueType::NATIVECLASSINSTANCE)
+                {
+                    ARGS_CLEANUP();
+                    NativeInstance *inst = receiver.as.sClassInstance;
+                    inst->release();
+                    PUSH(Value::makeNil());
+                    break;
+                }
+                else if (receiver.type == ValueType::STRUCTINSTANCE)
+                {
+                    ARGS_CLEANUP();
+                    StructInstance *inst = receiver.as.sInstance;
+                    inst->release();
+                    PUSH(Value::makeNil());
+                    break;
+                }
+                else if (receiver.type == ValueType::CLASSINSTANCE)
+                {
+                    ARGS_CLEANUP();
+                    ClassInstance *inst = receiver.as.sClass;
+                    inst->release();
+                    PUSH(Value::makeNil());
+                    break;
+                }
+                else if (receiver.type == ValueType::ARRAY)
+                {
+                    ARGS_CLEANUP();
+                    ArrayInstance *inst = receiver.as.array;
+                    inst->release();
+                    PUSH(Value::makeNil());
+                    break;
+                }
+                else if (receiver.type == ValueType::MAP)
+                {
+                    ARGS_CLEANUP();
+                    MapInstance *inst = receiver.as.map;
+                    inst->release();
+                    PUSH(Value::makeNil());
+                    break;
+                }
+                else
+                {
+                    runtimeError("This Type is not supported by free()");
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
             }
-     
 
             // === STRING METHODS ===
             if (receiver.isString())
@@ -2039,7 +2115,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     PUSH(Value::makeNil());
                     break;
                 }
-                 else if (compareString(nameValue.asString(), staticFree))
+                else if (compareString(nameValue.asString(), staticFree))
                 {
                     if (argCount != 0)
                     {
@@ -2110,8 +2186,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 // printValueNl(receiver);
                 // printValueNl(nameValue);
 
-                
-
                 Function *method;
                 if (instance->getMethod(nameValue.asString(), &method))
                 {
@@ -2122,7 +2196,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     }
 
                     //  Debug::dumpFunction(method);
-                    fiber->stackTop[-argCount - 1] = receiver;
+                    fiber->stackTop[-argCount - 1] = std::move(receiver);
 
                     // Setup call frame
                     if (currentFiber->frameCount >= FRAMES_MAX)
@@ -2149,7 +2223,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             if (receiver.isNativeClassInstance())
             {
-               
+
                 NativeInstance *instance = receiver.asNativeClassInstance();
                 NativeClassDef *klass = instance->klass;
 
@@ -2160,7 +2234,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                         runtimeError("clear() expects 0 arguments");
                         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                     }
-                    instance->release();    
+                    instance->release();
                     PUSH(Value::makeNil());
                     break;
                 }
@@ -2179,11 +2253,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
                 break;
             }
-
-            
-
-        
-
 
             runtimeError("Call Type  does not support '%s' method .", name);
 
