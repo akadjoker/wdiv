@@ -63,12 +63,7 @@ struct Value
 
   ~Value();
 
-  Value &operator=(const Value &other)
-  {
-    type = other.type;
-    as = other.as;
-    return *this; // Apenas copia pointer!
-  }
+ 
 
   static Value makeNil();
   static Value makeBool(bool b);

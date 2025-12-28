@@ -54,7 +54,7 @@ void StringPool::deallocString(String *s)
     if (!s)
         return;
 
- //   Info("Dealloc string %p", s);
+//    Info("Dealloc string %p", s);
     bytesAllocated -= sizeof(String) + s->length() + 1;
 
     if (s->isLong() && s->ptr)
@@ -68,6 +68,12 @@ void StringPool::clear()
 {
     Info("String pool clear %d strings", map.size());
     Info("Allocated %d bytes", bytesAllocated);
+
+    for (size_t i = 0; i < map.size(); i++)
+    {
+        String *s = map[i];
+        deallocString(s);
+    }
 
      
     dummyString->~String();
@@ -90,16 +96,16 @@ String *StringPool::create(const char *str, uint32 len, bool isStatic)
     int index=0;
      
 
-    if (pool.get(str, &index))
-    {
-        String *s = map[index];
-        return s;
-    }
+    // if (pool.get(str, &index))
+    // {
+    //     String *s = map[index];
+    //     return s;
+    // }
 
     // New string
     String *s = allocString();
-    s->persistent = isStatic;
- 
+    //s->persistent = isStatic;
+    
 
     // Copy data
     if (len <= String::SMALL_THRESHOLD)
@@ -120,9 +126,9 @@ String *StringPool::create(const char *str, uint32 len, bool isStatic)
     bytesAllocated += sizeof(String) + len;
     s->index = map.size();
 
-    // Info("Create string %s hash %d len %d", s->chars(), s->hash, s->length());
+     Info("Create string %s hash %d len %d", s->chars(), s->hash, s->length());
     map.push(s);
-    pool.set(s->chars(), map.size() - 1);
+  //  pool.set(s->chars(), map.size() - 1);
 
     //   Info("Create string %s hash %d len %d", s->chars(), s->hash, s->length());
 
