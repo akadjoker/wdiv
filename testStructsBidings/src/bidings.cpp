@@ -502,40 +502,40 @@ namespace RaylibBindings
         return Value::makeNil();
     }
 
-    // Value native_DrawTextureEx(Interpreter *vm, int argc, Value *args)
-    // {
+    Value native_DrawTextureEx(Interpreter *vm, int argc, Value *args)
+    {
 
-    //     auto *texInst = args[0].asNativeStructInstance();
-    //     Texture2D *tex = (Texture2D *)texInst->data;
+        auto *texInst = args[0].asNativeStructInstance();
+        Texture2D *tex = (Texture2D *)texInst->data;
 
-    //     auto *posInst = args[1].asNativeStructInstance();
-    //     Vector2 *pos = (Vector2 *)posInst->data;
+        auto *posInst = args[1].asNativeStructInstance();
+        Vector2 *pos = (Vector2 *)posInst->data;
 
-    //     float rotation = args[2].asDouble();
-    //     float scale = args[3].asDouble();
+        float rotation = args[2].asDouble();
+        float scale = args[3].asDouble();
 
-    //     auto *colorInst = args[4].asNativeStructInstance();
-    //     Color *tint = (Color *)colorInst->data;
+        auto *colorInst = args[4].asNativeStructInstance();
+        Color *tint = (Color *)colorInst->data;
 
-    //     DrawTextureEx(*tex, *pos, rotation, scale, *tint);
-    //     return Value::makeNil();
-    // }
+        DrawTextureEx(*tex, *pos, rotation, scale, *tint);
+        return Value::makeNil();
+    }
 
-    // Value native_DrawTextureV(Interpreter *vm, int argc, Value *args)
-    // {
+    Value native_DrawTextureV(Interpreter *vm, int argc, Value *args)
+    {
 
-    //     auto *texInst = args[0].asNativeStructInstance();
-    //     Texture2D *tex = (Texture2D *)texInst->data;
+        auto *texInst = args[0].asNativeStructInstance();
+        Texture2D *tex = (Texture2D *)texInst->data;
 
-    //     auto *posInst = args[1].asNativeStructInstance();
-    //     Vector2 *pos = (Vector2 *)posInst->data;
+        auto *posInst = args[1].asNativeStructInstance();
+        Vector2 *pos = (Vector2 *)posInst->data;
 
-    //     auto *colorInst = args[2].asNativeStructInstance();
-    //     Color *tint = (Color *)colorInst->data;
+        auto *colorInst = args[2].asNativeStructInstance();
+        Color *tint = (Color *)colorInst->data;
 
-    //     DrawTextureV(*tex, *pos, *tint);
-    //     return Value::makeNil();
-    // }
+        DrawTextureV(*tex, *pos, *tint);
+        return Value::makeNil();
+    }
 
     void registerTexture(Interpreter &vm)
     {

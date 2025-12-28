@@ -336,7 +336,6 @@ class Interpreter
 
     HashMap<String *, Function *, StringHasher, StringEq> functionsMap;
     HashMap<String *, ProcessDef *, StringHasher, StringEq> processesMap;
-    // HashMap<String *, NativeDef , StringHasher, StringEq> nativesMap;
     HashMap<String *, StructDef *, StringHasher, StringEq> structsMap;
     HashMap<String *, ClassDef *, StringHasher, StringEq> classesMap;
     HashMap<const char *, int, CStringHash, CStringEq> privateIndexMap;
@@ -359,12 +358,7 @@ class Interpreter
     int lastInstanceId = 0;
 
     HashMap<String *, Value, StringHasher, StringEq> globals;
-    HashMap<String *, int, StringHasher, StringEq> modules;
-    Vector<SymbolTable *> loadModules;
-
-    HashMap<String *, uint8, StringHasher, StringEq> importedModulesNames;
-    Vector<SymbolTable *> importedModules;
-
+ 
     Vector<Process *> aliveProcesses;
     Vector<Process *> cleanProcesses;
 

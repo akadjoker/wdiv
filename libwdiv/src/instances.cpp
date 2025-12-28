@@ -9,7 +9,7 @@
 #include "interpreter.hpp"
 #include "value.hpp"
 
-#define USE_ARENA 1
+#define USE_ARENA 0
 
 void InstancePool::setInterpreter(Interpreter *interpreter)
 {
@@ -21,29 +21,6 @@ Interpreter *InstancePool::getInterpreter()
     return interpreter;
 }
 
-// void InstancePool::markValue(const Value &v)
-// {
-
-//      if (v.type == ValueType::STRING && v.as.string)
-//      {
-//         Info("Marking string %s", v.as.string->chars());
-//         v.as.string->marked = true;
-//         strings.push(v.as.string);
-//      }
-//      else if (v.type == ValueType::CLASSINSTANCE && v.as.sClass)
-//         markObject((GCObject *)v.as.sClass);
-//     else if (v.type == ValueType::ARRAY && v.as.array)
-//         markObject((GCObject *)v.as.array);
-//     else if (v.type == ValueType::MAP && v.as.map)
-//         markObject((GCObject *)v.as.map);
-//     else if (v.type == ValueType::STRUCTINSTANCE && v.as.sInstance)
-//         markObject((GCObject *)v.as.sInstance);
-//     else if (v.type == ValueType::NATIVESTRUCTINSTANCE && v.as.sNativeStruct)
-//         markObject((GCObject *)v.as.sNativeStruct);
-//     else if (v.type == ValueType::NATIVECLASSINSTANCE && v.as.sClassInstance)
-//         markObject((GCObject *)v.as.sClassInstance);
-
-// }
 
 InstancePool::InstancePool() : interpreter(nullptr), bytesAllocated(0)
 {
@@ -115,11 +92,11 @@ ClassInstance *InstancePool::getClass(int id)
 
 ArrayInstance *InstancePool::getArray(int id)
 {
-    // if (id < 0 || id >= (int)arrayInstances.size())
-    // {
-    //     Warning("ArrayInstance index out of bounds: %d", id);
-    //     return dummyArrayInstance;
-    // }
+    if (id < 0 || id >= (int)arrayInstances.size())
+    {
+        Warning("ArrayInstance index out of bounds: %d", id);
+        return dummyArrayInstance;
+    }
 
     return arrayInstances[id];
 }
@@ -140,7 +117,7 @@ StructInstance *InstancePool::createStruct()
     StructInstance *instance = nullptr;
 
 #if USE_ARENA
-    void *mem = arena.Allocate(sizeof(StructInstance));
+    void *mem = arena.Allocate( structSize);
     instance = new (mem) StructInstance();
 #else
     instance = new StructInstance();
@@ -148,7 +125,7 @@ StructInstance *InstancePool::createStruct()
 
     instance->index = structInstances.size();
     structInstances.push(instance);
-    bytesAllocated += sizeof(StructInstance);
+    bytesAllocated +=  structSize;
     totalStructs++;
     return instance;
 }
@@ -159,7 +136,7 @@ ArrayInstance *InstancePool::createArray(int reserve)
 
 #if USE_ARENA
 
-    void *mem = arena.Allocate(sizeof(ArrayInstance));
+    void *mem = arena.Allocate( arraySize);
     instance = new (mem) ArrayInstance();
 #else
     instance = new ArrayInstance();
@@ -241,11 +218,12 @@ NativeStructInstance *InstancePool::createNativeStruct(uint32 structSize)
 #if USE_ARENA
     void *mem = arena.Allocate(nativeStructSize);
     instance = new (mem) NativeStructInstance();
+    instance->data = arena.Allocate(structSize);
 #else
     instance = new NativeStructInstance();
+    instance->data = aAlloc(structSize);
 #endif
 
-    instance->data = aAlloc(structSize);
     std::memset(instance->data, 0, structSize);
     nativeStructInstances.push(instance);
 
@@ -359,7 +337,16 @@ void InstancePool::freeNativeStruct(NativeStructInstance *n)
         {
             n->def->destructor(interpreter, n->data);
         }
+
+
+    
+        #if USE_ARENA
+        arena.Free(n->data, n->def->structSize);
+        #else
         aFree(n->data);
+        #endif
+
+        
         n->data = nullptr;
     }
 
@@ -382,6 +369,7 @@ void InstancePool::clear()
     Info("Instance pool clear");
 
     delete dummyDefStruct;
+    delete dummyDefClass;
 
     for (size_t i = 0; i < structInstances.size(); i++)
     {

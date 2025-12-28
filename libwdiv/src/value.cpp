@@ -29,20 +29,7 @@ Value::Value() : type(ValueType::NIL)
 
 Value::~Value()
 {
-    // if (type == ValueType::STRING && as.string)
-    //     as.string->release();
-    // else if (type == ValueType::STRUCTINSTANCE)
-    //     as.sInstance->release();
-    // else if (type == ValueType::ARRAY)
-    //     as.array->release();
-    // else if (type == ValueType::MAP)
-    //     as.map->release();
-    // else if (type == ValueType::CLASSINSTANCE)
-    //     as.sClass->release();
-    // else if (type == ValueType::NATIVESTRUCTINSTANCE)
-    //     as.sNativeStruct->release();
-    // else if (type == ValueType::NATIVECLASSINSTANCE)
-    //     as.sClassInstance->release();
+    
 }
 
 

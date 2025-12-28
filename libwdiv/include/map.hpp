@@ -91,6 +91,36 @@ struct HashMap
     }
   }
 
+//   Entry *findFilled(const K &key, size_t hash) const
+// {
+//     if (capacity == 0) return nullptr;
+    
+//     size_t index = hash & mask();
+//     size_t probeLength = 0;
+
+//     for (;;)
+//     {
+//         Entry *e = &entries[index];
+        
+//         if (e->state == EMPTY)
+//             return nullptr;
+            
+//         // Robin Hood: desistir se probe distance é maior
+//         if (e->state == FILLED) {
+//             size_t entryHash = e->hash;
+//             size_t entryProbe = (index - (entryHash & mask())) & mask();
+            
+//             if (probeLength > entryProbe)
+//                 return nullptr;  // Não encontrado
+                
+//             if (e->hash == hash && Eq{}(e->key, key))
+//                 return e;
+//         }
+
+//         index = (index + 1) & mask();
+//         probeLength++;
+//     }
+// }
   void adjustCapacity(size_t newCap)
   {
     // Garantir power-of-two para mask() funcionar
@@ -126,7 +156,7 @@ struct HashMap
   {
     if (capacity == 0 || (count + tombstones + 1) > capacity * MAX_LOAD)
     {
-      size_t newCap = capacity == 0 ? 16 : capacity * 2;
+      size_t newCap = capacity == 0 ? 256 : capacity * 2;
       adjustCapacity(newCap);
     }
   }

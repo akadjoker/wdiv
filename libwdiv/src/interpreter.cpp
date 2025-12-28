@@ -79,13 +79,7 @@ Interpreter::~Interpreter()
     }
     functions.clear();
 
-    for (size_t i = 0; i < importedModules.size(); i++)
-    {
-        SymbolTable *func = importedModules[i];
-
-        delete func;
-    }
-    importedModules.clear();
+   
 
     for (size_t i = 0; i < functionsClass.size(); i++)
     {
@@ -203,21 +197,7 @@ uint32 Interpreter::getTotalNativeClasses()
 bool Interpreter::addModule(const char *name)
 {
 
-    SymbolTable *module = new SymbolTable();
-    module->name = createStaticString(name);
-
-    if (modules.exist(module->name))
-    {
-        Error("Module %s already loaded", name);
-
-        delete module;
-        return false;
-    }
-
-    int index = loadModules.size();
-    Info("Add module %s at index %d", name, index);
-    modules.set(module->name, index);
-    loadModules.push(module);
+    
     return true;
 }
 
@@ -238,8 +218,7 @@ NativeClassDef *Interpreter::registerNativeClass(const char *name, NativeConstru
 
     nativeClasses.push(klass);
 
-    if (moduleName == nullptr)
-    {
+
         if (!globals.set(klass->name, Value::makeNativeClass(id)))
         {
 
@@ -252,28 +231,8 @@ NativeClassDef *Interpreter::registerNativeClass(const char *name, NativeConstru
         nativesClassesMap.set(klass->name, klass);
 
         return klass;
-    }
-
-    int result = 0;
-    String *modName = createStaticString(moduleName);
-    if (modules.get(modName, &result))
-    {
-
-        SymbolTable *mod = loadModules[result];
-        if (!mod->symbols.set(klass->name, Value::makeNativeClass(id)))
-        {
-
-            Error("Native class '%s' already exists", name);
-            return nullptr;
-        }
-        nativesClassesMap.set(klass->name, klass);
-        return klass;
-    }
-    Error("Module '%s' not found %d ", moduleName, result);
-
-    //    setGlobal(klass->name, Value::makeNativeClass(id));
-
-    return klass;
+    
+    
 }
 
 void Interpreter::addNativeMethod(NativeClassDef *klass, const char *methodName, NativeMethod method)
@@ -306,8 +265,7 @@ int Interpreter::registerNative(const char *name, NativeFunction func, int arity
     def.arity = arity;
     def.index = natives.size();
 
-    if (module == nullptr)
-    {
+ 
         if (!globals.set(def.name, Value::makeNative(def.index)))
         {
 
@@ -318,31 +276,7 @@ int Interpreter::registerNative(const char *name, NativeFunction func, int arity
         globals.set(def.name, Value::makeNative(def.index));
         natives.push(def);
         return def.index;
-    }
-
-    int result = 0;
-    String *modName = createStaticString(module);
-    if (modules.get(modName, &result))
-    {
-
-        SymbolTable *mod = loadModules[result];
-        if (!mod->symbols.set(def.name, Value::makeNative(def.index)))
-        {
-
-            Error("Native '%s' already exists in module '%s'", name, module);
-            return -1;
-        }
-
-        natives.push(def);
-        return def.index;
-    }
-    Error("Module '%s' not found %d ", module, result);
-
-    //   Info("Registered native: %s (index=%d)", name, def.index);
-
-    // if (!setGlobal(def.name, Value::makeNative(def.index)))
-
-    return -1;
+    
 }
 
 NativeStructDef *Interpreter::registerNativeStruct(const char *name, size_t structSize, NativeStructCtor ctor, NativeStructDtor dtor, const char *moduleName)
@@ -357,8 +291,7 @@ NativeStructDef *Interpreter::registerNativeStruct(const char *name, size_t stru
     klass->id = id;
     nativeStructs.push(klass);
 
-    if (moduleName == nullptr)
-    {
+   
         if (!globals.set(klass->name, Value::makeNativeStruct(id)))
         {
 
@@ -369,29 +302,7 @@ NativeStructDef *Interpreter::registerNativeStruct(const char *name, size_t stru
         globals.set(klass->name, Value::makeNativeStruct(id));
 
         return klass;
-    }
-
-    int result = 0;
-    String *modName = createStaticString(moduleName);
-    if (modules.get(modName, &result))
-    {
-
-        SymbolTable *mod = loadModules[result];
-        if (!mod->symbols.set(klass->name, Value::makeNativeStruct(id)))
-        {
-
-            Error("Struct '%s' already exists in module '%s'", name, moduleName);
-            return nullptr;
-        }
-        Info("Registered struct: %s (index=%d)", name, id);
-
-        return klass;
-    }
-    Error("Module '%s' not found %d ", moduleName, result);
-
-    // setGlobal(klass->name, Value::makeNativeStruct(id));
-
-    return klass;
+   
 }
 
 void Interpreter::addStructField(NativeStructDef *def, const char *fieldName, size_t offset, FieldType type, bool readOnly)
@@ -822,39 +733,9 @@ void Interpreter::addFunctionsClasses(Function *fun)
 bool Interpreter::importModule(const char *name)
 {
 
-    String *pName = createStaticString(name);
-    int result = 0;
-    bool imported = false;
-    if (!modules.get(pName, &result))
-    {
-        Error("Module %s not found", name);
-        return false;
-    }
-    else
-    {
-
-        uint8 index = 0;
-        if (importedModulesNames.get(pName, &index))
-        {
-            Warning("Module %s already imported", name);
-            imported = true;
-        }
-        else
-        {
-            importedModulesNames.set(createStaticString(name), importedModules.size());
-            importedModules.push(loadModules[result]);
-
-            // SymbolTable *mod = importedModules[importedModules.size() - 1];
-
-            // mod->symbols.forEach([&](String *name, Value value) {
-            //     Info("Importing %s", name->chars());
-            // });
-
-            Info("Module %s  imported", pName->chars());
-            imported = true;
-        }
-    }
-
+    
+    bool imported = true;
+    
     return imported;
 }
 

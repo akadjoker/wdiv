@@ -55,7 +55,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
     fiber->stackTop -= 2
 
 #define STORE_FRAME() frame->ip = ip
-#define PUSH_CONSTANT() PUSH(READ_CONSTANT())  // Push direto sem variável intermediária
+#define PUSH_CONSTANT() PUSH(READ_CONSTANT()) // Push direto sem variável intermediária
 #define LOAD_FRAME()                                   \
     do                                                 \
     {                                                  \
@@ -135,7 +135,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         case OP_POP:
         {
             DROP();
-            
 
             break;
         }
@@ -172,49 +171,28 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
         case OP_GET_GLOBAL:
         {
+
             Value name = READ_CONSTANT();
             Value value;
-            String *key = name.asString();
 
-            // 1. Procura globals
-            if (globals.get(key, &value))
+            if (!globals.get(name.asString(), &value))
             {
-                PUSH(value);
-                break;
-            }
-
-            // 2. Procura modules
-            bool found = false;
-            for (uint32 i = 0; i < importedModules.size(); i++)
-            {
-                if (importedModules[i]->symbols.get(key, &value))
-                {
-                    PUSH(value);
-                    found = true;
-                    break;
-                }
-            }
-
-            // 3. Erro se não encontrou
-            if (!found)
-            {
-                runtimeError("Undefined variable '%s'", key->chars());
+                runtimeError("Undefined variable '%s'", name.asString()->chars());
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
+            PUSH(value);
             break;
         }
 
         case OP_SET_GLOBAL:
         {
-            Value keuValue = READ_CONSTANT();
-            String *key = keuValue.asString();
-            Value value =  PEEK();
 
-            if (!globals.set(key, value))
+            Value name = READ_CONSTANT();
+            Value value = PEEK();
+            if (globals.set(name.asString(), value))
             {
-                //  Warning("Assign %s  string", key->chars());
-                // printValueNl(value);
             }
+
             break;
         }
 
@@ -222,13 +200,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         {
 
             Value name = READ_CONSTANT();
-            Value value = POP();
-
-            if (!globals.set(name.asString(), value))
-            {
-                Warning("Variable %s already  defined", name.asString()->chars());
-            }
-
+            globals.set(name.asString(), POP());
             break;
         }
 
@@ -814,7 +786,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 ClassDef *klass = classes[classId];
 
                 Value value = Value::makeClassInstance();
-               
+
                 ClassInstance *instance = value.asClassInstance();
                 instance->klass = klass;
                 instance->fields.reserve(klass->fieldCount);
@@ -891,7 +863,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 Value literal = Value::makeNativeClassInstance();
                 // Cria instance wrapper
                 NativeInstance *instance = literal.asNativeClassInstance();
-        
+
                 instance->klass = klass;
                 instance->userData = userData;
                 instance->refCount = 1;
@@ -943,7 +915,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             if (fiber->frameCount == 0)
             {
-                //InstancePool::instance().gc(); // Garbage collector
+                // InstancePool::instance().gc(); // Garbage collector
                 fiber->stackTop = fiber->stack;
                 *fiber->stackTop++ = result;
 
@@ -1689,7 +1661,8 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     runtimeError("This Type is not supported by free()");
                     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                 }
-            }else  if (compareString(nameValue.asString(), staticToString))
+            }
+            else if (compareString(nameValue.asString(), staticToString))
             {
                 if (argCount != 0)
                 {
@@ -1701,38 +1674,45 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     ARGS_CLEANUP();
                     PUSH(Value::makeString("<nativestruct>"));
                     break;
-                } else if (receiver.type == ValueType::NATIVECLASSINSTANCE)
+                }
+                else if (receiver.type == ValueType::NATIVECLASSINSTANCE)
                 {
                     ARGS_CLEANUP();
                     PUSH(Value::makeString("<nativeclass>"));
                     break;
-                } else if (receiver.type == ValueType::STRUCTINSTANCE)
+                }
+                else if (receiver.type == ValueType::STRUCTINSTANCE)
                 {
                     ARGS_CLEANUP();
                     PUSH(Value::makeString("<struct>"));
                     break;
-                } else if (receiver.type == ValueType::CLASSINSTANCE)
+                }
+                else if (receiver.type == ValueType::CLASSINSTANCE)
                 {
                     ARGS_CLEANUP();
                     PUSH(Value::makeString("<class>"));
                     break;
-                } else if (receiver.type == ValueType::ARRAY)
+                }
+                else if (receiver.type == ValueType::ARRAY)
                 {
                     ARGS_CLEANUP();
                     PUSH(Value::makeString("<array>"));
                     break;
-                } else if (receiver.type == ValueType::MAP)
+                }
+                else if (receiver.type == ValueType::MAP)
                 {
                     ARGS_CLEANUP();
                     PUSH(Value::makeString("<map>"));
                     break;
-                } else if (receiver.type == ValueType::STRING)
+                }
+                else if (receiver.type == ValueType::STRING)
                 {
                     ARGS_CLEANUP();
                     String *str = receiver.asString();
                     PUSH(Value::makeString(str->chars()));
                     break;
-                }  else if (receiver.type == ValueType::INT)
+                }
+                else if (receiver.type == ValueType::INT)
                 {
                     ARGS_CLEANUP();
                     int i = receiver.asInt();
@@ -1740,7 +1720,8 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     sprintf(buf, "%d", i);
                     PUSH(Value::makeString(buf));
                     break;
-                } else if (receiver.type == ValueType::FLOAT)
+                }
+                else if (receiver.type == ValueType::FLOAT)
                 {
                     ARGS_CLEANUP();
                     float f = receiver.asFloat();
@@ -1748,7 +1729,8 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     sprintf(buf, "%f", f);
                     PUSH(Value::makeString(buf));
                     break;
-                } else if (receiver.type == ValueType::DOUBLE)
+                }
+                else if (receiver.type == ValueType::DOUBLE)
                 {
                     ARGS_CLEANUP();
                     double d = receiver.asDouble();
@@ -1757,13 +1739,12 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     PUSH(Value::makeString(buf));
                     break;
                 }
-                else 
+                else
                 {
                     runtimeError("This Type is not supported by toString()");
                     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                 }
             }
-
 
             // === STRING METHODS ===
             if (receiver.isString())
