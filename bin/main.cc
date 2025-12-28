@@ -20,8 +20,8 @@ class Sprite
 
     def move(tex)
     {
-        self.x += self.vx;
-        self.y += self.vy;
+         self.x =self.x+ self.vx;
+         self.y =self.y+ self.vy;
 
         self.vy = self.vy + 0.5;
 
@@ -50,29 +50,32 @@ var tex = LoadTexture("assets/wabbit_alpha.png");
 //SetTargetFPS(30);
 
 lista = [];
-lista.push(Sprite(10,10));
-lista.push(Sprite(10,10));
-lista.push(Sprite(10,10));
+ 
 
 var i=0;
+var mouse_X=0;
+var mouse_Y=0;
 
 while (!WindowShouldClose())
 {
+  //  var BLUE = Color(0, 0, 255, 255);
     BeginDrawing();
 
     ClearBackground(BLACK);
 
     DrawPixel(200, 200, RED);
 
-    DrawTexture(tex, GetMouseX(), GetMouseY(), WHITE);
+    mouse_X = GetMouseX();
+    mouse_Y = GetMouseY();
+
+    DrawTexture(tex,  mouse_X, mouse_Y, WHITE);
 
     if (IsMouseButtonDown(0))
     {
         for(var i=0;i<500;i++)
         {
-            var vx = GetMouseX();
-            var vy = GetMouseY();
-            lista.push(Sprite(vx,vy));
+           
+            lista.push(Sprite( mouse_X, mouse_Y));
         }
     }
 
@@ -80,8 +83,7 @@ while (!WindowShouldClose())
     {
         for (i = 0; i < lista.length(); i++)
         {
-           var sprite = lista[i];
-          sprite.move(tex);
+           lista[i].move(tex);
 
         }
     }

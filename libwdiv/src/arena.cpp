@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <climits>
 
+Arena gArena = {};
 
 size_t HeapAllocator::s_blockSizes[blockSizes] =
 	{
@@ -97,7 +98,7 @@ void *HeapAllocator::Allocate(size_t size)
 
 	assert(0 < size);
 
-	MemoryTracker::onAllocate(size);
+ 
 
 	if (size > maxBlockSize)
 	{
@@ -170,7 +171,7 @@ void HeapAllocator::Free(void *p, size_t size)
 
 	assert(0 < size);
 
-	MemoryTracker::onFree(size);
+ 
 
 	if (size > maxBlockSize)
 	{
@@ -369,12 +370,4 @@ size_t StackAllocator::GetMaxAllocation() const
 	return m_maxAllocation;
 }
 
-
-size_t MemoryTracker::totalAllocated = 0;
-size_t MemoryTracker::totalFreed = 0;
-
-size_t getMemoryUsage()
-{
-    return MemoryTracker::getUsage();
-}
-
+ 

@@ -125,11 +125,7 @@ Value native_write(Interpreter *vm, int argCount, Value *args)
     return Value::makeNil();
 }
 
-Value native_getMemoryUsage(Interpreter *vm, int argCount, Value *args)
-{
-    return Value::makeInt(getMemoryUsage());
-}
-
+ 
 Value native_sqrt(Interpreter *vm, int argCount, Value *args)
 {
     if (argCount != 1)
@@ -303,7 +299,7 @@ int main()
     vm.registerNative("write", native_write, -1);
     vm.registerNative("gc", native_gc, -1);
     vm.registerNative("getBytesAllocated", navite_total_bytes_allocated, -1);
-    vm.registerNative("getMemoryUsage", native_getMemoryUsage, -1);
+ 
     vm.registerNative("format", native_format, -1);
     vm.registerNative("sqrt", native_sqrt, 1);
     vm.registerNative("clock", native_clock, 0);

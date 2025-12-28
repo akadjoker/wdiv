@@ -58,8 +58,6 @@ public:
 
 	void Stats();
 
-
-
 	void GetStats(AllocationStats &stats) const;
 	size_t GetTotalAllocated() const { return m_totalAllocated; }
 	size_t GetTotalReserved() const { return m_totalReserved; }
@@ -111,28 +109,31 @@ private:
 	size_t m_entryCount;
 };
 
-
-
-class MemoryTracker
-{
-    static size_t totalAllocated;
-    static size_t totalFreed;
-
-public:
-    static void onAllocate(size_t size)
-    {
-        totalAllocated += size;
-    }
-
-    static void onFree(size_t size)
-    {
-        totalFreed += size;
-    }
-
-    static size_t getUsage()
-    {
-        return totalAllocated - totalFreed;
-    }
-};
+ 
 
 size_t getMemoryUsage();
+ 
+
+
+struct Arena
+{
+    HeapAllocator alloc;
+
+    size_t bytesAllocated;
+
+    size_t totalStructs;
+    size_t totalArrays;
+    size_t totalMaps;
+    size_t totalClasses;
+    size_t totalNativeStructs;
+    size_t totalNativeClasses;
+
+    size_t structSize;
+    size_t arraySize;
+    size_t mapSize;
+    size_t classSize;
+    size_t nativeStructSize;
+    size_t nativeClassSize;
+};
+
+extern Arena gArena;

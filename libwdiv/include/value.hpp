@@ -49,12 +49,14 @@ struct Value
     float n_float;
     double number;
     int id;
-
     uint32 unsignedInteger;
 
-
-    NativeInstance *sClassInstance;
-    NativeStructInstance *sNativeStruct;
+    ArrayInstance *array;
+    StructInstance *structInstance;
+    MapInstance *map;
+    ClassInstance *classInstance;
+    NativeInstance *nativeClassInstance;
+    NativeStructInstance *nativeStructInstance;
     void *pointer;
 
   } as;

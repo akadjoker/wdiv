@@ -8,6 +8,8 @@
 #include <stdarg.h>
 #include "string.hpp"
 
+
+
 bool StringEq::operator()(String *a, String *b) const
 {
 
@@ -31,6 +33,20 @@ Interpreter::Interpreter()
     staticToString = createStaticString("toString");
     compiler = new Compiler(this);
     setPrivateTable();
+
+    gArena.totalStructs = 0;
+    gArena.totalArrays = 0;
+    gArena.totalMaps = 0;
+    gArena.totalClasses = 0;
+    gArena.totalNativeStructs = 0;
+    gArena.totalNativeClasses = 0;
+
+    gArena.structSize = sizeof(StructInstance);
+    gArena.arraySize = sizeof(ArrayInstance);
+    gArena.mapSize = sizeof(MapInstance);
+    gArena.classSize = sizeof(ClassInstance);
+    gArena.nativeStructSize = sizeof(NativeStructInstance);
+    gArena.nativeClassSize = sizeof(NativeInstance);
 
     // globals.set(createString("String"), Value::makeFunction(0));
 }
@@ -56,13 +72,14 @@ Interpreter::~Interpreter()
         ProcessPool::instance().free(process);
     }
 
-
     aliveProcesses.clear();
 
     ProcessPool::instance().clear();
 
     Info("Interpreter released");
- 
+
+    gArena.alloc.Stats();
+    gArena.alloc.Clear();
 
     StringPool::instance().clear();
     InstancePool::instance().clear();
@@ -134,7 +151,7 @@ Interpreter::~Interpreter()
         proc->release();
         delete proc;
     }
-        processes.clear();
+    processes.clear();
 
     // Info("Heap stats:");
     // heapAllocator.Stats();
@@ -146,7 +163,6 @@ Interpreter::~Interpreter()
 
 void Interpreter::gc()
 {
-     
 }
 
 uint32 Interpreter::getTotalStrings()
@@ -161,18 +177,17 @@ uint32 Interpreter::getStringsBytes()
 
 uint32 Interpreter::getTotalBytes()
 {
-    return InstancePool::instance().bytesAllocated;
-
+    return gArena.bytesAllocated;
 }
 
 uint32 Interpreter::getTotalClasses()
 {
-    return InstancePool::instance().totalClasses;
+    return gArena.totalClasses;
 }
 
 uint32 Interpreter::getTotalStructs()
 {
-    return InstancePool::instance().totalStructs;
+    return gArena.totalStructs;
 }
 
 uint32 Interpreter::getTotalProcesses()
@@ -182,22 +197,22 @@ uint32 Interpreter::getTotalProcesses()
 
 uint32 Interpreter::getTotalArrays()
 {
-    return InstancePool::instance().totalArrays;
+    return gArena.totalArrays;
 }
 
 uint32 Interpreter::getTotalMaps()
 {
-    return InstancePool::instance().totalMaps;
+    return gArena.totalMaps;
 }
 
 uint32 Interpreter::getTotalNativeStructs()
 {
-    return InstancePool::instance().totalNativeStructs;
+    return gArena.totalNativeStructs;
 }
 
 uint32 Interpreter::getTotalNativeClasses()
 {
-    return InstancePool::instance().totalNativeClasses;
+    return gArena.totalNativeClasses;
 }
 
 bool Interpreter::addModule(const char *name)

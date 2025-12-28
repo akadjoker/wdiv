@@ -815,7 +815,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
                 Value value = Value::makeClassInstance();
                
-                ClassInstance *instance = value.asClassInstance();
+                ClassInstance *instance = value.as.classInstance;
                 instance->klass = klass;
                 instance->fields.reserve(klass->fieldCount);
 
@@ -902,13 +902,13 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 break;
             }
 
-            else if (callee.isNativeStruct())
+            else if (callee.type == ValueType::NATIVESTRUCT)
             {
-                int structId = callee.asNativeStructId();
+                int structId = callee.as.id;
                 NativeStructDef *def = nativeStructs[structId];
                 // Cria instance wrapper
                 Value literal = Value::makeNativeStructInstance(def->structSize);
-                NativeStructInstance *instance = literal.as.sNativeStruct;
+                NativeStructInstance *instance = literal.as.nativeStructInstance;
                 instance->def = def;
                 if (def->constructor)
                 {
@@ -971,63 +971,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             break;
         }
 
-            // case OP_RETURN:
-            // {
-            //     Value result = POP();
-
-            //     //  GUARDA frame ANTES de decrementar
-            //     CallFrame *finishingFrame = &fiber->frames[fiber->frameCount - 1];
-
-            //     //  DROP de todos os locals/args deste frame
-            //     Value *slotsStart = finishingFrame->slots;
-            //     Value *slotsEnd = fiber->stackTop; // stackTop já não tem o result (POP acima)
-
-            //     for (Value *slot = slotsStart; slot < slotsEnd; slot++)
-            //     {
-
-            //         if (
-            //             slot->type == ValueType::ARRAY ||
-            //             slot->type == ValueType::MAP ||
-            //             slot->type == ValueType::CLASSINSTANCE ||
-            //             slot->type == ValueType::STRUCTINSTANCE ||
-            //             slot->type == ValueType::NATIVECLASSINSTANCE ||
-            //             slot->type == ValueType::NATIVESTRUCTINSTANCE)
-            //         {
-            //             slot->drop();
-            //         }
-            //     }
-
-            //     fiber->frameCount--;
-
-            //     if (fiber->frameCount == 0)
-            //     {
-            //         fiber->stackTop = fiber->stack;
-            //         *fiber->stackTop++ = result;
-
-            //         fiber->state = FiberState::DEAD;
-
-            //         if (fiber == &currentProcess->fibers[0])
-            //         {
-            //             for (int i = 0; i < currentProcess->nextFiberIndex; i++)
-            //             {
-            //                 currentProcess->fibers[i].state = FiberState::DEAD;
-            //             }
-            //             currentProcess->state = FiberState::DEAD;
-            //         }
-
-            //         STORE_FRAME();
-            //         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            //     }
-
-            //     // Função nested - retorna para onde estava a chamada
-            //     CallFrame *finished = &fiber->frames[fiber->frameCount];
-            //     fiber->stackTop = finished->slots;
-            //     *fiber->stackTop++ = result;
-
-            //     LOAD_FRAME();
-            //     break;
-            // }
-
+           
             // ========== PROCESS/FIBER CONTROL ==========
 
         case OP_YIELD:
@@ -1243,9 +1187,9 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 break;
             }
 
-            if (object.isClassInstance())
+            if (object.type == ValueType::CLASSINSTANCE)
             {
-                ClassInstance *instance = object.asClassInstance();
+                ClassInstance *instance = object.as.classInstance;
 
                 // bool inherited = instance->klass->inherited;
 
@@ -1448,9 +1392,9 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 break;
             }
 
-            if (object.isClassInstance())
+            if (object.type == ValueType::CLASSINSTANCE)
             {
-                ClassInstance *instance = object.asClassInstance();
+                ClassInstance *instance = object.as.classInstance;
 
                 uint8_t fieldIdx;
                 if (instance->klass->fieldNames.get(nameValue.asString(), &fieldIdx))
@@ -1639,7 +1583,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 if (receiver.type == ValueType::NATIVESTRUCTINSTANCE)
                 {
                     ARGS_CLEANUP();
-                    NativeStructInstance *inst = receiver.as.sNativeStruct;
+                    NativeStructInstance *inst = receiver.as.nativeStructInstance;
                     inst->release();
                     PUSH(Value::makeNil());
                     break;
@@ -1647,7 +1591,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 else if (receiver.type == ValueType::NATIVECLASSINSTANCE)
                 {
                     ARGS_CLEANUP();
-                    NativeInstance *inst = receiver.as.sClassInstance;
+                    NativeInstance *inst = receiver.as.nativeClassInstance;
                     inst->release();
                     PUSH(Value::makeNil());
                     break;
@@ -1663,7 +1607,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 else if (receiver.type == ValueType::CLASSINSTANCE)
                 {
                     ARGS_CLEANUP();
-                    ClassInstance *inst = receiver.asClassInstance();
+                    ClassInstance *inst = receiver.as.classInstance;
                     inst->release();
                     PUSH(Value::makeNil());
                     break;
@@ -1671,7 +1615,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 else if (receiver.type == ValueType::ARRAY)
                 {
                     ARGS_CLEANUP();
-                    ArrayInstance *inst = receiver.asArray();
+                    ArrayInstance *inst = receiver.as.array;
                     inst->release();
                     PUSH(Value::makeNil());
                     break;
@@ -2012,9 +1956,9 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             }
 
             // === ARRAY METHODS ===
-            if (receiver.isArray())
+            if (receiver.type==ValueType::ARRAY)
             {
-                ArrayInstance *arr = receiver.asArray();
+                ArrayInstance *arr = receiver.as.array;
                 uint32 size = arr->values.size();
                 if (strcmp(name, "push") == 0)
                 {
@@ -2218,7 +2162,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
                     // Retorna array de keys
                     Value keys = Value::makeArray();
-                    ArrayInstance *keysInstance = keys.asArray();
+                    ArrayInstance *keysInstance = keys.as.array;
 
                     map->table.forEach([&](String *key, Value value)
                                        { (void) value;keysInstance->values.push(Value::makeString(key)); });
@@ -2237,7 +2181,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
                     // Retorna array de values
                     Value values = Value::makeArray();
-                    ArrayInstance *valueInstance = values.asArray();
+                    ArrayInstance *valueInstance = values.as.array;
 
                     map->table.forEach([&](String *key, Value value)
                                        {(void)key; valueInstance->values.push(value); });
@@ -2249,9 +2193,9 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             }
 
             // === CLASS INSTANCE METHODS ===
-            if (receiver.isClassInstance())
+            if (receiver.type ==ValueType::CLASSINSTANCE)
             {
-                ClassInstance *instance = receiver.asClassInstance();
+                ClassInstance *instance = receiver.as.classInstance;
                 // printValueNl(receiver);
                 // printValueNl(nameValue);
 
@@ -2348,13 +2292,13 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             // printValueNl(self);
             // printf(" args %d \n",argCount);
 
-            if (!self.isClassInstance())
+            if (self.type != ValueType::CLASSINSTANCE)
             {
                 runtimeError("'super' requires an instance");
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
-            ClassInstance *instance = self.asClassInstance();
+            ClassInstance *instance = self.as.classInstance;
 
             if (!instance->klass->superclass)
             {
@@ -2418,7 +2362,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         {
             uint8_t count = READ_BYTE();
             Value array = Value::makeArray();
-            ArrayInstance *instance = array.asArray();
+            ArrayInstance *instance = array.as.array;
             instance->values.resize(count);
             for (int i = count - 1; i >= 0; i--)
             {
@@ -2465,7 +2409,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             // printValue(container);
             // printf(" container \n");
 
-            if (container.isArray())
+            if (container.type==ValueType::ARRAY)
             {
                 if (!index.isInt())
                 {
@@ -2474,7 +2418,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     break;
                 }
 
-                ArrayInstance *arr = container.asArray();
+                ArrayInstance *arr = container.as.array;
                 int i = index.asInt();
                 uint32 size = arr->values.size();
 
@@ -2536,7 +2480,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             // printf("\n");
 
             // === ARRAY ===
-            if (container.isArray())
+            if (container.type==ValueType::ARRAY)
             {
                 if (!index.isInt())
                 {
@@ -2545,7 +2489,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     break;
                 }
 
-                ArrayInstance *arr = container.asArray();
+                ArrayInstance *arr = container.as.array;
                 int i = index.asInt();
                 uint32 size = arr->values.size();
 

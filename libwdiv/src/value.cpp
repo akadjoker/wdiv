@@ -1,26 +1,31 @@
 #include "value.hpp"
 #include "interpreter.hpp"
 #include "pool.hpp"
+#include "arena.hpp"
 #include "instances.hpp"
-
-
+#include <new>
 
 #ifndef NDEBUG
-    // Helper interno
-    #define VALUE_TYPE_CHECK_IMPL(condition, ...) \
-        do { \
-            if (!(condition)) { \
-                Warning(__VA_ARGS__); \
-            } \
-        } while(0)
-    
-    #define VALUE_TYPE_CHECK(condition, ...) \
-        VALUE_TYPE_CHECK_IMPL(condition, __VA_ARGS__)
+// Helper interno
+#define VALUE_TYPE_CHECK_IMPL(condition, ...) \
+    do                                        \
+    {                                         \
+        if (!(condition))                     \
+        {                                     \
+            Warning(__VA_ARGS__);             \
+        }                                     \
+    } while (0)
+
+#define VALUE_TYPE_CHECK(condition, ...) \
+    VALUE_TYPE_CHECK_IMPL(condition, __VA_ARGS__)
 #else
-    #define VALUE_TYPE_CHECK(condition, ...) ((void)0)
+#define VALUE_TYPE_CHECK(condition, ...) ((void)0)
 #endif
 
+#define USE_ARENA 1
+
  
+
 
 Value::Value() : type(ValueType::NIL)
 {
@@ -45,12 +50,11 @@ Value::~Value()
     //     as.sClassInstance->release();
 }
 
-
 Value Value::makeString(const char *str)
 {
     Value v;
     v.type = ValueType::STRING;
-    String* string = createString(str);
+    String *string = createString(str);
     v.as.id = string->index;
     return v;
 }
@@ -66,7 +70,7 @@ Value Value::makeNativeClassInstance()
 {
     Value v;
     v.type = ValueType::NATIVECLASSINSTANCE;
-    v.as.sClassInstance = InstancePool::instance().createNativeClass();
+    v.as.nativeClassInstance     = InstancePool::instance().createNativeClass();
     return v;
 }
 
@@ -74,7 +78,7 @@ Value Value::makeStructInstance()
 {
     Value v;
     v.type = ValueType::STRUCTINSTANCE;
-    StructInstance * instance = InstancePool::instance().createStruct();
+    StructInstance *instance = InstancePool::instance().createStruct();
     v.as.id = instance->index;
     return v;
 }
@@ -83,8 +87,8 @@ Value Value::makeMap()
 {
     Value v;
     v.type = ValueType::MAP;
-    MapInstance *  map = InstancePool::instance().createMap();
-    v.as.id = map->index; 
+    MapInstance *map = InstancePool::instance().createMap();
+    v.as.id = map->index;
     return v;
 }
 
@@ -92,30 +96,63 @@ Value Value::makeArray()
 {
     Value v;
     v.type = ValueType::ARRAY;
-    ArrayInstance *   array = InstancePool::instance().createArray();
-    v.as.id = array->index;
- 
+
+#if USE_ARENA
+
+    void *mem = gArena.alloc.Allocate(gArena.arraySize);
+    v.as.array = new (mem) ArrayInstance();
+#else
+    v.as.array = new ArrayInstance();
+#endif
+
+    gArena.bytesAllocated += gArena.arraySize;
+    gArena.totalArrays++;
+
     return v;
 }
 Value Value::makeNativeStructInstance(uint32 structSize)
 {
     Value v;
     v.type = ValueType::NATIVESTRUCTINSTANCE;
-    v.as.sNativeStruct = InstancePool::instance().createNativeStruct(structSize);
- 
+    
+
+#if USE_ARENA
+    void *mem = gArena.alloc.Allocate(gArena.nativeStructSize);
+    v.as.nativeStructInstance = new (mem) NativeStructInstance();
+#else
+    v.as.nativeStructInstance = new NativeStructInstance();
+#endif
+
+    v.as.nativeStructInstance->data = aAlloc(gArena.structSize);
+    std::memset(v.as.nativeStructInstance->data, 0, gArena.structSize);
+    
+
+    gArena.bytesAllocated += gArena.nativeStructSize + structSize;
+
+    gArena.totalNativeStructs++;
+    
+
     return v;
 }
 Value Value::makeClassInstance()
 {
     Value v;
     v.type = ValueType::CLASSINSTANCE;
-    ClassInstance * instance = InstancePool::instance().createClass();
-    v.as.id = instance->index;
- 
+
+#if USE_ARENA
+    void *mem = gArena.alloc.Allocate(gArena.classSize);
+    v.as.classInstance = new (mem) ClassInstance();
+#else
+    v.as.classInstance = new ClassInstance();
+#endif
+
+    
+    gArena.bytesAllocated += gArena.classSize;
+
+    gArena.totalClasses++;
+
     return v;
 }
-
-
 
 Value Value::makeNil()
 {
@@ -239,7 +276,6 @@ Value Value::makeNativeStruct(int idx)
 void Value::drop()
 {
 
-    
     // if (type == ValueType::STRUCTINSTANCE)
     //  {
     //     Info("drop value %s",  typeToString(type));
@@ -332,33 +368,32 @@ float Value::asFloat() const
     printValueNl(*this);
     return 0;
 }
-const char *Value::asStringChars() const 
+const char *Value::asStringChars() const
 {
     VALUE_TYPE_CHECK(type == ValueType::STRING, "Try to get string but is %s", typeToString(type));
-    String* s = StringPool::instance().getString(as.id);
+    String *s = StringPool::instance().getString(as.id);
     return s->chars();
 }
-String *Value::asString() const 
+String *Value::asString() const
 {
     VALUE_TYPE_CHECK(type == ValueType::STRING, "Try to get string but is %s", typeToString(type));
-    return  StringPool::instance().getString(as.id);
-    
+    return StringPool::instance().getString(as.id);
 }
 
-int Value::asFunctionId() const 
-{ 
+int Value::asFunctionId() const
+{
     VALUE_TYPE_CHECK(type == ValueType::FUNCTION, "Try to get function but is %s", typeToString(type));
-    return as.id; 
+    return as.id;
 }
-int Value::asNativeId() const 
+int Value::asNativeId() const
 {
     VALUE_TYPE_CHECK(type == ValueType::NATIVE, "Try to get native function but is %s", typeToString(type));
-    return as.id; 
+    return as.id;
 }
-int Value::asProcessId() const 
-{ 
+int Value::asProcessId() const
+{
     VALUE_TYPE_CHECK(type == ValueType::PROCESS, "Try to get process but is %s", typeToString(type));
-    return as.id; 
+    return as.id;
 }
 
 int Value::asStructId() const
@@ -400,32 +435,32 @@ StructInstance *Value::asStructInstance() const
 ArrayInstance *Value::asArray() const
 {
     VALUE_TYPE_CHECK(type == ValueType::ARRAY, "Try to get array but is %s", typeToString(type));
-    return InstancePool::instance().getArray(as.id);
+    return as.array;
 }
 
 MapInstance *Value::asMap() const
 {
     VALUE_TYPE_CHECK(type == ValueType::MAP, "Try to get map but is %s", typeToString(type));
-    return  InstancePool::instance().getMap(as.id);
+    return InstancePool::instance().getMap(as.id);
 }
 
 ClassInstance *Value::asClassInstance() const
 {
     VALUE_TYPE_CHECK(type == ValueType::CLASSINSTANCE, "Try to get class but is %s", typeToString(type));
-    return InstancePool::instance().getClass(as.id);
+    return as.classInstance;
 }
 
 NativeInstance *Value::asNativeClassInstance() const
 {
     VALUE_TYPE_CHECK(type == ValueType::NATIVECLASSINSTANCE, "Try to get native class but is %s", typeToString(type));
 
-    return as.sClassInstance;
+    return as.nativeClassInstance;
 }
 
 NativeStructInstance *Value::asNativeStructInstance() const
 {
     VALUE_TYPE_CHECK(type == ValueType::NATIVESTRUCTINSTANCE, "Try to get native struct but is %s", typeToString(type));
-    return as.sNativeStruct;
+    return as.nativeStructInstance;
 }
 
 double Value::asNumber() const
@@ -474,7 +509,7 @@ static void printValueIndented(const Value &value, int depth = 0)
     {
         printf("<string:%d> %s", value.as.id, value.asStringChars());
     }
-        break;
+    break;
     case ValueType::FUNCTION:
         printf("<function:%d>", value.as.id);
         break;
@@ -527,19 +562,19 @@ static void printValueIndented(const Value &value, int depth = 0)
     }
     case ValueType::CLASSINSTANCE:
     {
-        ClassInstance *inst = value.asClassInstance();
+        ClassInstance *inst = value.as.classInstance;
         printf("<class_instance:%s>", inst->klass->name->chars());
         break;
     }
     case ValueType::NATIVECLASSINSTANCE:
     {
-        NativeInstance *inst = value.as.sClassInstance;
+        NativeInstance *inst = value.as.nativeClassInstance;
         printf("<native_class_instance:%s,%i>", inst->klass->name->chars(), inst->klass->id);
         break;
     }
     case ValueType::NATIVESTRUCTINSTANCE:
     {
-        NativeStructInstance *inst = value.as.sNativeStruct;
+        NativeStructInstance *inst = value.as.nativeStructInstance;
         printf("<native_struct_instance:%s,%d>", inst->def->name->chars(), inst->def->id);
         break;
     }
@@ -648,9 +683,9 @@ bool valuesEqual(const Value &a, const Value &b)
     case ValueType::CLASSINSTANCE:
         return a.as.id == b.as.id;
     case ValueType::NATIVECLASSINSTANCE:
-        return a.as.sClassInstance == b.as.sClassInstance;
+        return a.as.nativeClassInstance == b.as.nativeClassInstance;
     case ValueType::NATIVESTRUCTINSTANCE:
-        return a.as.sNativeStruct == b.as.sNativeStruct;
+        return a.as.nativeStructInstance == b.as.nativeStructInstance;
     case ValueType::POINTER:
         return a.as.pointer == b.as.pointer;
     default:
