@@ -24,6 +24,8 @@ public:
 
 
 
+ 
+
     int indexOf(String *str, String *substr, int startIndex = 0);
     int indexOf(String *str, const char *substr, int startIndex = 0);
 
@@ -34,6 +36,8 @@ public:
     String *replace(String *src, const char *oldStr, const char *newStr);
 
     String *to_string(Value v);
+        String *toString(int value);
+    String *toString(double value);
 
     String *trim(String *str);
     bool contains(String *str, String *substr);

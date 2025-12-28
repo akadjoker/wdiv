@@ -1367,31 +1367,95 @@ void Compiler::super(bool canAssign)
     emitByte(argCount);
 }
 
+
 void Compiler::dot(bool canAssign)
 {
     consume(TOKEN_IDENTIFIER, "Expect property name after '.'");
     Token propName = previous;
     uint8_t nameIdx = identifierConstant(propName);
 
+    //  METHOD CALL
     if (match(TOKEN_LPAREN))
     {
-
         uint8_t argCount = argumentList();
         emitBytes(OP_INVOKE, nameIdx);
         emitByte(argCount);
     }
+    // SIMPLE ASSIGNMENT
     else if (canAssign && match(TOKEN_EQUAL))
     {
-
         expression();
         emitBytes(OP_SET_PROPERTY, nameIdx);
     }
+    //  COMPOUND ASSIGNMENTS
+    else if (canAssign && match(TOKEN_PLUS_EQUAL))
+    {
+        // self.x += value
+        // Stack antes: [self]
+        emitByte(OP_DUP);                    // [self, self]
+        emitBytes(OP_GET_PROPERTY, nameIdx); // [self, old_x]
+        expression();                        // [self, old_x, value]
+        emitByte(OP_ADD);                    // [self, new_x]
+        emitBytes(OP_SET_PROPERTY, nameIdx); // []
+    }
+    else if (canAssign && match(TOKEN_MINUS_EQUAL))
+    {
+        emitByte(OP_DUP);
+        emitBytes(OP_GET_PROPERTY, nameIdx);
+        expression();
+        emitByte(OP_SUBTRACT);
+        emitBytes(OP_SET_PROPERTY, nameIdx);
+    }
+    else if (canAssign && match(TOKEN_STAR_EQUAL))
+    {
+        emitByte(OP_DUP);
+        emitBytes(OP_GET_PROPERTY, nameIdx);
+        expression();
+        emitByte(OP_MULTIPLY);
+        emitBytes(OP_SET_PROPERTY, nameIdx);
+    }
+    else if (canAssign && match(TOKEN_SLASH_EQUAL))
+    {
+        emitByte(OP_DUP);
+        emitBytes(OP_GET_PROPERTY, nameIdx);
+        expression();
+        emitByte(OP_DIVIDE);
+        emitBytes(OP_SET_PROPERTY, nameIdx);
+    }
+    else if (canAssign && match(TOKEN_PERCENT_EQUAL))
+    {
+        emitByte(OP_DUP);
+        emitBytes(OP_GET_PROPERTY, nameIdx);
+        expression();
+        emitByte(OP_MODULO);
+        emitBytes(OP_SET_PROPERTY, nameIdx);
+    }
+    //  INCREMENT/DECREMENT
+    else if (canAssign && match(TOKEN_PLUS_PLUS))
+    {
+        // self.x++ (postfix)
+        emitByte(OP_DUP);                    // [self, self]
+        emitBytes(OP_GET_PROPERTY, nameIdx); // [self, old_x]
+        emitConstant(Value::makeInt(1));     // [self, old_x, 1]
+        emitByte(OP_ADD);                    // [self, new_x]
+        emitBytes(OP_SET_PROPERTY, nameIdx); // []
+    }
+    else if (canAssign && match(TOKEN_MINUS_MINUS))
+    {
+        // self.x-- (postfix)
+        emitByte(OP_DUP);
+        emitBytes(OP_GET_PROPERTY, nameIdx);
+        emitConstant(Value::makeInt(1));
+        emitByte(OP_SUBTRACT);
+        emitBytes(OP_SET_PROPERTY, nameIdx);
+    }
+    //  GET ONLY
     else
     {
-
         emitBytes(OP_GET_PROPERTY, nameIdx);
     }
 }
+
 
 void Compiler::subscript(bool canAssign)
 {

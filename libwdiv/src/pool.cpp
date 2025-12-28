@@ -54,6 +54,22 @@ String *StringPool::create(const char *str)
         return create(str, std::strlen(str));
 }
 
+
+
+String *StringPool::toString(int value)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%d", value);
+    return create(buf, false);
+}
+
+String *StringPool::toString(double value)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.6f", value);
+    return create(buf, false);
+}
+
 String *StringPool::concat(String *a, String *b)
 {
     size_t lenA = a->length();

@@ -32,9 +32,17 @@ target_include_directories(libwdiv PUBLIC  include src)
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
 
+# if (UNIX)
+# target_compile_options(testStructsBidings PRIVATE -fsanitize=address -fsanitize=undefined -fsanitize=leak -g  -D_DEBUG -DVERBOSE)
+# target_link_options(testStructsBidings PRIVATE -fsanitize=address -fsanitize=undefined -fsanitize=leak -g  -D_DEBUG) 
+# endif()
+
 if (UNIX)
-target_compile_options(testStructsBidings PRIVATE -fsanitize=address -fsanitize=undefined -fsanitize=leak -g  -D_DEBUG -DVERBOSE)
-target_link_options(testStructsBidings PRIVATE -fsanitize=address -fsanitize=undefined -fsanitize=leak -g  -D_DEBUG) 
+    target_compile_options(testStructsBidings PRIVATE
+        -O2
+        -g
+        -fno-omit-frame-pointer
+    )
 endif()
 
 

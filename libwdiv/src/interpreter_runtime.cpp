@@ -203,7 +203,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             // ========== ARITHMETIC ==========
 
-        case OP_ADD:
+              case OP_ADD:
         {
             BINARY_OP_PREP();
 
@@ -214,7 +214,22 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 break;
             }
 
-             if (a.isInt() && b.isInt())
+            if (a.isString() && b.isDouble())
+            {
+                String *right = StringPool::instance().toString(b.asDouble());
+                String *result = StringPool::instance().concat(a.asString(), right);
+                PUSH(Value::makeString(result));
+                break;
+            }
+            if (a.isString() && b.isInt())
+            {
+                String *right = StringPool::instance().toString(b.asInt());
+                String *result = StringPool::instance().concat(a.asString(), right);
+                PUSH(Value::makeString(result));
+                break;
+            }
+
+            if (a.isInt() && b.isInt())
             {
                 PUSH(Value::makeInt(a.asInt() + b.asInt()));
                 break;
@@ -223,6 +238,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             if (a.isInt() && b.isDouble())
             {
                 PUSH(Value::makeInt(a.asInt() + b.asDouble()));
+                // PUSH(Value::makeDouble(a.asInt() + b.asDouble()));
                 break;
             }
 
@@ -231,7 +247,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 PUSH(Value::makeDouble(a.asDouble() + b.asInt()));
                 break;
             }
-
 
             double da, db;
             if (!toNumberPair(a, b, da, db))

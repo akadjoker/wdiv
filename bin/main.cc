@@ -16,8 +16,8 @@ class Sprite
 
     def move(tex)
     {
-        self.x = self.x + self.vx;
-        self.y = self.y + self.vy;
+        self.x +=  self.vx;
+        self.y +=  self.vy;
 
         
        
