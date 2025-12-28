@@ -109,14 +109,14 @@ namespace RaylibBindings
         v->g = args[1].asByte();
         v->b = args[2].asByte();
         v->a = args[3].asByte();
-      //   Info("Create Color(%d, %d, %d, %d)", v->r, v->g, v->b, v->a);
+        //   Info("Create Color(%d, %d, %d, %d)", v->r, v->g, v->b, v->a);
     }
 
-     void color_dtor(Interpreter *vm, void *buffer)
+    void color_dtor(Interpreter *vm, void *buffer)
     {
         Color *v = (Color *)buffer;
- 
-      //   Info("Delet Color(%d, %d, %d, %d)", v->r, v->g, v->b, v->a);
+
+        //   Info("Delet Color(%d, %d, %d, %d)", v->r, v->g, v->b, v->a);
     }
 
     void registerColor(Interpreter &vm)
@@ -462,14 +462,14 @@ namespace RaylibBindings
 
     Value native_UnloadTexture(Interpreter *vm, int argc, Value *args)
     {
-         auto *texInst = args[0].asNativeStructInstance();
+        auto *texInst = args[0].asNativeStructInstance();
         Texture2D *tex = (Texture2D *)texInst->data;
 
         if (tex->id == 0)
             return Value::makeNil();
 
         UnloadTexture(*tex);
-            tex->id = 0;
+        tex->id = 0;
 
         return Value::makeNil();
     }
@@ -481,11 +481,11 @@ namespace RaylibBindings
             Error("DrawTexture expects 4 arguments");
             return Value::makeNil();
         }
-            if (!args[0].isNativeStructInstance())
-            {
-                Error("DrawTexture expects Texture2D");
-                return Value::makeNil();
-            }
+        if (!args[0].isNativeStructInstance())
+        {
+            Error("DrawTexture expects Texture2D");
+            return Value::makeNil();
+        }
 
         if (!args[3].isNativeStructInstance())
         {
@@ -507,7 +507,6 @@ namespace RaylibBindings
 
         auto *texInst = args[0].asNativeStructInstance();
         Texture2D *tex = (Texture2D *)texInst->data;
-        
 
         auto *posInst = args[1].asNativeStructInstance();
         Vector2 *pos = (Vector2 *)posInst->data;
@@ -524,7 +523,6 @@ namespace RaylibBindings
 
     Value native_DrawTextureV(Interpreter *vm, int argc, Value *args)
     {
-       
 
         auto *texInst = args[0].asNativeStructInstance();
         Texture2D *tex = (Texture2D *)texInst->data;
@@ -563,7 +561,29 @@ namespace RaylibBindings
     }
 
     //
+    const char *formatBytes(size_t bytes)
+    {
+        static char buffer[64];
 
+        if (bytes < 1024)
+        {
+            snprintf(buffer, sizeof(buffer), "%zu B", bytes);
+        }
+        else if (bytes < 1024 * 1024)
+        {
+            snprintf(buffer, sizeof(buffer), "%.2f KB", bytes / 1024.0f);
+        }
+        else if (bytes < 1024 * 1024 * 1024)
+        {
+            snprintf(buffer, sizeof(buffer), "%.2f MB", bytes / (1024.0f * 1024.0f));
+        }
+        else
+        {
+            snprintf(buffer, sizeof(buffer), "%.2f GB", bytes / (1024.0f * 1024.0f * 1024.0f));
+        }
+
+        return buffer;
+    }
     Value native_DrawFps(Interpreter *vm, int argc, Value *args)
     {
         if (argc != 2)
@@ -575,6 +595,18 @@ namespace RaylibBindings
         int y = args[1].asInt();
 
         DrawFPS(x, y);
+        // statistics
+
+        int totalMemory = vm->getTotalBytes();
+        int totalStrings = vm->getTotalStrings();
+        int stringsBytes = vm->getStringsBytes();
+
+        DrawText(TextFormat("Strings %d (%s)", totalStrings, formatBytes(stringsBytes)), x, y + 20, 20, WHITE);
+        DrawText(TextFormat("Memory: %s", formatBytes(totalMemory)), x, y + 40, 20, WHITE);
+        DrawText(TextFormat("Arrays :%d Maps: %d", vm->getTotalArrays(), vm->getTotalMaps()), x, y + 60, 20, WHITE);
+        DrawText(TextFormat("Structs: %d Classes %d", vm->getTotalStructs(), vm->getTotalClasses()), x, y + 80, 20, WHITE);
+        DrawText(TextFormat("Natives Structs %d Classes %d", vm->getTotalNativeStructs(), vm->getTotalNativeClasses()), x, y + 100, 20, WHITE);
+
         return Value::makeNil();
     }
 

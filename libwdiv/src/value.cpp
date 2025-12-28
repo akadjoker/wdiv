@@ -3,6 +3,25 @@
 #include "pool.hpp"
 #include "instances.hpp"
 
+
+
+#ifndef NDEBUG
+    // Helper interno
+    #define VALUE_TYPE_CHECK_IMPL(condition, ...) \
+        do { \
+            if (!(condition)) { \
+                Warning(__VA_ARGS__); \
+            } \
+        } while(0)
+    
+    #define VALUE_TYPE_CHECK(condition, ...) \
+        VALUE_TYPE_CHECK_IMPL(condition, __VA_ARGS__)
+#else
+    #define VALUE_TYPE_CHECK(condition, ...) ((void)0)
+#endif
+
+ 
+
 Value::Value() : type(ValueType::NIL)
 {
     as.boolean = false;
@@ -31,9 +50,8 @@ Value Value::makeString(const char *str)
 {
     Value v;
     v.type = ValueType::STRING;
-    v.as.string = createString(str);
-
-
+    String* string = createString(str);
+    v.as.id = string->index;
     return v;
 }
 
@@ -41,7 +59,7 @@ Value Value::makeString(String *s)
 {
     Value v;
     v.type = ValueType::STRING;
-    v.as.string = s;
+    v.as.id = s->index;
     return v;
 }
 Value Value::makeNativeClassInstance()
@@ -56,8 +74,8 @@ Value Value::makeStructInstance()
 {
     Value v;
     v.type = ValueType::STRUCTINSTANCE;
-    v.as.sInstance = InstancePool::instance().createStruct();
- 
+    StructInstance * instance = InstancePool::instance().createStruct();
+    v.as.id = instance->index;
     return v;
 }
 
@@ -65,8 +83,8 @@ Value Value::makeMap()
 {
     Value v;
     v.type = ValueType::MAP;
-    v.as.map = InstancePool::instance().createMap();
- 
+    MapInstance *  map = InstancePool::instance().createMap();
+    v.as.id = map->index; 
     return v;
 }
 
@@ -74,7 +92,8 @@ Value Value::makeArray()
 {
     Value v;
     v.type = ValueType::ARRAY;
-    v.as.array = InstancePool::instance().createArray();
+    ArrayInstance *   array = InstancePool::instance().createArray();
+    v.as.id = array->index;
  
     return v;
 }
@@ -90,7 +109,8 @@ Value Value::makeClassInstance()
 {
     Value v;
     v.type = ValueType::CLASSINSTANCE;
-    v.as.sClass = InstancePool::instance().creatClass();
+    ClassInstance * instance = InstancePool::instance().createClass();
+    v.as.id = instance->index;
  
     return v;
 }
@@ -156,7 +176,7 @@ Value Value::makeFunction(int idx)
 {
     Value v;
     v.type = ValueType::FUNCTION;
-    v.as.functionId = idx;
+    v.as.id = idx;
     return v;
 }
 
@@ -164,7 +184,7 @@ Value Value::makeNative(int idx)
 {
     Value v;
     v.type = ValueType::NATIVE;
-    v.as.nativeId = idx;
+    v.as.id = idx;
     return v;
 }
 
@@ -312,65 +332,99 @@ float Value::asFloat() const
     printValueNl(*this);
     return 0;
 }
-const char *Value::asStringChars() const { return as.string->chars(); }
-String *Value::asString() const { return as.string; }
+const char *Value::asStringChars() const 
+{
+    VALUE_TYPE_CHECK(type == ValueType::STRING, "Try to get string but is %s", typeToString(type));
+    String* s = StringPool::instance().getString(as.id);
+    return s->chars();
+}
+String *Value::asString() const 
+{
+    VALUE_TYPE_CHECK(type == ValueType::STRING, "Try to get string but is %s", typeToString(type));
+    return  StringPool::instance().getString(as.id);
+    
+}
 
-int Value::asFunctionId() const { return as.functionId; }
-int Value::asNativeId() const { return as.nativeId; }
-int Value::asProcessId() const { return as.processId; }
+int Value::asFunctionId() const 
+{ 
+    VALUE_TYPE_CHECK(type == ValueType::FUNCTION, "Try to get function but is %s", typeToString(type));
+    return as.id; 
+}
+int Value::asNativeId() const 
+{
+    VALUE_TYPE_CHECK(type == ValueType::NATIVE, "Try to get native function but is %s", typeToString(type));
+    return as.id; 
+}
+int Value::asProcessId() const 
+{ 
+    VALUE_TYPE_CHECK(type == ValueType::PROCESS, "Try to get process but is %s", typeToString(type));
+    return as.id; 
+}
 
 int Value::asStructId() const
 {
+    VALUE_TYPE_CHECK(type == ValueType::STRUCT, "Try to get struct but is %s", typeToString(type));
     return as.id;
 }
 
 int Value::asClassId() const
 {
+    VALUE_TYPE_CHECK(type == ValueType::CLASSID, "Try to get class but is %s", typeToString(type));
     return as.id;
 }
 
 int Value::asClassNativeId() const
 {
+    VALUE_TYPE_CHECK(type == ValueType::NATIVECLASS, "Try to get native class but is %s", typeToString(type));
     return as.id;
 }
 
 void *Value::asPointer() const
 {
+    VALUE_TYPE_CHECK(type == ValueType::POINTER, "Try to get pointer but is %s", typeToString(type));
     return as.pointer;
 }
 
 int Value::asNativeStructId() const
 {
+    VALUE_TYPE_CHECK(type == ValueType::NATIVESTRUCT, "Try to get native struct but is %s", typeToString(type));
     return as.id;
 }
 
 StructInstance *Value::asStructInstance() const
 {
-    return as.sInstance;
+    VALUE_TYPE_CHECK(type == ValueType::STRUCTINSTANCE, "Try to get struct but is %s", typeToString(type));
+    return InstancePool::instance().getStruct(as.id);
 }
 
 ArrayInstance *Value::asArray() const
 {
-    return as.array;
+    VALUE_TYPE_CHECK(type == ValueType::ARRAY, "Try to get array but is %s", typeToString(type));
+    return InstancePool::instance().getArray(as.id);
 }
 
 MapInstance *Value::asMap() const
 {
-    return as.map;
+    VALUE_TYPE_CHECK(type == ValueType::MAP, "Try to get map but is %s", typeToString(type));
+    return  InstancePool::instance().getMap(as.id);
 }
 
 ClassInstance *Value::asClassInstance() const
 {
-    return as.sClass;
+    VALUE_TYPE_CHECK(type == ValueType::CLASSINSTANCE, "Try to get class but is %s", typeToString(type));
+    return InstancePool::instance().getClass(as.id);
 }
 
 NativeInstance *Value::asNativeClassInstance() const
 {
+    VALUE_TYPE_CHECK(type == ValueType::NATIVECLASSINSTANCE, "Try to get native class but is %s", typeToString(type));
+
     return as.sClassInstance;
 }
 
 NativeStructInstance *Value::asNativeStructInstance() const
 {
+    VALUE_TYPE_CHECK(type == ValueType::NATIVESTRUCTINSTANCE, "Try to get native struct but is %s", typeToString(type));
     return as.sNativeStruct;
 }
 
@@ -417,7 +471,9 @@ static void printValueIndented(const Value &value, int depth = 0)
         printf("%.2f", value.as.number);
         break;
     case ValueType::STRING:
-        printf("\"%s\"", value.as.string->chars());
+    {
+        printf("<string:%d> %s", value.as.id, value.asStringChars());
+    }
         break;
     case ValueType::FUNCTION:
         printf("<function:%d>", value.as.id);
@@ -430,7 +486,7 @@ static void printValueIndented(const Value &value, int depth = 0)
         break;
     case ValueType::ARRAY:
     {
-        ArrayInstance *arr = value.as.array;
+        ArrayInstance *arr = value.asArray();
         printf("[");
         for (int i = 0; i < (int)arr->values.size(); i++)
         {
@@ -443,7 +499,7 @@ static void printValueIndented(const Value &value, int depth = 0)
     }
     case ValueType::MAP:
     {
-        MapInstance *map = value.as.map;
+        MapInstance *map = value.asMap();
         printf("{");
         int i = 0;
         map->table.forEach([&](String *key, Value val)
@@ -457,7 +513,7 @@ static void printValueIndented(const Value &value, int depth = 0)
     }
     case ValueType::STRUCTINSTANCE:
     {
-        StructInstance *inst = value.as.sInstance;
+        StructInstance *inst = value.asStructInstance();
         printf("struct_instance{%s: ", inst->def->name->chars());
         bool first = true;
         inst->def->names.forEach([&](String *key, int idx)
@@ -471,7 +527,7 @@ static void printValueIndented(const Value &value, int depth = 0)
     }
     case ValueType::CLASSINSTANCE:
     {
-        ClassInstance *inst = value.as.sClass;
+        ClassInstance *inst = value.asClassInstance();
         printf("<class_instance:%s>", inst->klass->name->chars());
         break;
     }
@@ -582,15 +638,15 @@ bool valuesEqual(const Value &a, const Value &b)
     case ValueType::DOUBLE:
         return a.as.number == b.as.number;
     case ValueType::STRING:
-        return a.as.string == b.as.string;
+        return a.as.id == b.as.id;
     case ValueType::ARRAY:
-        return a.as.array == b.as.array;
+        return a.as.id == b.as.id;
     case ValueType::MAP:
-        return a.as.map == b.as.map;
+        return a.as.id == b.as.id;
     case ValueType::STRUCTINSTANCE:
-        return a.as.sInstance == b.as.sInstance;
+        return a.as.id == b.as.id;
     case ValueType::CLASSINSTANCE:
-        return a.as.sClass == b.as.sClass;
+        return a.as.id == b.as.id;
     case ValueType::NATIVECLASSINSTANCE:
         return a.as.sClassInstance == b.as.sClassInstance;
     case ValueType::NATIVESTRUCTINSTANCE:

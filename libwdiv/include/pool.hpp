@@ -41,7 +41,8 @@ private:
     Vector<String *> statics;
     HashMap<const char *, int, CStringHash, CStringEq> pool;
     size_t bytesAllocated = 0;
-    
+    friend class Interpreter;
+    String * dummyString = nullptr;
     public:
     StringPool();
     ~StringPool();
@@ -60,6 +61,9 @@ private:
     String *create(const char *str, bool isStatic);
 
     String *format(const char *fmt, ...);  
+
+
+    String* getString(int index);
 
 
     int indexOf(String *str, String *substr, int startIndex = 0);

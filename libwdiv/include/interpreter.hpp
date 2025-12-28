@@ -161,7 +161,7 @@ struct NativeStructInstance : public GCObject
     NativeStructInstance(const NativeStructInstance &) = delete;
     NativeStructInstance &operator=(const NativeStructInstance &) = delete;
 
-    void drop() override;
+    void release() override;
 };
 struct StructInstance : public GCObject
 {
@@ -172,7 +172,7 @@ struct StructInstance : public GCObject
     StructInstance(const StructInstance &) = delete;
     StructInstance &operator=(const StructInstance &) = delete;
 
-    void drop() override;
+    void release() override;
 };
 
 struct ArrayInstance : public GCObject
@@ -185,7 +185,7 @@ struct ArrayInstance : public GCObject
     ArrayInstance(const ArrayInstance &) = delete;
     ArrayInstance &operator=(const ArrayInstance &) = delete;
 
-    void drop() override;
+    void release() override;
 };
 
 struct NativeInstance : public GCObject
@@ -199,7 +199,7 @@ struct NativeInstance : public GCObject
     NativeInstance(const NativeInstance &) = delete;
     NativeInstance &operator=(const NativeInstance &) = delete;
 
-    void drop() override;
+    void release() override;
 };
 
 struct MapInstance : public GCObject
@@ -211,7 +211,7 @@ struct MapInstance : public GCObject
     MapInstance(const MapInstance &) = delete;
     MapInstance &operator=(const MapInstance &) = delete;
 
-    void drop() override;
+    void release() override;
 };
 
 struct ClassInstance : public GCObject
@@ -227,7 +227,7 @@ struct ClassInstance : public GCObject
 
     bool getMethod(String *name, Function **func);
 
-    void drop() override;
+    void release() override;
  
 };
 
@@ -416,7 +416,20 @@ public:
     uint32 liveProcess();
 
     void gc();
-    int gcTotalBytes();
+    uint32 getTotalStrings();
+    uint32 getStringsBytes();
+    uint32 getTotalBytes();
+
+    uint32 getTotalClasses();
+    uint32 getTotalStructs();
+    uint32 getTotalFunctions();
+    uint32 getTotalProcesses();
+    uint32 getTotalFibers();
+    uint32 getTotalArrays();
+    uint32 getTotalMaps();
+    uint32 getTotalNativeStructs();
+    uint32 getTotalNativeClasses();
+    
 
     bool addModule(const char *name);
 

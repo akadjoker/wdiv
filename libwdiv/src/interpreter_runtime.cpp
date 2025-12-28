@@ -785,7 +785,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 }
 
                 Value value = Value::makeStructInstance();
-                StructInstance *instance = value.as.sInstance;
+                StructInstance *instance = value.asStructInstance();
                 instance->def = def;
                 instance->values.reserve(argCount);
                 for (int i = argCount - 1; i >= 0; i--)
@@ -815,7 +815,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
                 Value value = Value::makeClassInstance();
                
-                ClassInstance *instance = value.as.sClass;
+                ClassInstance *instance = value.asClassInstance();
                 instance->klass = klass;
                 instance->fields.reserve(klass->fieldCount);
 
@@ -1640,7 +1640,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 {
                     ARGS_CLEANUP();
                     NativeStructInstance *inst = receiver.as.sNativeStruct;
-                    inst->drop();
+                    inst->release();
                     PUSH(Value::makeNil());
                     break;
                 }
@@ -1648,39 +1648,39 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 {
                     ARGS_CLEANUP();
                     NativeInstance *inst = receiver.as.sClassInstance;
-                    inst->drop();
+                    inst->release();
                     PUSH(Value::makeNil());
                     break;
                 }
                 else if (receiver.type == ValueType::STRUCTINSTANCE)
                 {
                     ARGS_CLEANUP();
-                    StructInstance *inst = receiver.as.sInstance;
-                    inst->drop();
+                    StructInstance *inst = receiver.asStructInstance();
+                    inst->release();
                     PUSH(Value::makeNil());
                     break;
                 }
                 else if (receiver.type == ValueType::CLASSINSTANCE)
                 {
                     ARGS_CLEANUP();
-                    ClassInstance *inst = receiver.as.sClass;
-                    inst->drop();
+                    ClassInstance *inst = receiver.asClassInstance();
+                    inst->release();
                     PUSH(Value::makeNil());
                     break;
                 }
                 else if (receiver.type == ValueType::ARRAY)
                 {
                     ARGS_CLEANUP();
-                    ArrayInstance *inst = receiver.as.array;
-                    inst->drop();
+                    ArrayInstance *inst = receiver.asArray();
+                    inst->release();
                     PUSH(Value::makeNil());
                     break;
                 }
                 else if (receiver.type == ValueType::MAP)
                 {
                     ARGS_CLEANUP();
-                    MapInstance *inst = receiver.as.map;
-                    inst->drop();
+                    MapInstance *inst = receiver.asMap();
+                    inst->release();
                     PUSH(Value::makeNil());
                     break;
                 }
@@ -2107,7 +2107,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                         runtimeError("free() expects 0 arguments");
                         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                     }
-                    arr->drop();
+                    arr->release();
                     ARGS_CLEANUP();
                     PUSH(Value::makeNil());
                     break;
@@ -2192,7 +2192,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                     }
 
-                    map->drop();
+                    map->release();
                     ARGS_CLEANUP();
                     PUSH(Value::makeNil());
                     break;
@@ -2303,7 +2303,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                         runtimeError("clear() expects 0 arguments");
                         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                     }
-                    instance->drop();
+                    instance->release();
                     PUSH(Value::makeNil());
                     break;
                 }

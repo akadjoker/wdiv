@@ -9,7 +9,7 @@
 GCObject::GCObject()
 {
     type = GC_NONE;
-    marked = false;
+    index=0;
 }
 
 GCObject::~GCObject()
@@ -20,8 +20,7 @@ String::String()
 {
     hash = 0;
     length_and_flag = 0;
-    type = GC_STRING;
-    marked = true;
+    index=0;
 
     // #if PRINT_GC
     // Info("create string");
@@ -41,7 +40,7 @@ StructInstance::StructInstance() : GCObject(), def(nullptr)
     #if PRINT_GC
     Info("create struct");
     #endif
-    type = GC_STRUCTINSTANCE;
+    type = GC_STRUCT;
 }
 
 StructInstance::~StructInstance()
@@ -51,7 +50,7 @@ StructInstance::~StructInstance()
     #endif
 }
 
-void StructInstance::drop()
+void StructInstance::release()
 {
 }
 
@@ -71,7 +70,7 @@ ArrayInstance::~ArrayInstance()
     #endif
 }
 
-void ArrayInstance::drop()
+void ArrayInstance::release()
 {
 }
 
@@ -91,12 +90,12 @@ MapInstance::~MapInstance()
     #endif
 }
 
-void MapInstance::drop()
+void MapInstance::release()
 {
     // table.forEach([&](String *key, Value value)
     //               {
     //     (void)key;
-    //     value.drop(); });
+    //     value.release(); });
     // table.destroy();
     // InstancePool::instance().freeMap(this);
 }
@@ -104,7 +103,7 @@ void MapInstance::drop()
 ClassInstance::ClassInstance() : GCObject()
 {
   
-    type = GC_CLASSINSTANCE;
+    type = GC_CLASS;
     klass = nullptr;
 
     #if PRINT_GC
@@ -135,7 +134,7 @@ bool ClassInstance::getMethod(String *name, Function **out)
     return false;
 }
 
-void ClassInstance::drop()
+void ClassInstance::release()
 {
 }
 
@@ -144,7 +143,7 @@ NativeStructInstance::NativeStructInstance() : GCObject(), def(nullptr)
     #if PRINT_GC
     Info("create native struct");
     #endif
-    type = GC_NATIVESTRUCTINSTANCE;
+    type = GC_NATIVESTRUCT;
 }
 
 NativeStructInstance::~NativeStructInstance()
@@ -154,14 +153,14 @@ NativeStructInstance::~NativeStructInstance()
     #endif
 }
 
-void NativeStructInstance::drop()
+void NativeStructInstance::release()
 {
     
 }
 
 NativeInstance::NativeInstance() : GCObject()
 {
-    type = GC_NATIVECLASSINSTANCE;
+    type = GC_NATIVECLASS;
     klass = nullptr;
     userData = nullptr;
 }
@@ -174,7 +173,7 @@ NativeInstance::~NativeInstance()
 
 }
 
-void NativeInstance::drop()
+void NativeInstance::release()
 {
     
 }

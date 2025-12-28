@@ -62,7 +62,7 @@ Interpreter::~Interpreter()
     ProcessPool::instance().clear();
 
     Info("Interpreter released");
-    InstancePool::instance().checkGC();
+ 
 
     StringPool::instance().clear();
     InstancePool::instance().clear();
@@ -146,13 +146,58 @@ Interpreter::~Interpreter()
 
 void Interpreter::gc()
 {
-    InstancePool::instance().gc();
+     
 }
 
-int Interpreter::gcTotalBytes()
+uint32 Interpreter::getTotalStrings()
 {
-    return InstancePool::instance().bytesAllocated + StringPool::instance().getBytesAllocated();
+    return (uint32)StringPool::instance().map.size();
+}
 
+uint32 Interpreter::getStringsBytes()
+{
+    return StringPool::instance().bytesAllocated;
+}
+
+uint32 Interpreter::getTotalBytes()
+{
+    return InstancePool::instance().bytesAllocated;
+
+}
+
+uint32 Interpreter::getTotalClasses()
+{
+    return InstancePool::instance().totalClasses;
+}
+
+uint32 Interpreter::getTotalStructs()
+{
+    return InstancePool::instance().totalStructs;
+}
+
+uint32 Interpreter::getTotalProcesses()
+{
+    return aliveProcesses.size();
+}
+
+uint32 Interpreter::getTotalArrays()
+{
+    return InstancePool::instance().totalArrays;
+}
+
+uint32 Interpreter::getTotalMaps()
+{
+    return InstancePool::instance().totalMaps;
+}
+
+uint32 Interpreter::getTotalNativeStructs()
+{
+    return InstancePool::instance().totalNativeStructs;
+}
+
+uint32 Interpreter::getTotalNativeClasses()
+{
+    return InstancePool::instance().totalNativeClasses;
 }
 
 bool Interpreter::addModule(const char *name)

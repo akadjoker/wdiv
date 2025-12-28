@@ -51,19 +51,12 @@ struct Value
     int id;
 
     uint32 unsignedInteger;
-    String *string;
-    StructInstance *sInstance;
-    ArrayInstance *array;
-    MapInstance *map;
-    ClassInstance *sClass;
+
+
     NativeInstance *sClassInstance;
     NativeStructInstance *sNativeStruct;
     void *pointer;
 
-    int functionId;
-    int nativeId;
-    int processId;
-    int procNativesId;
   } as;
 
   Value();
@@ -76,7 +69,6 @@ struct Value
     as = other.as;
     return *this; // Apenas copia pointer!
   }
- 
 
   static Value makeNil();
   static Value makeBool(bool b);

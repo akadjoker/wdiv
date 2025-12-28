@@ -34,21 +34,20 @@ enum class FunctionType : uint8
 enum GCObjectType : uint8
 {
     GC_NONE,
-    GC_STRING,
-    GC_CLASSINSTANCE,
     GC_ARRAY,
     GC_MAP,
-    GC_STRUCTINSTANCE,
-    GC_NATIVECLASSINSTANCE,
-    GC_NATIVESTRUCTINSTANCE,
+    GC_STRUCT,
+    GC_CLASS,
+    GC_NATIVECLASS,
+    GC_NATIVESTRUCT,
 };
 
 struct GCObject
 {
-    bool marked = false;
-    GCObjectType type  = GC_NONE;
+    uint32 index;
+    GCObjectType type;
 
     GCObject();
     virtual ~GCObject();
-    virtual void drop() {}
+    virtual void release() {}
 };

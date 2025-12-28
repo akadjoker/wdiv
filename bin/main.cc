@@ -1,6 +1,11 @@
 
 var gravity = 0.5;
 
+struct Dados
+{
+    var a,b,c;
+};
+
 class Sprite
 {
     var x, y, vx, vy;
@@ -42,7 +47,7 @@ var WHITE = Color(255, 255, 255, 255);
 var LIGHTGRAY = Color(200, 200, 200, 255);
 var tex = LoadTexture("assets/wabbit_alpha.png");
 
-SetTargetFPS(30);
+//SetTargetFPS(30);
 
 lista = [];
 lista.push(Sprite(10,10));
@@ -80,9 +85,15 @@ while (!WindowShouldClose())
 
         }
     }
-   // var a =format("count {}", lista.length());
 
-    DrawText(format("count {} {} bytes", lista.length(), getBytesAllocated()), 10, 30, 20, LIGHTGRAY);
+     if (IsMouseButtonDown(1))
+    {
+       var dados = Dados(1,2,3);
+       print(dados);
+    }
+  
+
+    //DrawText(format("count {} ", lista.length()), 400, 20, 20, RED);
     DrawFps(10, 10);
 
    

@@ -9,7 +9,7 @@
 #include "interpreter.hpp"
 #include "value.hpp"
 
-#define GC_HEAP_GROW_FACTOR 2
+#define USE_ARENA 0
 
 void InstancePool::setInterpreter(Interpreter *interpreter)
 {
@@ -21,295 +21,29 @@ Interpreter *InstancePool::getInterpreter()
     return interpreter;
 }
 
-// ============= GC MARKING =============
+// void InstancePool::markValue(const Value &v)
+// {
 
-void InstancePool::markValue(const Value &v)
-{
+//      if (v.type == ValueType::STRING && v.as.string)
+//      {
+//         Info("Marking string %s", v.as.string->chars());
+//         v.as.string->marked = true;
+//         strings.push(v.as.string);
+//      }
+//      else if (v.type == ValueType::CLASSINSTANCE && v.as.sClass)
+//         markObject((GCObject *)v.as.sClass);
+//     else if (v.type == ValueType::ARRAY && v.as.array)
+//         markObject((GCObject *)v.as.array);
+//     else if (v.type == ValueType::MAP && v.as.map)
+//         markObject((GCObject *)v.as.map);
+//     else if (v.type == ValueType::STRUCTINSTANCE && v.as.sInstance)
+//         markObject((GCObject *)v.as.sInstance);
+//     else if (v.type == ValueType::NATIVESTRUCTINSTANCE && v.as.sNativeStruct)
+//         markObject((GCObject *)v.as.sNativeStruct);
+//     else if (v.type == ValueType::NATIVECLASSINSTANCE && v.as.sClassInstance)
+//         markObject((GCObject *)v.as.sClassInstance);
 
-     if (v.type == ValueType::STRING && v.as.string)
-     {
-        Info("Marking string %s", v.as.string->chars());
-        v.as.string->marked = true;
-        strings.push(v.as.string);
-     }
-     else if (v.type == ValueType::CLASSINSTANCE && v.as.sClass)
-        markObject((GCObject *)v.as.sClass);
-    else if (v.type == ValueType::ARRAY && v.as.array)
-        markObject((GCObject *)v.as.array);
-    else if (v.type == ValueType::MAP && v.as.map)
-        markObject((GCObject *)v.as.map);
-    else if (v.type == ValueType::STRUCTINSTANCE && v.as.sInstance)
-        markObject((GCObject *)v.as.sInstance);
-    else if (v.type == ValueType::NATIVESTRUCTINSTANCE && v.as.sNativeStruct)
-        markObject((GCObject *)v.as.sNativeStruct);
-    else if (v.type == ValueType::NATIVECLASSINSTANCE && v.as.sClassInstance)
-        markObject((GCObject *)v.as.sClassInstance);
-
-}
-
-void InstancePool::markObject(GCObject *obj)
-{
-    if (obj == nullptr)
-        return;
-    if (obj->marked)
-        return;
-
-    obj->marked = true;
-    grayStack.push(obj);
-    
-}
-
-void InstancePool::markRoots()
-{
-
-    if (!interpreter)
-        return;
-
-    Fiber *fiber = interpreter->currentFiber;
-    if (fiber)
-    {
-      //  Info("Marking fiber");
-        // Mark stack
-        for (Value *v = fiber->stack; v < fiber->stackTop; v++)
-        {
-            markValue(*v);
-           // printValueNl(*v);
-        }
-    }
-    // Mark globals
-
-    interpreter->globals.forEach([this](String *key, Value val)
-    { 
-       // (void)key;
-     //   Info("Marking global %s", key->chars());
-       // printValueNl(val);
-        markValue(val); 
-    });
-
- //   Info("Marking current process");
-    // Mark process privates
-    if(!interpreter->currentProcess) return;
-    for (size_t i = 0; i < MAX_PRIVATES; i++)
-        markValue(interpreter->currentProcess->privates[i]);
-}
-
-// ============= GC TRACING =============
-
-void InstancePool::traceReferences()
-{
-    Info("Tracing references");
-    while (grayStack.size() > 0)
-    {
-        GCObject *obj = grayStack.back();
-        grayStack.pop();
-        blackenObject(obj);
-    }
-}
-
-void InstancePool::blackenObject(GCObject *obj)
-{
-    if (!obj)
-        return;
-
-    switch (obj->type)
-    {
-    case GC_NONE:
-    {
-        Warning("GCObject of type GC_NONE");
-        break;
-    }
-    case GC_STRING:
-    {
-        String *str = (String *)obj;
-        str->marked = true;
-
-        break;
-    }
-    case GC_CLASSINSTANCE:
-    {
-        ClassInstance *inst = (ClassInstance *)obj;
-        for (size_t i = 0; i < inst->fields.size(); i++)
-        {
-            markValue(inst->fields[i]);
-        }
-        break;
-    }
-
-    case GC_ARRAY:
-    {
-        ArrayInstance *arr = (ArrayInstance *)obj;
-        for (size_t i = 0; i < arr->values.size(); i++)
-        {
-            markValue(arr->values[i]);
-        }
-        break;
-    }
-
-    case GC_MAP:
-    {
-        MapInstance *map = (MapInstance *)obj;
-        map->table.forEach([this](String *key, Value val)
-                           {
-             (void) key;
-             markValue(val); });
-        break;
-    }
-
-    case GC_STRUCTINSTANCE:
-    {
-        StructInstance *inst = (StructInstance *)obj;
-        for (size_t i = 0; i < inst->values.size(); i++)
-        {
-            markValue(inst->values[i]);
-        }
-        break;
-    }
-
-    case GC_NATIVESTRUCTINSTANCE:
-    case GC_NATIVECLASSINSTANCE:
-        // Native instances sem fields, ignore
-        break;
-    }
-}
-
-// ============= GC SWEEP =============
-
-void InstancePool::sweep()
-{
-
-    //strings 
-    for (int i = (int)strings.size() - 1; i >= 0; i--)
-    {
-        if (!strings[i]->marked && !strings[i]->persistent)
-        {
-            StringPool::instance().deallocString(strings[i]);
-            strings.swapAndPop(i);
-        }
-        else
-        {
-            strings[i]->marked = false;
-        }
-    }
-
-    // Classes
-    for (int i = (int)classesInstances.size() - 1; i >= 0; i--)
-    {
-        if (!classesInstances[i]->marked)
-        {
-         
-            freeClass(classesInstances[i]);
-            classesInstances.swapAndPop(i);
-        }
-        else
-        {
-            classesInstances[i]->marked = false;
-        }
-    }
-
-    // Arrays
-    for (int i = (int)arrayInstances.size() - 1; i >= 0; i--)
-    {
-        if (!arrayInstances[i]->marked)
-        {
-     
-            freeArray(arrayInstances[i]);
-            arrayInstances.swapAndPop(i);
-        }
-        else
-        {
-            arrayInstances[i]->marked = false;
-        }
-    }
-
-    // Maps
-    for (int i = (int)classesInstances.size() - 1; i >= 0; i--)
-    {
-        // TODO: Iterate through mapInstances vector when available
-    }
-
-    // Structs
-    for (int i = (int)structInstances.size() - 1; i >= 0; i--)
-    {
-        if (!structInstances[i]->marked)
-        {
-         
-            freeStruct(structInstances[i]);
-            structInstances.swapAndPop(i);
-        }
-        else
-        {
-            structInstances[i]->marked = false;
-        }
-    }
-
-    // Native Instances
-    for (int i = (int)nativeInstances.size() - 1; i >= 0; i--)
-    {
-        if (!nativeInstances[i]->marked)
-        {
-          
-            freeNativeClass(nativeInstances[i]);
-            nativeInstances.swapAndPop(i);
-        }
-        else
-        {
-            nativeInstances[i]->marked = false;
-        }
-    }
-
-    // Native Structs
-    for (int i = (int)nativeStructInstances.size() - 1; i >= 0; i--)
-    {
-        if (!nativeStructInstances[i]->marked)
-        {
-     
-            freeNativeStruct(nativeStructInstances[i]);
-            nativeStructInstances.swapAndPop(i);
-        }
-        else
-        {
-            nativeStructInstances[i]->marked = false;
-        }
-    }
-
-   
-
-}
-
-// ============= GC TRIGGER =============
-
-void InstancePool::checkGC()
-{
-   // Info("Check GC: %ld bytes allocated, next at %ld bytes and %ld strings", interpreter->gcTotalBytes(), nextGC,strings.size());
-    if (interpreter->gcTotalBytes() > nextGC)
-    {
-        gc();
-    }
-}
-
-void InstancePool::gc()
-{
-    size_t before = bytesAllocated;
-
-    grayStack.clear();
-    markRoots();
-    traceReferences();
-    sweep();
-
-    nextGC = bytesAllocated * GC_HEAP_GROW_FACTOR;
-
-    Warning("GC Collected %zu bytes (from %zu to %zu) next at %zu", before - bytesAllocated, before, bytesAllocated, nextGC);
-
-    // // ← Mínimo de 256KB + 2x do que sobrou
-    // size_t minThreshold = 1024 * 256;  // 256KB mínimo
-    // nextGC = Max(minThreshold, bytesAllocated * 2);
-
-    // size_t aBytesAllocated = bytesAllocated / 1024;
-    // size_t aNextGC = nextGC / 1024;
-    // Info("GC end: %ld Kb live, next trigger at %ld Kb", aBytesAllocated, aNextGC);
-}
-
-// ============= CONSTRUCTORS/DESTRUCTORS =============
+// }
 
 InstancePool::InstancePool() : interpreter(nullptr), bytesAllocated(0)
 {
@@ -320,7 +54,35 @@ InstancePool::InstancePool() : interpreter(nullptr), bytesAllocated(0)
     totalClasses = 0;
     totalNativeStructs = 0;
     totalNativeClasses = 0;
-    nextGC=1024 ;
+
+    structSize = sizeof(StructInstance);
+    arraySize = sizeof(ArrayInstance);
+    mapSize = sizeof(MapInstance);
+    classSize = sizeof(ClassInstance);
+    nativeStructSize = sizeof(NativeStructInstance);
+    nativeClassSize = sizeof(NativeInstance);
+
+    dummyDefStruct = new StructDef();
+    dummyDefStruct->argCount = 0;
+    dummyDefStruct->name = createString("dummy");
+    dummyDefStruct->names.destroy();
+
+    dummyStructInstance = createStruct();
+    dummyStructInstance->def = dummyDefStruct;
+
+    dummyDefClass = new ClassDef();
+    dummyDefClass->name = createString("dummy");
+    dummyDefClass->fieldCount = 0;
+    dummyDefClass->parent = nullptr;
+    dummyDefClass->inherited = false;
+
+    dummyClassInstance = createClass();
+    dummyClassInstance->klass = dummyDefClass;
+    dummyClassInstance->fields.destroy();
+
+    dummyArrayInstance = createArray(0);
+    dummyMapInstance = createMap();
+    dummyMapInstance->table.destroy();
 }
 
 InstancePool::~InstancePool()
@@ -329,30 +91,86 @@ InstancePool::~InstancePool()
 
 // ============= CREATE METHODS =============
 
+StructInstance *InstancePool::getStruct(int id)
+{
+    // if (id < 0 || id >= (int)structInstances.size())
+    // {
+    //     Warning("StructInstance index out of bounds: %d", id);
+    //     return dummyStructInstance;
+    // }
+
+    return structInstances[id];
+}
+
+ClassInstance *InstancePool::getClass(int id)
+{
+    // if (id < 0 || id >= (int)classesInstances.size())
+    // {
+    //     Warning("ClassInstance index out of bounds: %d", id);
+    //     return dummyClassInstance;
+    // }
+
+    return classesInstances[id];
+}
+
+ArrayInstance *InstancePool::getArray(int id)
+{
+    // if (id < 0 || id >= (int)arrayInstances.size())
+    // {
+    //     Warning("ArrayInstance index out of bounds: %d", id);
+    //     return dummyArrayInstance;
+    // }
+
+    return arrayInstances[id];
+}
+
+MapInstance *InstancePool::getMap(int id)
+{
+    if (id < 0 || id >= (int)mapInstances.size())
+    {
+        Warning("MapInstance index out of bounds: %d", id);
+        return dummyMapInstance;
+    }
+
+    return mapInstances[id];
+}
+
 StructInstance *InstancePool::createStruct()
 {
-    checkGC();
+    StructInstance *instance = nullptr;
+
+#if USE_ARENA
     void *mem = arena.Allocate(sizeof(StructInstance));
-    StructInstance *instance = new (mem) StructInstance();
+    instance = new (mem) StructInstance();
+#else
+    instance = new StructInstance();
+#endif
+
+    instance->index = structInstances.size();
     structInstances.push(instance);
-
     bytesAllocated += sizeof(StructInstance);
-
     totalStructs++;
-
     return instance;
 }
 
 ArrayInstance *InstancePool::createArray(int reserve)
 {
-    checkGC();
+    ArrayInstance *instance = nullptr;
+
+#if USE_ARENA
+
     void *mem = arena.Allocate(sizeof(ArrayInstance));
-    ArrayInstance *instance = new (mem) ArrayInstance();
+    instance = new (mem) ArrayInstance();
+#else
+    instance = new ArrayInstance();
+#endif
+
     if (reserve != 0)
         instance->values.reserve(reserve);
+
     arrayInstances.push(instance);
 
-    bytesAllocated += sizeof(ArrayInstance);
+    bytesAllocated += arraySize;
 
     totalArrays++;
 
@@ -361,25 +179,37 @@ ArrayInstance *InstancePool::createArray(int reserve)
 
 MapInstance *InstancePool::createMap()
 {
-    checkGC();
+    MapInstance *instance = nullptr;
+#if USE_ARENA
     void *mem = arena.Allocate(sizeof(MapInstance));
-    MapInstance *instance = new (mem) MapInstance();
-
-    bytesAllocated += sizeof(MapInstance);
+    instance = new (mem) MapInstance();
+#else
+    instance = new MapInstance();
+#endif
+    instance->index = mapInstances.size();
+    mapInstances.push(instance);
+    bytesAllocated += mapSize;
 
     totalMaps++;
     return instance;
 }
 
-ClassInstance *InstancePool::creatClass()
+ClassInstance *InstancePool::createClass()
 {
-    checkGC();
 
+    ClassInstance *instance = nullptr;
+
+#if USE_ARENA
     void *mem = arena.Allocate(sizeof(ClassInstance));
-    ClassInstance *instance = new (mem) ClassInstance();
+    instance = new (mem) ClassInstance();
+#else
+    instance = new ClassInstance();
+#endif
+
+    instance->index = classesInstances.size();
     classesInstances.push(instance);
 
-    bytesAllocated += sizeof(ClassInstance);
+    bytesAllocated += classSize;
 
     totalClasses++;
     return instance;
@@ -387,13 +217,17 @@ ClassInstance *InstancePool::creatClass()
 
 NativeInstance *InstancePool::createNativeClass()
 {
+    NativeInstance *instance = nullptr;
 
-    checkGC();
+#if USE_ARENA
     void *mem = arena.Allocate(sizeof(NativeInstance));
-    NativeInstance *instance = new (mem) NativeInstance();
+    instance = new (mem) NativeInstance();
+#else
+    instance = new NativeInstance();
+#endif
     nativeInstances.push(instance);
 
-    bytesAllocated += sizeof(NativeInstance);
+    bytesAllocated += nativeClassSize;
 
     totalNativeClasses++;
 
@@ -402,17 +236,20 @@ NativeInstance *InstancePool::createNativeClass()
 
 NativeStructInstance *InstancePool::createNativeStruct(uint32 structSize)
 {
-    checkGC();
+    NativeStructInstance *instance = nullptr;
 
-    void *mem = arena.Allocate(sizeof(NativeStructInstance));
-    NativeStructInstance *instance = new (mem) NativeStructInstance();
+#if USE_ARENA
+    void *mem = arena.Allocate(nativeStructSize);
+    instance = new (mem) NativeStructInstance();
+#else
+    instance = new NativeStructInstance();
+#endif
 
-
-    instance->data =aAlloc(structSize); 
+    instance->data = aAlloc(structSize);
     std::memset(instance->data, 0, structSize);
     nativeStructInstances.push(instance);
 
-    bytesAllocated += sizeof(NativeStructInstance) + structSize;
+    bytesAllocated += nativeStructSize + structSize;
 
     totalNativeStructs++;
     return instance;
@@ -424,11 +261,14 @@ void InstancePool::freeStruct(StructInstance *s)
 {
     if (!s)
         return;
+
+#if USE_ARENA
     s->~StructInstance();
-    arena.Free(s, sizeof(StructInstance));
-
-    bytesAllocated -= sizeof(StructInstance);
-
+    arena.Free(s, structSize);
+#else
+    delete s;
+#endif
+    bytesAllocated -= structSize;
     totalStructs--;
 }
 
@@ -436,10 +276,15 @@ void InstancePool::freeArray(ArrayInstance *a)
 {
     if (!a)
         return;
-    a->~ArrayInstance();
-    arena.Free(a, sizeof(ArrayInstance));
 
-    bytesAllocated -= sizeof(ArrayInstance);
+#if USE_ARENA
+    a->~ArrayInstance();
+    arena.Free(a, arraySize);
+#else
+    delete a;
+#endif
+
+    bytesAllocated -= arraySize;
 
     totalArrays--;
 }
@@ -448,10 +293,15 @@ void InstancePool::freeMap(MapInstance *m)
 {
     if (!m)
         return;
-    m->~MapInstance();
-    arena.Free(m, sizeof(MapInstance));
 
-    bytesAllocated -= sizeof(MapInstance);
+#if USE_ARENA
+    m->~MapInstance();
+    arena.Free(m, mapSize);
+#else
+    delete m;
+#endif
+
+    bytesAllocated -= mapSize;
 
     totalMaps--;
 }
@@ -460,10 +310,16 @@ void InstancePool::freeClass(ClassInstance *c)
 {
     if (!c)
         return;
-    c->~ClassInstance();
-    arena.Free(c, sizeof(ClassInstance));
 
-    bytesAllocated -= sizeof(ClassInstance);
+#if USE_ARENA
+
+    c->~ClassInstance();
+    arena.Free(c, classSize);
+#else
+    delete c;
+#endif
+
+    bytesAllocated -= classSize;
 
     totalClasses--;
 }
@@ -478,10 +334,16 @@ void InstancePool::freeNativeClass(NativeInstance *n)
         n->klass->destructor(this->interpreter, n->userData);
     }
 
-    n->~NativeInstance();
-    arena.Free(n, sizeof(NativeInstance));
+#if USE_ARENA
 
-    bytesAllocated -= sizeof(NativeInstance);
+    n->~NativeInstance();
+    arena.Free(n, nativeClassSize);
+
+#else
+    delete n;
+#endif
+
+    bytesAllocated -= nativeClassSize;
 
     totalNativeClasses--;
 }
@@ -501,14 +363,17 @@ void InstancePool::freeNativeStruct(NativeStructInstance *n)
         n->data = nullptr;
     }
 
+#if USE_ARENA
     n->~NativeStructInstance();
-    arena.Free(n, sizeof(NativeStructInstance));
+    arena.Free(n, nativeStructSize);
+#else
+    delete n;
+#endif
 
-    bytesAllocated -= sizeof(NativeStructInstance);
+    bytesAllocated -= nativeStructSize;
 
     totalNativeStructs--;
 }
-
 
 // ============= CLEANUP =============
 
@@ -516,6 +381,7 @@ void InstancePool::clear()
 {
     Info("Instance pool clear");
 
+    delete dummyDefStruct;
 
     for (size_t i = 0; i < structInstances.size(); i++)
     {
@@ -530,6 +396,13 @@ void InstancePool::clear()
         freeArray(a);
     }
     arrayInstances.clear();
+
+    for (size_t i = 0; i < mapInstances.size(); i++)
+    {
+        MapInstance *m = mapInstances[i];
+        freeMap(m);
+    }
+    mapInstances.clear();
 
     for (size_t i = 0; i < classesInstances.size(); i++)
     {
@@ -552,21 +425,16 @@ void InstancePool::clear()
     }
     nativeStructInstances.clear();
 
-    grayStack.clear();
-    bytesAllocated = 0;
-
-  
-    Info("Structs %ld ", totalStructs);
     Info("Arrays %ld ", totalArrays);
+    Info("Maps %ld ", totalMaps);
+    Info("Structs %ld ", totalStructs);
     Info("Classes %ld ", totalClasses);
     Info("Native classes %ld ", totalNativeClasses);
     Info("Native structs %ld ", totalNativeStructs);
+    Info("Total instances %ld ", totalArrays + totalMaps + totalStructs + totalClasses + totalNativeClasses + totalNativeStructs);
+    Info("Bytes allocated %ld", bytesAllocated);
 
-    // DEBUG_BREAK_IF(totalStructs != 0);
-    // DEBUG_BREAK_IF(totalArrays != 0);
-    // DEBUG_BREAK_IF(totalClasses != 0);
-    // DEBUG_BREAK_IF(totalNativeClasses != 0);
-    // DEBUG_BREAK_IF(totalNativeStructs != 0);
+    bytesAllocated = 0;
 
     arena.Stats();
     arena.Clear();

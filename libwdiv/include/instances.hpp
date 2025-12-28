@@ -8,8 +8,16 @@ struct StructInstance;
 struct ArrayInstance;
 struct MapInstance;
 struct ClassInstance;
+
 struct NativeInstance;
 struct NativeStructInstance;
+
+struct StructDef;
+struct ClassDef;
+struct NativeStructDef;
+struct NativeClassDef;
+struct ArrayInstance;
+struct MapInstance;
 struct Value;
 struct String;
  
@@ -23,36 +31,45 @@ class InstancePool
 
     Vector<StructInstance *> structInstances;
     Vector<ArrayInstance *> arrayInstances;
+    Vector<MapInstance *> mapInstances;
     Vector<ClassInstance *> classesInstances;
     Vector<NativeInstance *> nativeInstances;
     Vector<NativeStructInstance *> nativeStructInstances;
-
-    Vector<String *> strings;
-  
-
-    Vector<GCObject *> grayStack;
-
-    size_t bytesAllocated = 0;   //  Tracking bytes
-    size_t nextGC =1024;// 1024 * 1024; //  Trigger threshold
-
  
-     uint32 totalStructs = 0;
+    size_t bytesAllocated = 0;   //  Tracking bytes
+    uint32 totalStructs = 0;
      uint32 totalArrays = 0;
      uint32 totalMaps = 0;
      uint32 totalClasses = 0;
      uint32 totalNativeStructs = 0;
      uint32 totalNativeClasses = 0;
 
-    // Private GC methods
-    void markObject(GCObject *obj);
-    void markValue(const Value &v);
-    void markRoots();
-    void traceReferences();
-    void blackenObject(GCObject *obj);
-    void sweep();
+    size_t structSize = 0;
+    size_t arraySize = 0;
+    size_t mapSize = 0;
+    size_t classSize = 0;
+    size_t nativeStructSize = 0;
+    size_t nativeClassSize = 0;
+
+ 
 
     friend class Interpreter; // Friend para aceder bytesAllocated, nextGC
     friend class StringPool;
+
+    StructDef *dummyDefStruct = nullptr;
+    StructInstance *dummyStructInstance = nullptr;
+
+    ClassDef *dummyDefClass = nullptr;
+    ClassInstance *dummyClassInstance = nullptr;
+
+
+
+    ArrayInstance *dummyArrayInstance = nullptr;
+    MapInstance *dummyMapInstance = nullptr;
+
+    NativeInstance *dummyNativeInstance = nullptr;
+    NativeStructInstance *dummyNativeStructInstance = nullptr;
+
 
 public:
     InstancePool();
@@ -64,14 +81,24 @@ public:
     static InstancePool &instance()
     {
         static InstancePool pool;
+        
         return pool;
     }
+
+
+    StructInstance *getStruct(int id);
+    ClassInstance *getClass(int id);
+
+    ArrayInstance *getArray(int id);
+    MapInstance *getMap(int id);
+    // NativeInstance *getNativeClass(int id);
+    // NativeStructInstance *getNativeStruct(int id);
 
     // Create methods
     StructInstance *createStruct();
     ArrayInstance *createArray(int reserve = 0);
     MapInstance *createMap();
-    ClassInstance *creatClass();
+    ClassInstance *createClass();
     NativeInstance *createNativeClass();
     NativeStructInstance *createNativeStruct(uint32 structSize);
 
@@ -84,10 +111,7 @@ public:
     void freeNativeStruct(NativeStructInstance *n);
 
  
-
-    // Public GC trigger
-    void gc();
-    void checkGC(); // Verifica se deve trigger GC
+ 
 
     int getTotalBytes() { return bytesAllocated; }
 

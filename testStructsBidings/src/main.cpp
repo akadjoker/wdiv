@@ -45,8 +45,10 @@ static void valueToString(const Value &v, std::string &out)
         out += buffer;
         break;
     case ValueType::STRING:
-        out += v.as.string->chars();
+    {
+        out += v.asStringChars();
         break;
+    }
     case ValueType::ARRAY:
         out += "[array]";
         break;
@@ -68,7 +70,7 @@ Value native_format(Interpreter *vm, int argCount, Value *args)
 
   
 
-    const char *fmt = args[0].as.string->chars();
+    const char *fmt = args[0].asStringChars();
     std::string result;
     int argIndex = 1;
 
@@ -99,7 +101,7 @@ Value native_write(Interpreter *vm, int argCount, Value *args)
         return Value::makeNil();
     }
 
-    const char *fmt = args[0].as.string->chars();
+    const char *fmt = args[0].asStringChars();
     std::string result;
     int argIndex = 1;
 
@@ -213,7 +215,7 @@ Value native_gc(Interpreter *vm, int argCount, Value *args)
 
 Value navite_total_bytes_allocated(Interpreter *vm, int argCount, Value *args)
 {
-    return Value::makeInt(vm->gcTotalBytes());
+    return Value::makeInt(vm->getTotalBytes());
 }
 
 

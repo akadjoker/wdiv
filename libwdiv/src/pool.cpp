@@ -21,11 +21,23 @@ void String::drop()
 StringPool::StringPool()
 {
     bytesAllocated = 0;
+    dummyString = allocString();
+    size_t len = 0;
+    const char *str = "NULL";
+    dummyString->length_and_flag = len;
+    dummyString->ptr = nullptr;
+    std::memcpy(dummyString->data, str, len);
+    dummyString->data[len] = '\0';
+    dummyString->persistent = true;
+    dummyString->index = -1;
+    dummyString->hash = hashString(dummyString->chars(), len);
+    bytesAllocated += sizeof(String) + len;
+
 }
 
 StringPool::~StringPool()
 {
-    Info("String pool released");
+   
 }
 
 // ============= STRING ALLOC =============
@@ -54,7 +66,13 @@ void StringPool::deallocString(String *s)
 
 void StringPool::clear()
 {
-    Warning("String pool clear %d strings", map.size());
+    Info("String pool clear %d strings", map.size());
+    Info("Allocated %d bytes", bytesAllocated);
+
+     
+    dummyString->~String();
+    allocator.Free(dummyString, sizeof(String));
+
     allocator.Stats();
     allocator.Clear();
 
@@ -63,66 +81,25 @@ void StringPool::clear()
     map.clear();
     pool.destroy();
 }
-
-void StringPool::removeWhite()
-{
-    // // Itera todas as strings
-    Vector<String *> alive;
-
-    for (size_t i = 0; i < map.size(); i++)
-    {
-        String *str = map[i];
-
-        if (str && str->persistent)
-        {
-
-            str->marked = true; // Reset para próximo GC
-            alive.push(str);
-        }
-
-        if (str && str->marked)
-        {
-
-            str->marked = true; // Reset para próximo GC
-            alive.push(str);
-        }
-        else
-        {
-            // String está morta - remove do cache
-            if (str)
-            {
-                map.swapAndPop(i);
-                Info("Remove string %s hash %d len %d", str->chars(), str->hash, str->length());
-                deallocString(str);
-            }
-        }
-    }
-
-    // Info("Removed %d strings", map.size());
-
-    // Atualiza map com strings vivas
-    map = std::move(alive);
-
-    // Info("New string pool size %d", map.size());
-}
+ 
+ 
 String *StringPool::create(const char *str, uint32 len, bool isStatic)
 {
     // Cache hit?
-    InstancePool::instance().checkGC();
+ 
+    int index=0;
+     
 
-
-    int index = 0;
-
-    // if (pool.get(str, &index))
-    // {
-    //     String *s = map[index];
-    //     return s;
-    // }
+    if (pool.get(str, &index))
+    {
+        String *s = map[index];
+        return s;
+    }
 
     // New string
     String *s = allocString();
     s->persistent = isStatic;
-    s->marked = true;
+ 
 
     // Copy data
     if (len <= String::SMALL_THRESHOLD)
@@ -141,10 +118,11 @@ String *StringPool::create(const char *str, uint32 len, bool isStatic)
 
     s->hash = hashString(s->chars(), len);
     bytesAllocated += sizeof(String) + len;
+    s->index = map.size();
 
     // Info("Create string %s hash %d len %d", s->chars(), s->hash, s->length());
-    // map.push(s);
-    // pool.set(s->chars(), map.size() - 1);
+    map.push(s);
+    pool.set(s->chars(), map.size() - 1);
 
     //   Info("Create string %s hash %d len %d", s->chars(), s->hash, s->length());
 
@@ -548,6 +526,16 @@ String *StringPool::format(const char *fmt, ...)
     }
 
     return create(buffer, len);
+}
+
+String *StringPool::getString(int index)
+{
+    if (index < 0 || index >= map.size())
+    {
+        Warning("String index out of bounds: %d", index);
+        return dummyString;
+    }
+    return map[index];
 }
 
 //     // Split - divide string por separador
