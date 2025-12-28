@@ -1647,7 +1647,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 else if (receiver.type == ValueType::NATIVECLASSINSTANCE)
                 {
                     ARGS_CLEANUP();
-                    NativeInstance *inst = receiver.as.sClassInstance;
+                    NativeInstance *inst = receiver.as.nativeClassInstance;
                     inst->release();
                     PUSH(Value::makeNil());
                     break;
@@ -1663,7 +1663,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 else if (receiver.type == ValueType::CLASSINSTANCE)
                 {
                     ARGS_CLEANUP();
-                    ClassInstance *inst = receiver.asClassInstance();
+                    ClassInstance *inst = receiver.as.classInstance;
                     inst->release();
                     PUSH(Value::makeNil());
                     break;
@@ -2012,9 +2012,9 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             }
 
             // === ARRAY METHODS ===
-            if (receiver.isArray())
+            if (receiver.type == ValueType::ARRAY)
             {
-                ArrayInstance *arr = receiver.asArray();
+                ArrayInstance *arr = receiver.as.array;
                 uint32 size = arr->values.size();
                 if (strcmp(name, "push") == 0)
                 {
@@ -2249,9 +2249,9 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             }
 
             // === CLASS INSTANCE METHODS ===
-            if (receiver.isClassInstance())
+            if (receiver.type == ValueType::CLASSINSTANCE)
             {
-                ClassInstance *instance = receiver.asClassInstance();
+                ClassInstance *instance = receiver.as.classInstance;
                 // printValueNl(receiver);
                 // printValueNl(nameValue);
 

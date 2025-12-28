@@ -9,7 +9,7 @@
 #include "interpreter.hpp"
 #include "value.hpp"
 
-#define USE_ARENA 0
+#define USE_ARENA 1
 
 void InstancePool::setInterpreter(Interpreter *interpreter)
 {
@@ -93,22 +93,22 @@ InstancePool::~InstancePool()
 
 StructInstance *InstancePool::getStruct(int id)
 {
-    // if (id < 0 || id >= (int)structInstances.size())
-    // {
-    //     Warning("StructInstance index out of bounds: %d", id);
-    //     return dummyStructInstance;
-    // }
+    if (id < 0 || id >= (int)structInstances.size())
+    {
+        Warning("StructInstance index out of bounds: %d", id);
+        return dummyStructInstance;
+    }
 
     return structInstances[id];
 }
 
 ClassInstance *InstancePool::getClass(int id)
 {
-    // if (id < 0 || id >= (int)classesInstances.size())
-    // {
-    //     Warning("ClassInstance index out of bounds: %d", id);
-    //     return dummyClassInstance;
-    // }
+    if (id < 0 || id >= (int)classesInstances.size())
+    {
+        Warning("ClassInstance index out of bounds: %d", id);
+        return dummyClassInstance;
+    }
 
     return classesInstances[id];
 }
@@ -181,7 +181,7 @@ MapInstance *InstancePool::createMap()
 {
     MapInstance *instance = nullptr;
 #if USE_ARENA
-    void *mem = arena.Allocate(sizeof(MapInstance));
+    void *mem = arena.Allocate( mapSize);
     instance = new (mem) MapInstance();
 #else
     instance = new MapInstance();
@@ -200,7 +200,7 @@ ClassInstance *InstancePool::createClass()
     ClassInstance *instance = nullptr;
 
 #if USE_ARENA
-    void *mem = arena.Allocate(sizeof(ClassInstance));
+    void *mem = arena.Allocate(classSize);
     instance = new (mem) ClassInstance();
 #else
     instance = new ClassInstance();
@@ -220,7 +220,7 @@ NativeInstance *InstancePool::createNativeClass()
     NativeInstance *instance = nullptr;
 
 #if USE_ARENA
-    void *mem = arena.Allocate(sizeof(NativeInstance));
+    void *mem = arena.Allocate(nativeClassSize);
     instance = new (mem) NativeInstance();
 #else
     instance = new NativeInstance();

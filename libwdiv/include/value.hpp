@@ -46,14 +46,14 @@ struct Value
     bool boolean;
     uint8 byte;
     int integer;
-    float n_float;
+    float real;
     double number;
-    int id;
-
+ 
+    
+    ClassInstance *classInstance; 
+    ArrayInstance *array;
     uint32 unsignedInteger;
-
-
-    NativeInstance *sClassInstance;
+    NativeInstance *nativeClassInstance;
     NativeStructInstance *sNativeStruct;
     void *pointer;
 

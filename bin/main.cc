@@ -1,10 +1,4 @@
 
-var gravity = 0.5;
-
-struct Dados
-{
-    var a,b,c;
-};
 
 class Sprite
 {
@@ -18,10 +12,10 @@ class Sprite
         self.vy = (rand(200) - 100) / 10.0;
     }
 
-    def move(tex)
+    def move()
     {
-        self.x += self.vx;
-        self.y += self.vy;
+        self.x = self.x + self.vx;
+        self.y = self.y + self.vy;
 
         self.vy = self.vy + 0.5;
 
@@ -47,14 +41,20 @@ var WHITE = Color(255, 255, 255, 255);
 var LIGHTGRAY = Color(200, 200, 200, 255);
 var tex = LoadTexture("assets/wabbit_alpha.png");
 
-//SetTargetFPS(30);
+SetTargetFPS(30);
+var gravity = 0.5;
 
 lista = [];
-lista.push(Sprite(10,10));
-lista.push(Sprite(10,10));
-lista.push(Sprite(10,10));
 
-var i=0;
+var i = 0;
+
+var mx = 0;
+var my = 0;
+
+for (var i = 0; i < 20000; i++)
+{
+    lista.push(Sprite(mx, my));
+}
 
 while (!WindowShouldClose())
 {
@@ -63,40 +63,32 @@ while (!WindowShouldClose())
     ClearBackground(BLACK);
 
     DrawPixel(200, 200, RED);
+    mx = GetMouseX();
+    my = GetMouseY();
 
-    DrawTexture(tex, GetMouseX(), GetMouseY(), WHITE);
+    //  DrawTexture(tex, GetMouseX(), GetMouseY(), WHITE);
 
     if (IsMouseButtonDown(0))
     {
-        for(var i=0;i<500;i++)
+        for (var i = 0; i < 500; i++)
         {
-            var vx = GetMouseX();
-            var vy = GetMouseY();
-            lista.push(Sprite(vx,vy));
+            lista.push(Sprite(mx, my));
         }
     }
 
-    if (lista.length() > 0)
+    for (i = 0; i < lista.length(); i++)
     {
-        for (i = 0; i < lista.length(); i++)
-        {
-           var sprite = lista[i];
-          sprite.move(tex);
-
-        }
+        lista[i].move();
     }
 
-     if (IsMouseButtonDown(1))
+    if (IsMouseButtonDown(1))
     {
-       var dados = Dados(1,2,3);
-       print(dados);
+        var dados = Dados(1, 2, 3);
+        print(dados);
     }
-  
 
-    //DrawText(format("count {} ", lista.length()), 400, 20, 20, RED);
+    DrawText(format("count {} ", lista.length()), 400, 20, 20, RED);
     DrawFps(10, 10);
-
-   
 
     EndDrawing();
 }
@@ -154,4 +146,3 @@ CloseWindow();
 //     a[i].move();
 //      format("count {}", a.length());
 //  }
- 

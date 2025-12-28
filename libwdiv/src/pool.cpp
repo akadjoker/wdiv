@@ -14,10 +14,6 @@ size_t String::length() const
     return length_and_flag & ~IS_LONG_FLAG;
 }
 
-void String::drop()
-{
-}
-
 StringPool::StringPool()
 {
     bytesAllocated = 0;
@@ -28,16 +24,14 @@ StringPool::StringPool()
     dummyString->ptr = nullptr;
     std::memcpy(dummyString->data, str, len);
     dummyString->data[len] = '\0';
-    dummyString->persistent = true;
+
     dummyString->index = -1;
     dummyString->hash = hashString(dummyString->chars(), len);
     bytesAllocated += sizeof(String) + len;
-
 }
 
 StringPool::~StringPool()
 {
-   
 }
 
 // ============= STRING ALLOC =============
@@ -54,7 +48,7 @@ void StringPool::deallocString(String *s)
     if (!s)
         return;
 
-//    Info("Dealloc string %p", s);
+    //    Info("Dealloc string %p", s);
     bytesAllocated -= sizeof(String) + s->length() + 1;
 
     if (s->isLong() && s->ptr)
@@ -75,37 +69,31 @@ void StringPool::clear()
         deallocString(s);
     }
 
-     
     dummyString->~String();
     allocator.Free(dummyString, sizeof(String));
 
     allocator.Stats();
     allocator.Clear();
 
-
-
     map.clear();
     pool.destroy();
 }
- 
- 
+
 String *StringPool::create(const char *str, uint32 len, bool isStatic)
 {
     // Cache hit?
- 
-    int index=0;
-     
 
-    // if (pool.get(str, &index))
-    // {
-    //     String *s = map[index];
-    //     return s;
-    // }
+    int index = 0;
+
+    if (pool.get(str, &index))
+    {
+        String *s = map[index];
+        return s;
+    }
 
     // New string
     String *s = allocString();
-    //s->persistent = isStatic;
-    
+ 
 
     // Copy data
     if (len <= String::SMALL_THRESHOLD)
@@ -126,12 +114,11 @@ String *StringPool::create(const char *str, uint32 len, bool isStatic)
     bytesAllocated += sizeof(String) + len;
     s->index = map.size();
 
-     Info("Create string %s hash %d len %d", s->chars(), s->hash, s->length());
+   // Info("Create string %s hash %d len %d", s->chars(), s->hash, s->length());
     map.push(s);
-  //  pool.set(s->chars(), map.size() - 1);
+    pool.set(s->chars(), map.size() - 1);
 
-    //   Info("Create string %s hash %d len %d", s->chars(), s->hash, s->length());
-
+   
     // Store in pool
 
     return s;
@@ -212,7 +199,7 @@ String *StringPool::lower(String *src)
 }
 
 // ========================================
-// SUBSTRING - JÁ OTIMIZADO
+// SUBSTRING  
 // ========================================
 
 String *StringPool::substring(String *src, uint32 start, uint32 end)
@@ -241,7 +228,7 @@ String *StringPool::substring(String *src, uint32 start, uint32 end)
 }
 
 // ========================================
-// REPLACE - OTIMIZADO
+// REPLACE -  
 // ========================================
 
 String *StringPool::replace(String *src, const char *oldStr, const char *newStr)
@@ -361,7 +348,7 @@ bool StringPool::endsWith(String *str, String *suffix)
 }
 
 // ========================================
-// TRIM - OTIMIZADO (JÁ USA create())
+// TRIM  
 // ========================================
 
 String *StringPool::trim(String *str)
@@ -434,7 +421,7 @@ int StringPool::indexOf(String *str, const char *substr, int startIndex)
 }
 
 // ========================================
-// REPEAT - OTIMIZADO
+// REPEAT 
 // ========================================
 
 String *StringPool::repeat(String *str, int count)

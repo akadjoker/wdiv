@@ -20,9 +20,8 @@ struct ArrayInstance;
 struct MapInstance;
 struct Value;
 struct String;
- 
+
 class Interpreter;
- 
 
 class InstancePool
 {
@@ -35,14 +34,14 @@ class InstancePool
     Vector<ClassInstance *> classesInstances;
     Vector<NativeInstance *> nativeInstances;
     Vector<NativeStructInstance *> nativeStructInstances;
- 
-    size_t bytesAllocated = 0;   //  Tracking bytes
+
+    size_t bytesAllocated = 0; //  Tracking bytes
     uint32 totalStructs = 0;
-     uint32 totalArrays = 0;
-     uint32 totalMaps = 0;
-     uint32 totalClasses = 0;
-     uint32 totalNativeStructs = 0;
-     uint32 totalNativeClasses = 0;
+    uint32 totalArrays = 0;
+    uint32 totalMaps = 0;
+    uint32 totalClasses = 0;
+    uint32 totalNativeStructs = 0;
+    uint32 totalNativeClasses = 0;
 
     size_t structSize = 0;
     size_t arraySize = 0;
@@ -51,9 +50,7 @@ class InstancePool
     size_t nativeStructSize = 0;
     size_t nativeClassSize = 0;
 
- 
-
-    friend class Interpreter; // Friend para aceder bytesAllocated, nextGC
+    friend class Interpreter;  
     friend class StringPool;
 
     StructDef *dummyDefStruct = nullptr;
@@ -62,14 +59,11 @@ class InstancePool
     ClassDef *dummyDefClass = nullptr;
     ClassInstance *dummyClassInstance = nullptr;
 
-
-
     ArrayInstance *dummyArrayInstance = nullptr;
     MapInstance *dummyMapInstance = nullptr;
 
     NativeInstance *dummyNativeInstance = nullptr;
     NativeStructInstance *dummyNativeStructInstance = nullptr;
-
 
 public:
     InstancePool();
@@ -81,10 +75,9 @@ public:
     static InstancePool &instance()
     {
         static InstancePool pool;
-        
+
         return pool;
     }
-
 
     StructInstance *getStruct(int id);
     ClassInstance *getClass(int id);
@@ -109,9 +102,6 @@ public:
     void freeClass(ClassInstance *c);
     void freeNativeClass(NativeInstance *n);
     void freeNativeStruct(NativeStructInstance *n);
-
- 
- 
 
     int getTotalBytes() { return bytesAllocated; }
 

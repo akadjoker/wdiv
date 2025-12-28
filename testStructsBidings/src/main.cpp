@@ -37,7 +37,7 @@ static void valueToString(const Value &v, std::string &out)
         out += buffer;
         break;
     case ValueType::FLOAT:
-        snprintf(buffer, 256, "%.2f", v.as.n_float);
+        snprintf(buffer, 256, "%.2f", v.as.real);
         out += buffer;
         break;
     case ValueType::DOUBLE:

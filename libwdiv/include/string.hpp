@@ -2,15 +2,14 @@
 #include "arena.hpp"
 #include "types.hpp"
 
-struct String 
+struct String
 {
   static constexpr size_t SMALL_THRESHOLD = 23;
   static constexpr size_t IS_LONG_FLAG = 0x80000000u;
- 
+
   int index;
   size_t hash;
   size_t length_and_flag;
-  bool persistent;
 
   union
   {
@@ -23,12 +22,6 @@ struct String
 
   const char *chars() const { return isLong() ? ptr : data; }
   char *chars() { return isLong() ? ptr : data; }
- 
-
-  String();
-  ~String();
-
-  void drop();
 };
 
 // inline size_t_t hashString(const char *s, int len)
