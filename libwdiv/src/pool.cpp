@@ -108,16 +108,16 @@ void StringPool::removeWhite()
 String *StringPool::create(const char *str, uint32 len, bool isStatic)
 {
     // Cache hit?
-    InstancePool::instance().checkGC();
+  //  InstancePool::instance().checkGC();
 
 
     int index = 0;
 
-    // if (pool.get(str, &index))
-    // {
-    //     String *s = map[index];
-    //     return s;
-    // }
+    if (pool.get(str, &index))
+    {
+        String *s = map[index];
+        return s;
+    }
 
     // New string
     String *s = allocString();
@@ -143,8 +143,8 @@ String *StringPool::create(const char *str, uint32 len, bool isStatic)
     bytesAllocated += sizeof(String) + len;
 
     // Info("Create string %s hash %d len %d", s->chars(), s->hash, s->length());
-    // map.push(s);
-    // pool.set(s->chars(), map.size() - 1);
+     map.push(s);
+     pool.set(s->chars(), map.size() - 1);
 
     //   Info("Create string %s hash %d len %d", s->chars(), s->hash, s->length());
 

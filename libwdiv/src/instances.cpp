@@ -331,7 +331,7 @@ InstancePool::~InstancePool()
 
 StructInstance *InstancePool::createStruct()
 {
-    checkGC();
+    //checkGC();
     void *mem = arena.Allocate(sizeof(StructInstance));
     StructInstance *instance = new (mem) StructInstance();
     structInstances.push(instance);
@@ -345,7 +345,7 @@ StructInstance *InstancePool::createStruct()
 
 ArrayInstance *InstancePool::createArray(int reserve)
 {
-    checkGC();
+    //checkGC();
     void *mem = arena.Allocate(sizeof(ArrayInstance));
     ArrayInstance *instance = new (mem) ArrayInstance();
     if (reserve != 0)
@@ -361,7 +361,7 @@ ArrayInstance *InstancePool::createArray(int reserve)
 
 MapInstance *InstancePool::createMap()
 {
-    checkGC();
+    //checkGC();
     void *mem = arena.Allocate(sizeof(MapInstance));
     MapInstance *instance = new (mem) MapInstance();
 
@@ -373,7 +373,7 @@ MapInstance *InstancePool::createMap()
 
 ClassInstance *InstancePool::creatClass()
 {
-    checkGC();
+    //checkGC();
 
     void *mem = arena.Allocate(sizeof(ClassInstance));
     ClassInstance *instance = new (mem) ClassInstance();
@@ -388,7 +388,7 @@ ClassInstance *InstancePool::creatClass()
 NativeInstance *InstancePool::createNativeClass()
 {
 
-    checkGC();
+    //checkGC();
     void *mem = arena.Allocate(sizeof(NativeInstance));
     NativeInstance *instance = new (mem) NativeInstance();
     nativeInstances.push(instance);
@@ -402,7 +402,7 @@ NativeInstance *InstancePool::createNativeClass()
 
 NativeStructInstance *InstancePool::createNativeStruct(uint32 structSize)
 {
-    checkGC();
+    //checkGC();
 
     void *mem = arena.Allocate(sizeof(NativeStructInstance));
     NativeStructInstance *instance = new (mem) NativeStructInstance();

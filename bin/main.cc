@@ -42,7 +42,7 @@ var WHITE = Color(255, 255, 255, 255);
 var LIGHTGRAY = Color(200, 200, 200, 255);
 var tex = LoadTexture("assets/wabbit_alpha.png");
 
-SetTargetFPS(30);
+//SetTargetFPS(30);
 
 lista = [];
 lista.push(Sprite(10,10));
