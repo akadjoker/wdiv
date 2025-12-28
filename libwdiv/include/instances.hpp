@@ -84,8 +84,8 @@ public:
 
     ArrayInstance *getArray(int id);
     MapInstance *getMap(int id);
-    // NativeInstance *getNativeClass(int id);
-    // NativeStructInstance *getNativeStruct(int id);
+     NativeInstance *getNativeClass(int id);
+    NativeStructInstance *getNativeStruct(int id);
 
     // Create methods
     StructInstance *createStruct();

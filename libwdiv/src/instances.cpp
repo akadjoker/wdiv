@@ -112,6 +112,28 @@ MapInstance *InstancePool::getMap(int id)
     return mapInstances[id];
 }
 
+NativeInstance *InstancePool::getNativeClass(int id)
+{
+    if (id < 0 || id >= (int)nativeInstances.size())
+    {
+        Warning("NativeInstance index out of bounds: %d", id);
+        return nullptr;
+    }
+
+    return nativeInstances[id];
+}
+
+NativeStructInstance *InstancePool::getNativeStruct(int id)
+{
+    if (id < 0 || id >= (int)nativeStructInstances.size())
+    {
+        Warning("NativeStructInstance index out of bounds: %d", id);
+        return nullptr;
+    }
+
+    return nativeStructInstances[id];
+}
+
 StructInstance *InstancePool::createStruct()
 {
     StructInstance *instance = nullptr;
@@ -204,6 +226,8 @@ NativeInstance *InstancePool::createNativeClass()
 #endif
     nativeInstances.push(instance);
 
+    instance->index = nativeInstances.size();
+
     bytesAllocated += nativeClassSize;
 
     totalNativeClasses++;
@@ -218,14 +242,16 @@ NativeStructInstance *InstancePool::createNativeStruct(uint32 structSize)
 #if USE_ARENA
     void *mem = arena.Allocate(nativeStructSize);
     instance = new (mem) NativeStructInstance();
-    instance->data = arena.Allocate(structSize);
+   // instance->data = arena.Allocate(structSize);
 #else
     instance = new NativeStructInstance();
+    #endif
+    
+    instance->index = nativeStructInstances.size();
     instance->data = aAlloc(structSize);
-#endif
-
     std::memset(instance->data, 0, structSize);
     nativeStructInstances.push(instance);
+
 
     bytesAllocated += nativeStructSize + structSize;
 
@@ -339,12 +365,14 @@ void InstancePool::freeNativeStruct(NativeStructInstance *n)
         }
 
 
+         aFree(n->data);
+      
     
-        #if USE_ARENA
-        arena.Free(n->data, n->def->structSize);
-        #else
-        aFree(n->data);
-        #endif
+        // #if USE_ARENA
+        // arena.Free(n->data, n->def->structSize);
+        // #else
+        // aFree(n->data);
+        // #endif
 
         
         n->data = nullptr;

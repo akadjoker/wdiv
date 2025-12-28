@@ -422,20 +422,6 @@ namespace RaylibBindings
     // ========================================
     // TEXTURE
     // ========================================
-
-    void texture_dtor(Interpreter *vm, void *buffer)
-    {
-        Texture *v = (Texture *)buffer;
-        if (v->id == 0)
-            return;
-        UnloadTexture(*v);
-        v->id = 0;
-        v->width = 0;
-        v->height = 0;
-        v->mipmaps = 0;
-        v->format = 0;
-    }
-
     Value native_LoadTexture(Interpreter *vm, int argc, Value *args)
     {
         if (argc != 1)
@@ -450,26 +436,18 @@ namespace RaylibBindings
         }
         const char *filename = args[0].asString()->chars();
 
-        Value v = vm->createNativeStruct(vm->getLastRegisteredInstanceId(), 0, nullptr);
-        auto *inst = v.asNativeStructInstance();
+        Texture2D tex = LoadTexture(filename);
+        Texture2D *texPtr = new Texture2D(tex);
 
-        Texture2D data = LoadTexture(filename);
-
-        *(Texture2D *)inst->data = data;
-
-        return v;
+        return Value::makePointer(texPtr);
     }
 
     Value native_UnloadTexture(Interpreter *vm, int argc, Value *args)
     {
-        auto *texInst = args[0].asNativeStructInstance();
-        Texture2D *tex = (Texture2D *)texInst->data;
-
-        if (tex->id == 0)
-            return Value::makeNil();
+        Texture2D *tex = (Texture2D *)args[0].asPointer();
 
         UnloadTexture(*tex);
-        tex->id = 0;
+        delete tex;
 
         return Value::makeNil();
     }
@@ -481,51 +459,51 @@ namespace RaylibBindings
             Error("DrawTexture expects 4 arguments");
             return Value::makeNil();
         }
-        if (!args[0].isNativeStructInstance())
+        if (!args[0].isPointer())
         {
             Error("DrawTexture expects Texture2D");
             return Value::makeNil();
         }
-
         if (!args[3].isNativeStructInstance())
         {
             Error("DrawTexture expects Color");
             return Value::makeNil();
         }
-        auto *texInst = args[0].asNativeStructInstance();
-        Texture2D *tex = (Texture2D *)texInst->data;
+        Texture2D *tex = (Texture2D *)args[0].asPointer();
         int x = args[1].asInt();
         int y = args[2].asInt();
+
         auto *colorInst = args[3].asNativeStructInstance();
         Color *tint = (Color *)colorInst->data;
+
         DrawTexture(*tex, x, y, *tint);
-        return Value::makeNil();
-    }
-
-    Value native_DrawTextureEx(Interpreter *vm, int argc, Value *args)
-    {
-
-        auto *texInst = args[0].asNativeStructInstance();
-        Texture2D *tex = (Texture2D *)texInst->data;
-
-        auto *posInst = args[1].asNativeStructInstance();
-        Vector2 *pos = (Vector2 *)posInst->data;
-
-        float rotation = args[2].asDouble();
-        float scale = args[3].asDouble();
-
-        auto *colorInst = args[4].asNativeStructInstance();
-        Color *tint = (Color *)colorInst->data;
-
-        DrawTextureEx(*tex, *pos, rotation, scale, *tint);
         return Value::makeNil();
     }
 
     Value native_DrawTextureV(Interpreter *vm, int argc, Value *args)
     {
+        if (argc != 3)
+        {
+            Error("DrawTextureV expects 3 arguments");
+            return Value::makeNil();
+        }
+        if (!args[0].isPointer())
+        {
+            Error("DrawTextureV expects Texture2D");
+            return Value::makeNil();
+        }
+        if (!args[1].isNativeStructInstance())
+        {
+            Error("DrawTextureV expects Vector2");
+            return Value::makeNil();
+        }
+        if (!args[2].isNativeStructInstance())
+        {
+            Error("DrawTextureV expects Color");
+            return Value::makeNil();
+        }
 
-        auto *texInst = args[0].asNativeStructInstance();
-        Texture2D *tex = (Texture2D *)texInst->data;
+        Texture2D *tex = (Texture2D *)args[0].asPointer();
 
         auto *posInst = args[1].asNativeStructInstance();
         Vector2 *pos = (Vector2 *)posInst->data;
@@ -537,28 +515,142 @@ namespace RaylibBindings
         return Value::makeNil();
     }
 
-    void registerTexture(Interpreter &vm)
-    {
-        auto *texture = vm.registerNativeStruct(
-            "Texture",
-            sizeof(Texture),
-            nullptr,
-            texture_dtor,
-            "raylib");
+    // void texture_dtor(Interpreter *vm, void *buffer)
+    // {
+    //     Texture *v = (Texture *)buffer;
+    //     if (v->id == 0)
+    //         return;
+    //     UnloadTexture(*v);
+    //     v->id = 0;
+    //     v->width = 0;
+    //     v->height = 0;
+    //     v->mipmaps = 0;
+    //     v->format = 0;
+    // }
 
-        vm.addStructField(texture, "id", offsetof(Texture, id), FieldType::INT);
-        vm.addStructField(texture, "width", offsetof(Texture, width), FieldType::INT);
-        vm.addStructField(texture, "height", offsetof(Texture, height), FieldType::INT);
-        vm.addStructField(texture, "mipmaps", offsetof(Texture, mipmaps), FieldType::INT);
-        vm.addStructField(texture, "format", offsetof(Texture, format), FieldType::INT);
+    // Value native_LoadTexture(Interpreter *vm, int argc, Value *args)
+    // {
+    //     if (argc != 1)
+    //     {
+    //         Error("LoadTexture expects 1 argument");
+    //         return Value::makeNil();
+    //     }
+    //     if (!args[0].isString())
+    //     {
+    //         Error("LoadTexture expects string");
+    //         return Value::makeNil();
+    //     }
+    //     const char *filename = args[0].asString()->chars();
 
-        // Textures
-        vm.registerNative("LoadTexture", native_LoadTexture, 1, "raylib");
-        vm.registerNative("UnloadTexture", native_UnloadTexture, 1, "raylib");
-        vm.registerNative("DrawTexture", native_DrawTexture, 4, "raylib");
-        // vm.registerNative("DrawTextureV", native_DrawTextureV, 3, "raylib");
-        // vm.registerNative("DrawTextureEx", native_DrawTextureEx, 5, "raylib");
-    }
+    //     Value v = vm->createNativeStruct(vm->getLastRegisteredInstanceId(), 0, nullptr);
+    //     auto *inst = v.asNativeStructInstance();
+
+    //     Texture2D data = LoadTexture(filename);
+
+    //     *(Texture2D *)inst->data = data;
+
+    //     return v;
+    // }
+
+    // Value native_UnloadTexture(Interpreter *vm, int argc, Value *args)
+    // {
+    //     auto *texInst = args[0].asNativeStructInstance();
+    //     Texture2D *tex = (Texture2D *)texInst->data;
+
+    //     if (tex->id == 0)
+    //         return Value::makeNil();
+
+    //     UnloadTexture(*tex);
+    //     tex->id = 0;
+
+    //     return Value::makeNil();
+    // }
+
+    // Value native_DrawTexture(Interpreter *vm, int argc, Value *args)
+    // {
+    //     if (argc != 4)
+    //     {
+    //         Error("DrawTexture expects 4 arguments");
+    //         return Value::makeNil();
+    //     }
+    //     if (!args[0].isNativeStructInstance())
+    //     {
+    //         Error("DrawTexture expects Texture2D");
+    //         return Value::makeNil();
+    //     }
+
+    //     if (!args[3].isNativeStructInstance())
+    //     {
+    //         Error("DrawTexture expects Color");
+    //         return Value::makeNil();
+    //     }
+    //     auto *texInst = args[0].asNativeStructInstance();
+    //     Texture2D *tex = (Texture2D *)texInst->data;
+    //     int x = args[1].asInt();
+    //     int y = args[2].asInt();
+    //     auto *colorInst = args[3].asNativeStructInstance();
+    //     Color *tint = (Color *)colorInst->data;
+    //     DrawTexture(*tex, x, y, *tint);
+    //     return Value::makeNil();
+    // }
+
+    // Value native_DrawTextureEx(Interpreter *vm, int argc, Value *args)
+    // {
+
+    //     auto *texInst = args[0].asNativeStructInstance();
+    //     Texture2D *tex = (Texture2D *)texInst->data;
+
+    //     auto *posInst = args[1].asNativeStructInstance();
+    //     Vector2 *pos = (Vector2 *)posInst->data;
+
+    //     float rotation = args[2].asDouble();
+    //     float scale = args[3].asDouble();
+
+    //     auto *colorInst = args[4].asNativeStructInstance();
+    //     Color *tint = (Color *)colorInst->data;
+
+    //     DrawTextureEx(*tex, *pos, rotation, scale, *tint);
+    //     return Value::makeNil();
+    // }
+
+    // Value native_DrawTextureV(Interpreter *vm, int argc, Value *args)
+    // {
+
+    //     auto *texInst = args[0].asNativeStructInstance();
+    //     Texture2D *tex = (Texture2D *)texInst->data;
+
+    //     auto *posInst = args[1].asNativeStructInstance();
+    //     Vector2 *pos = (Vector2 *)posInst->data;
+
+    //     auto *colorInst = args[2].asNativeStructInstance();
+    //     Color *tint = (Color *)colorInst->data;
+
+    //     DrawTextureV(*tex, *pos, *tint);
+    //     return Value::makeNil();
+    // }
+
+    // void registerTexture(Interpreter &vm)
+    // {
+    //     auto *texture = vm.registerNativeStruct(
+    //         "Texture",
+    //         sizeof(Texture),
+    //         nullptr,
+    //         texture_dtor,
+    //         "raylib");
+
+    //     vm.addStructField(texture, "id", offsetof(Texture, id), FieldType::INT);
+    //     vm.addStructField(texture, "width", offsetof(Texture, width), FieldType::INT);
+    //     vm.addStructField(texture, "height", offsetof(Texture, height), FieldType::INT);
+    //     vm.addStructField(texture, "mipmaps", offsetof(Texture, mipmaps), FieldType::INT);
+    //     vm.addStructField(texture, "format", offsetof(Texture, format), FieldType::INT);
+
+    //     // Textures
+    //     vm.registerNative("LoadTexture", native_LoadTexture, 1, "raylib");
+    //     vm.registerNative("UnloadTexture", native_UnloadTexture, 1, "raylib");
+    //     vm.registerNative("DrawTexture", native_DrawTexture, 4, "raylib");
+    //     // vm.registerNative("DrawTextureV", native_DrawTextureV, 3, "raylib");
+    //     // vm.registerNative("DrawTextureEx", native_DrawTextureEx, 5, "raylib");
+    // }
 
     //
     const char *formatBytes(size_t bytes)
@@ -825,7 +917,7 @@ namespace RaylibBindings
         registerRectangle(vm);
         registerColor(vm);
         registerCamera2D(vm);
-        registerTexture(vm);
+       // registerTexture(vm);
 
         // Window
         vm.registerNative("InitWindow", native_InitWindow, 3, "raylib");
@@ -839,6 +931,10 @@ namespace RaylibBindings
         vm.registerNative("BeginDrawing", native_BeginDrawing, 0, "raylib");
         vm.registerNative("EndDrawing", native_EndDrawing, 0, "raylib");
         vm.registerNative("ClearBackground", native_ClearBackground, 1, "raylib");
+
+        vm.registerNative("DrawTexture", native_DrawTexture, 4);
+        vm.registerNative("LoadTexture", native_LoadTexture, 1);
+        vm.registerNative("UnloadTexture", native_UnloadTexture, 1);
 
         // vm.registerNative("BeginMode2D",  native_BeginMode2D, 0,"raylib");
         // vm.registerNative("EndMode2D",  native_EndMode2D, 0,"raylib");

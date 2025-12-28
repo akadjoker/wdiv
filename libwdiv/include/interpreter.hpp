@@ -303,7 +303,7 @@ struct ProcessDef
     Fiber *current;
     Value privates[MAX_PRIVATES];
     int nextFiberIndex;
-    uint32 index;
+    int index;
     void finalize();
     void release();
 };

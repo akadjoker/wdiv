@@ -103,11 +103,11 @@ uint32 Interpreter::liveProcess()
 
 ProcessDef *Interpreter::addProcess(const char *name, Function *func)
 {
-    String *pName = createStaticString(name);
+    String *pName = createString(name);
     ProcessDef *existing = nullptr;
     if (processesMap.get(pName, &existing))
     {
-        Info("Process %s already exists", name);
+        
         return existing;
     }
 
@@ -135,11 +135,8 @@ ProcessDef *Interpreter::addProcess(const char *name, Function *func)
 
     initFiber(&proc->fibers[0], func);
     proc->current = &proc->fibers[0];
-    proc->index = processes.size();
 
     currentFiber = proc->current;
-
-    Info("Process %s created (index=%d)", name, proc->index);
 
     processesMap.set(pName, proc);
     processes.push(proc);

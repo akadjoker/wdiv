@@ -53,7 +53,8 @@ Value Value::makeNativeClassInstance()
 {
     Value v;
     v.type = ValueType::NATIVECLASSINSTANCE;
-    v.as.nativeClassInstance =  InstancePool::instance().createNativeClass();
+    NativeInstance *instance =  InstancePool::instance().createNativeClass();
+    v.as.integer = instance->index;
     return v;
 }
 
@@ -79,7 +80,8 @@ Value Value::makeArray()
 {
     Value v;
     v.type = ValueType::ARRAY;
-    v.as.array = InstancePool::instance().createArray();
+    ArrayInstance *  array = InstancePool::instance().createArray();
+    v.as.integer = array->index;
  
     return v;
 }
@@ -87,7 +89,9 @@ Value Value::makeNativeStructInstance(uint32 structSize)
 {
     Value v;
     v.type = ValueType::NATIVESTRUCTINSTANCE;
-    v.as.sNativeStruct = InstancePool::instance().createNativeStruct(structSize);
+    NativeStructInstance *  nativeStructInstance = InstancePool::instance().createNativeStruct(structSize);
+    v.as.integer = nativeStructInstance->index;
+    
  
     return v;
 }
@@ -95,8 +99,8 @@ Value Value::makeClassInstance()
 {
     Value v;
     v.type = ValueType::CLASSINSTANCE;
-    
-    v.as.classInstance = InstancePool::instance().createClass();
+    ClassInstance * instance = InstancePool::instance().createClass();
+    v.as.integer = instance->index;
  
     return v;
 }
@@ -182,11 +186,11 @@ Value Value::makeNativeClass(int idx)
     return v;
 }
 
-Value Value::makeProcess(uint32 idx)
+Value Value::makeProcess(int idx)
 {
     Value v;
     v.type = ValueType::PROCESS;
-    v.as.process = idx;
+    v.as.integer = idx;
     return v;
 }
 
@@ -341,10 +345,10 @@ int Value::asNativeId() const
     VALUE_TYPE_CHECK(type == ValueType::NATIVE, "Try to get native function but is %s", typeToString(type));
     return as.integer; 
 }
-uint32 Value::asProcessId() const 
+int Value::asProcessId() const 
 { 
     VALUE_TYPE_CHECK(type == ValueType::PROCESS, "Try to get process but is %s", typeToString(type));
-    return as.process; 
+    return as.integer; 
 }
 
 int Value::asStructId() const
@@ -386,7 +390,7 @@ StructInstance *Value::asStructInstance() const
 ArrayInstance *Value::asArray() const
 {
     VALUE_TYPE_CHECK(type == ValueType::ARRAY, "Try to get array but is %s", typeToString(type));
-    return as.array;
+    return InstancePool::instance().getArray(as.integer);
 }
 
 MapInstance *Value::asMap() const
@@ -398,20 +402,21 @@ MapInstance *Value::asMap() const
 ClassInstance *Value::asClassInstance() const
 {
     VALUE_TYPE_CHECK(type == ValueType::CLASSINSTANCE, "Try to get class but is %s", typeToString(type));
-    return  as.classInstance;
+    return   InstancePool::instance().getClass(as.integer);
 }
 
 NativeInstance *Value::asNativeClassInstance() const
 {
     VALUE_TYPE_CHECK(type == ValueType::NATIVECLASSINSTANCE, "Try to get native class but is %s", typeToString(type));
 
-    return as.nativeClassInstance;
+    return  InstancePool::instance().getNativeClass(as.integer);
 }
 
 NativeStructInstance *Value::asNativeStructInstance() const
 {
     VALUE_TYPE_CHECK(type == ValueType::NATIVESTRUCTINSTANCE, "Try to get native struct but is %s", typeToString(type));
-    return as.sNativeStruct;
+    //return as.nativeStructInstance;
+    return InstancePool::instance().getNativeStruct(as.integer);
 }
 
 double Value::asNumber() const
@@ -468,7 +473,7 @@ static void printValueIndented(const Value &value, int depth = 0)
         printf("<native>");
         break;
     case ValueType::PROCESS:
-        printf("<process:%d>", value.as.process);
+        printf("<process:%d>", value.as.integer);
         break;
     case ValueType::ARRAY:
     {
@@ -519,13 +524,13 @@ static void printValueIndented(const Value &value, int depth = 0)
     }
     case ValueType::NATIVECLASSINSTANCE:
     {
-        NativeInstance *inst = value.as.nativeClassInstance;
+        NativeInstance *inst = value.asNativeClassInstance();
         printf("<native_class_instance:%s,%i>", inst->klass->name->chars(), inst->klass->id);
         break;
     }
     case ValueType::NATIVESTRUCTINSTANCE:
     {
-        NativeStructInstance *inst = value.as.sNativeStruct;
+        NativeStructInstance *inst = value.asNativeStructInstance();
         printf("<native_struct_instance:%s,%d>", inst->def->name->chars(), inst->def->id);
         break;
     }
@@ -634,13 +639,13 @@ bool valuesEqual(const Value &a, const Value &b)
     case ValueType::CLASSINSTANCE:
         return a.as.integer == b.as.integer;
     case ValueType::NATIVECLASSINSTANCE:
-        return a.as.nativeClassInstance == b.as.nativeClassInstance;
+        return a.as.integer == b.as.integer;
     case ValueType::NATIVESTRUCTINSTANCE:
-        return a.as.sNativeStruct == b.as.sNativeStruct;
+        return a.as.integer == b.as.integer;
     case ValueType::POINTER:
         return a.as.pointer == b.as.pointer;
     case ValueType::PROCESS:
-        return a.as.process == b.as.process;
+        return a.as.integer == b.as.integer;
     default:
         return false;
     }

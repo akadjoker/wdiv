@@ -3,56 +3,43 @@
 #include "opcode.hpp"
 #include "debug.hpp"
 #include <string>
+
 const char *valueTypeToString(ValueType type)
 {
-    switch (type) {
-        case ValueType::NIL:
-            return "nil";
-        case ValueType::BOOL:
-            return "bool";
-        case ValueType::BYTE:
-            return "byte";
-        case ValueType::INT:
-            return "int";
-        case ValueType::UINT:
-            return "uint";
-        case ValueType::FLOAT:
-            return "float";
-        case ValueType::DOUBLE:
-            return "double";
-        case ValueType::STRING:
-            return "string";
-        case ValueType::ARRAY:
-            return "array";
-        case ValueType::MAP:
-            return "map";
-        case ValueType::FUNCTION:
-            return "function";
-        case ValueType::NATIVE:
-            return "native";
-        case ValueType::PROCESS:
-            return "process";
-        case ValueType::STRUCT:
-            return "struct";
-        case ValueType::STRUCTINSTANCE:
-            return "struct_instance";
-        case ValueType::CLASSID:
-            return "class";
-        case ValueType::CLASSINSTANCE:
-            return "class_instance";
-        case ValueType::NATIVECLASS:
-            return "native_class";
-        case ValueType::NATIVECLASSINSTANCE:
-            return "native_class_instance";
-        case ValueType::NATIVESTRUCT:
-            return "native_struct";
-        case ValueType::NATIVESTRUCTINSTANCE:
-            return "native_struct_instance";
-        case ValueType::POINTER:
-            return "pointer";
-        default:
-            return "unknown";
+    switch (type)
+    {
+    case ValueType::NIL:
+        return "nil";
+    case ValueType::BOOL:
+        return "bool";
+    case ValueType::INT:
+        return "int";
+    case ValueType::DOUBLE:
+        return "float";
+    case ValueType::STRING:
+        return "string";
+    case ValueType::ARRAY:
+        return "array";
+    case ValueType::MAP:
+        return "map";
+    case ValueType::FUNCTION:
+        return "<function>";
+    case ValueType::NATIVE:
+        return "<native>";
+    case ValueType::PROCESS:
+        return "<process>";
+    case ValueType::STRUCT:
+        return "<struct>";
+    case ValueType::CLASSID:
+        return "<class>";
+ 
+    case ValueType::STRUCTINSTANCE:
+        return "<struct_instances>";        
+    case ValueType::CLASSINSTANCE:
+        return "<class_instances>";        
+
     }
+    return "<?>";
 }
 
 void Interpreter::checkType(int index, ValueType expected, const char *funcName)
@@ -457,7 +444,7 @@ bool Interpreter::callFunction(const char *name, int argCount)
 
     if (!functionsMap.get(funcName, &func))
     {
-    
+       
         runtimeError("Undefined function: %s", name);
         return false;
     }
@@ -541,11 +528,11 @@ Process *Interpreter::callProcess(const char *name, int argCount)
 
     if (!processesMap.get(procName, &proc))
     {
-    
+     
         runtimeError("Undefined process: %s", name);
         return nullptr;
     }
 
- 
+  
     return callProcess(proc, argCount);
 }

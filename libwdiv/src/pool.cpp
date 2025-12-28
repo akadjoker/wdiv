@@ -38,7 +38,7 @@ StringPool::~StringPool()
 
 String *StringPool::allocString()
 {
-    void *mem = allocator.Allocate(sizeof(String));
+    void *mem = aAlloc(sizeof(String));
     String *s = new (mem) String();
     return s;
 }
@@ -52,10 +52,10 @@ void StringPool::deallocString(String *s)
     bytesAllocated -= sizeof(String) + s->length() + 1;
 
     if (s->isLong() && s->ptr)
-        allocator.Free(s->ptr, s->length() + 1);
+        aFree(s->ptr);
 
     s->~String();
-    allocator.Free(s, sizeof(String));
+    aFree(s);
 }
 
 void StringPool::clear()
@@ -70,7 +70,7 @@ void StringPool::clear()
     }
 
     dummyString->~String();
-    allocator.Free(dummyString, sizeof(String));
+    aFree(dummyString);
 
     allocator.Stats();
     allocator.Clear();
@@ -506,14 +506,14 @@ String *StringPool::format(const char *fmt, ...)
         if (needed < 0)
             return create("", 0);
 
-        char *heap = (char *)allocator.Allocate(needed + 1);
+        char *heap = (char *)aAlloc(needed + 1);
 
         va_start(args, fmt);
         vsnprintf(heap, needed + 1, fmt, args);
         va_end(args);
 
         String *result = create(heap, needed);
-        allocator.Free(heap, needed + 1);
+        aFree(heap);
 
         return result;
     }

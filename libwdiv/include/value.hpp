@@ -48,13 +48,12 @@ struct Value
     int integer;
     float real;
     double number;
-    uint32 process;
-    
-    ClassInstance *classInstance; 
-    ArrayInstance *array;
+
+    //NativeStructInstance *nativeStructInstance;
+
+
     uint32 unsignedInteger;
-    NativeInstance *nativeClassInstance;
-    NativeStructInstance *sNativeStruct;
+
     void *pointer;
 
   } as;
@@ -63,7 +62,10 @@ struct Value
 
   ~Value();
 
- 
+  Value(const Value &other) = default;
+  Value(Value &&other) noexcept = default;
+  Value &operator=(const Value &other) = default;
+  Value &operator=(Value &&other) noexcept = default;
 
   static Value makeNil();
   static Value makeBool(bool b);
@@ -80,7 +82,7 @@ struct Value
   static Value makeNative(int idx);
   static Value makeNativeClass(int idx);
   static Value makeNativeClassInstance();
-  static Value makeProcess(uint32 idx);
+  static Value makeProcess(int idx);
   static Value makeStruct(int idx);
   static Value makeStructInstance();
   static Value makeMap();
@@ -130,7 +132,7 @@ struct Value
   const char *asStringChars() const;
   int asFunctionId() const;
   int asNativeId() const;
-  uint32 asProcessId() const;
+  int asProcessId() const;
   int asStructId() const;
   int asClassId() const;
   int asClassNativeId() const;
