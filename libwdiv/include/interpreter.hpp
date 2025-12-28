@@ -206,6 +206,7 @@ struct MapInstance : public GCObject
 {
     HashMap<String *, Value, StringHasher, StringEq> table;
     MapInstance();
+    ~MapInstance();
 
     MapInstance(const MapInstance &) = delete;
     MapInstance &operator=(const MapInstance &) = delete;
@@ -227,8 +228,7 @@ struct ClassInstance : public GCObject
     bool getMethod(String *name, Function **func);
 
     void drop() override;
-     void grab() override;
-     void release() override;
+ 
 };
 
 struct CallFrame
@@ -401,8 +401,10 @@ class Interpreter
     bool setGlobal(String *name, Value val);
 
     friend class Compiler;
+    friend class InstancePool;
 
     String *staticFree;
+    String *staticToString;
 
 public:
     Interpreter();
@@ -412,6 +414,9 @@ public:
     int getProcessPrivateIndex(const char *name);
 
     uint32 liveProcess();
+
+    void gc();
+    int gcTotalBytes();
 
     bool addModule(const char *name);
 

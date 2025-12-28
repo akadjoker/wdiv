@@ -23,6 +23,8 @@ add_subdirectory(main)
 add_subdirectory(game)
 add_subdirectory(tests)
 add_subdirectory(fisica)
+add_subdirectory(fisica2)
+add_subdirectory(fisica3)
 
 add_subdirectory(testPool)
 add_subdirectory(testNatives)

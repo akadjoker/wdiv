@@ -136,6 +136,25 @@ public:
         return data_[size_ - 1];
     }
 
+    void swapAndPop(size_t index)
+    {
+        if (index < size_)
+        {
+            data_[index] = data_[size_ - 1];  //  Swap
+            size_--;
+        }
+    }
+    
+    // Ou com erase simples (menos eficiente)
+    void erase(size_t index)
+    {
+        if (index < size_)
+        {
+            std::memmove(&data_[index], &data_[index + 1], 
+                        (size_ - index - 1) * sizeof(T));
+            size_--;
+        }
+    }
     void clear()
     {
         size_ = 0; // Sem destructors!

@@ -103,11 +103,11 @@ uint32 Interpreter::liveProcess()
 
 ProcessDef *Interpreter::addProcess(const char *name, Function *func)
 {
-    String *pName = createString(name);
+    String *pName = createStaticString(name);
     ProcessDef *existing = nullptr;
     if (processesMap.get(pName, &existing))
     {
-        destroyString(pName);
+       
         return existing;
     }
 

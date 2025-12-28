@@ -10,155 +10,29 @@ Value::Value() : type(ValueType::NIL)
 
 Value::~Value()
 {
-    if (type == ValueType::STRING && as.string)
-        as.string->release();
-    else if (type == ValueType::STRUCTINSTANCE)
-        as.sInstance->release();
-    else if (type == ValueType::ARRAY)
-        as.array->release();
-    else if (type == ValueType::MAP)
-        as.map->release();
-    else if (type == ValueType::CLASSINSTANCE)
-        as.sClass->release();
-    else if (type == ValueType::NATIVESTRUCTINSTANCE)
-        as.sNativeStruct->release();
-    else if (type == ValueType::NATIVECLASSINSTANCE)
-        as.sClassInstance->release();
+    // if (type == ValueType::STRING && as.string)
+    //     as.string->release();
+    // else if (type == ValueType::STRUCTINSTANCE)
+    //     as.sInstance->release();
+    // else if (type == ValueType::ARRAY)
+    //     as.array->release();
+    // else if (type == ValueType::MAP)
+    //     as.map->release();
+    // else if (type == ValueType::CLASSINSTANCE)
+    //     as.sClass->release();
+    // else if (type == ValueType::NATIVESTRUCTINSTANCE)
+    //     as.sNativeStruct->release();
+    // else if (type == ValueType::NATIVECLASSINSTANCE)
+    //     as.sClassInstance->release();
 }
 
-Value::Value(const Value &other)
-    : type(other.type), as(other.as)
-{
-
-    // if (type != other.type)
-    // {
-    //     Warning("Value 'copy' type mismatch");
-    //     printValueNl(*this);
-    //     printValueNl(other);
-    //     return;
-    // }
-
-    if (type == ValueType::STRING && as.string)
-        as.string->grab();
-    else if (type == ValueType::STRUCTINSTANCE)
-        as.sInstance->grab();
-    else if (type == ValueType::ARRAY)
-        as.array->grab();
-    else if (type == ValueType::MAP)
-        as.map->grab();
-    else if (type == ValueType::CLASSINSTANCE)
-        as.sClass->grab();
-    else if (type == ValueType::NATIVESTRUCTINSTANCE)
-        as.sNativeStruct->grab();
-    else if (type == ValueType::NATIVECLASSINSTANCE)
-        as.sClassInstance->grab();
-}
-Value &Value::operator=(const Value &other)
-{
-    if (this == &other)
-        return *this;
-
-    // if (type != other.type)
-    // {
-    //     Warning("Value 'assign' type mismatch");
-    //     printValueNl(*this);
-    //     printValueNl(other);
-    //     return *this;
-    // }
-
-    // Release old string
-    if (type == ValueType::STRING && as.string)
-        as.string->release();
-    else if (type == ValueType::STRUCTINSTANCE)
-        as.sInstance->release();
-    else if (type == ValueType::ARRAY)
-        as.array->release();
-    else if (type == ValueType::MAP)
-        as.map->release();
-    else if (type == ValueType::CLASSINSTANCE)
-    {
-
-        printValueNl(*this);
-        printValueNl(other);
-       as.sClass->release(); 
-    }
-    else if (type == ValueType::NATIVESTRUCTINSTANCE)
-        as.sNativeStruct->release();
-    else if (type == ValueType::NATIVECLASSINSTANCE)
-        as.sClassInstance->release();
-
-    // Copy new
-    type = other.type;
-    as = other.as;
-
-    // Grab new string
-    if (type == ValueType::STRING && as.string)
-        as.string->grab();
-    else if (type == ValueType::STRUCTINSTANCE)
-        as.sInstance->grab();
-    else if (type == ValueType::ARRAY)
-        as.array->grab();
-    else if (type == ValueType::MAP)
-        as.map->grab();
-    else if (type == ValueType::CLASSINSTANCE)
-        as.sClass->grab();
-    else if (type == ValueType::NATIVESTRUCTINSTANCE)
-        as.sNativeStruct->grab();
-    else if (type == ValueType::NATIVECLASSINSTANCE)
-        as.sClassInstance->grab();
-
-    return *this;
-}
-
-Value &Value::operator=(Value &&other) noexcept
-{
-    if (this == &other)
-        return *this;
-
-    // if (type != other.type)
-    // {
-    //     Warning("Value 'move' type mismatch");
-    //     printValueNl(*this);
-    //     printValueNl(other);
-    //     return *this;
-    // }
-
-    if (type == ValueType::STRING && as.string)
-        as.string->release();
-    else if (type == ValueType::STRUCTINSTANCE)
-        as.sInstance->release();
-    else if (type == ValueType::ARRAY)
-        as.array->release();
-    else if (type == ValueType::MAP)
-        as.map->release();
-    else if (type == ValueType::CLASSINSTANCE)
-        as.sClass->release();
-    else if (type == ValueType::NATIVESTRUCTINSTANCE)
-        as.sNativeStruct->release();
-    else if (type == ValueType::NATIVECLASSINSTANCE)
-        as.sClassInstance->release();
-
-    type = other.type;
-    as = other.as;
-
-    other.type = ValueType::NIL;
-    other.as.string = nullptr;
-    other.as.sInstance = nullptr;
-    other.as.array = nullptr;
-    other.as.map = nullptr;
-    other.as.sClass = nullptr;
-    other.as.sNativeStruct = nullptr;
-    other.as.sClassInstance = nullptr;
-
-    return *this;
-}
 
 Value Value::makeString(const char *str)
 {
     Value v;
     v.type = ValueType::STRING;
     v.as.string = createString(str);
-    v.as.string->grab();
+
 
     return v;
 }
@@ -168,7 +42,6 @@ Value Value::makeString(String *s)
     Value v;
     v.type = ValueType::STRING;
     v.as.string = s;
-    s->grab();
     return v;
 }
 Value Value::makeNativeClassInstance()
@@ -218,24 +91,11 @@ Value Value::makeClassInstance()
     Value v;
     v.type = ValueType::CLASSINSTANCE;
     v.as.sClass = InstancePool::instance().creatClass();
-    //v.as.sClass->grab();
-
-       printf("[MAKE] ClassInstance created, refCount = %d\n", v.as.sClass->refCount);
  
     return v;
 }
 
-Value::Value(Value &&other) noexcept : type(other.type), as(other.as)
-{
-    other.type = ValueType::NIL;
-    other.as.string = nullptr;
-    other.as.sInstance = nullptr;
-    other.as.array = nullptr;
-    other.as.map = nullptr;
-    other.as.sClass = nullptr;
-    other.as.sNativeStruct = nullptr;
-    other.as.sClassInstance = nullptr;
-}
+
 
 Value Value::makeNil()
 {
@@ -360,40 +220,40 @@ void Value::drop()
 {
 
     
-    if (type == ValueType::STRUCTINSTANCE)
-     {
-        Info("drop value %s",  typeToString(type));
-         as.sInstance->release();
-        }
-        else if (type == ValueType::ARRAY)
-     {
-         as.array->release();
-     }
-     else if (type == ValueType::MAP)
-     {
-         as.map->release();
-     }
-     else if (type == ValueType::CLASSINSTANCE)
-     {
-         Info("drop value %s",  typeToString(type));
-         as.sClass->release();
-     }
-     else    if (type == ValueType::NATIVESTRUCTINSTANCE)
-     {
-        Info("drop value %s",  typeToString(type));
-         as.sNativeStruct->release();
-     }
-     else if (type == ValueType::NATIVECLASSINSTANCE)
-     {
-        Info("drop value %s",  typeToString(type));
-         as.sClassInstance->release();
-     }
-     else if (type == ValueType::STRING)
-    {
-        Info("drop value %s",  typeToString(type));
-        as.string->release();
-        // Info("Drop value %s %d %s", typeToString(type), as.string->refCount, as.string->chars());
-    }
+    // if (type == ValueType::STRUCTINSTANCE)
+    //  {
+    //     Info("drop value %s",  typeToString(type));
+    //      as.sInstance->release();
+    //     }
+    //     else if (type == ValueType::ARRAY)
+    //  {
+    //      as.array->release();
+    //  }
+    //  else if (type == ValueType::MAP)
+    //  {
+    //      as.map->release();
+    //  }
+    //  else if (type == ValueType::CLASSINSTANCE)
+    //  {
+    //      Info("drop value %s",  typeToString(type));
+    //      as.sClass->release();
+    //  }
+    //  else    if (type == ValueType::NATIVESTRUCTINSTANCE)
+    //  {
+    //     Info("drop value %s",  typeToString(type));
+    //      as.sNativeStruct->release();
+    //  }
+    //  else if (type == ValueType::NATIVECLASSINSTANCE)
+    //  {
+    //     Info("drop value %s",  typeToString(type));
+    //      as.sClassInstance->release();
+    //  }
+    //  else if (type == ValueType::STRING)
+    // {
+    //     Info("drop value %s",  typeToString(type));
+    //     as.string->release();
+    //     // Info("Drop value %s %d %s", typeToString(type), as.string->refCount, as.string->chars());
+    // }
 }
 
 bool Value::isNumber() const

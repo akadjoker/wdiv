@@ -66,6 +66,8 @@ Value native_format(Interpreter *vm, int argCount, Value *args)
         return Value::makeNil();
     }
 
+  
+
     const char *fmt = args[0].as.string->chars();
     std::string result;
     int argIndex = 1;
@@ -203,22 +205,18 @@ Value native_rand_range(Interpreter *vm, int argCount, Value *args)
     return Value::makeInt(GetRandomValue(min, max));
 }
 
-
-
-
-
-struct Sprite
+Value native_gc(Interpreter *vm, int argCount, Value *args)
 {
-    int id;
-    int x, y;
-    int graph;
-    const char *name;
-};
+    vm->gc();
+    return Value::makeNil();
+}
 
-int nextSpriteId = 0;
+Value navite_total_bytes_allocated(Interpreter *vm, int argCount, Value *args)
+{
+    return Value::makeInt(vm->gcTotalBytes());
+}
 
- 
- 
+
 
 struct FileLoaderContext
 {
@@ -301,6 +299,8 @@ int main()
     Interpreter vm;
     vm.addModule("raylib");
     vm.registerNative("write", native_write, -1);
+    vm.registerNative("gc", native_gc, -1);
+    vm.registerNative("getBytesAllocated", navite_total_bytes_allocated, -1);
     vm.registerNative("getMemoryUsage", native_getMemoryUsage, -1);
     vm.registerNative("format", native_format, -1);
     vm.registerNative("sqrt", native_sqrt, 1);

@@ -5,7 +5,7 @@ Function::~Function()
 {
     if (name)
     {
-        destroyString(name);
+        
     }
     if (chunk)
     {
@@ -16,12 +16,12 @@ Function::~Function()
 
 Function *Interpreter::addFunction(const char *name, int arity)
 {
-    String *pName = createString(name);
+    String *pName = createStaticString(name);
     Function *existing = nullptr;
 
     if (functionsMap.get(pName, &existing))
     {
-        destroyString(pName);
+       
         return nullptr;
     }
 
@@ -41,10 +41,10 @@ Function *Interpreter::addFunction(const char *name, int arity)
 
 Function *Interpreter::canRegisterFunction(const char *name, int arity, int *index)
 {
-    String *pName = createString(name);
+    String *pName = createStaticString(name);
     if (functionsMap.exist(pName))
     {
-        destroyString(pName);
+        
         *index = -1;
         return nullptr;
     }
@@ -67,7 +67,7 @@ bool Interpreter::functionExists(const char *name)
 {
     String *pName = createString(name);
     bool exists = functionsMap.exist(pName);
-    destroyString(pName);
+ 
     return exists;
 }
 
@@ -78,10 +78,10 @@ int Interpreter::registerFunction(const char *name, Function *func)
         runtimeError("Cannot register null function");
         return -1;
     }
-    String *pName = createString(name);
+    String *pName = createStaticString(name);
     if (functionsMap.exist(pName))
     {
-        destroyString(pName);
+     
         return -1;
     }
     functionsMap.set(pName, func);
@@ -101,7 +101,7 @@ void Interpreter::destroyFunction(Function *func)
     {
         Warning(" Remove Function %s", funcName->chars());
 
-        destroyString(funcName);
+ 
     }
 
     func->chunk->clear();

@@ -976,7 +976,7 @@ void Compiler::processDeclaration()
 
             proc->argsNames.push(255); // Marcador "sem private"
         }
-        destroyString(argNames[i]);
+         
     }
     argNames.clear();
 
@@ -1041,7 +1041,7 @@ void Compiler::compileFunction(Function *func, bool isProcess)
             consume(TOKEN_IDENTIFIER, "Expect parameter name");
             if (isProcess)
             {
-                argNames.push(std::move(createString(previous.lexeme.c_str())));
+                argNames.push(createStaticString(previous.lexeme.c_str()));
             }
             addLocal(previous);
             markInitialized();
@@ -1575,7 +1575,7 @@ void Compiler::structDeclaration()
 
     int index = 0;
     StructDef *structDef = vm_->registerStruct(
-        createString(structName.lexeme.c_str()),
+        createStaticString(structName.lexeme.c_str()),
         &index);
 
     if (!structDef)
@@ -1597,7 +1597,7 @@ void Compiler::structDeclaration()
         {
             consume(TOKEN_IDENTIFIER, "Expect field name");
 
-            String *fieldName = createString(previous.lexeme.c_str());
+            String *fieldName = createStaticString(previous.lexeme.c_str());
             structDef->names.set(fieldName, structDef->argCount);
             structDef->argCount++;
 
@@ -1692,7 +1692,7 @@ void Compiler::classDeclaration()
             consume(TOKEN_IDENTIFIER, "Expect field name");
             Token fieldName = previous;
 
-            String *name = createString(fieldName.lexeme.c_str());
+            String *name = createStaticString(fieldName.lexeme.c_str());
             classDef->fieldNames.set(name, classDef->fieldCount);
             classDef->fieldCount++;
 

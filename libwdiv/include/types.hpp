@@ -1,10 +1,7 @@
 #pragma once
 #include "config.hpp"
 
-
-typedef const char* (*FileLoaderCallback)(const char* filename, size_t* outSize, void* userdata);
-
-
+typedef const char *(*FileLoaderCallback)(const char *filename, size_t *outSize, void *userdata);
 
 static constexpr int MAX_PRIVATES = 16;
 static constexpr int MAX_FIBERS = 8;
@@ -26,23 +23,32 @@ enum class FiberState : uint8
     DEAD
 };
 
-
-enum class FunctionType  : uint8
+enum class FunctionType : uint8
 {
-    TYPE_FUNCTION,      // def normal
-    TYPE_METHOD,        // método de class
-    TYPE_INITIALIZER,   // init (construtor)
-    TYPE_SCRIPT         // top-level script
+    TYPE_FUNCTION,    // def normal
+    TYPE_METHOD,      // método de class
+    TYPE_INITIALIZER, // init (construtor)
+    TYPE_SCRIPT       // top-level script
+};
+
+enum GCObjectType : uint8
+{
+    GC_NONE,
+    GC_STRING,
+    GC_CLASSINSTANCE,
+    GC_ARRAY,
+    GC_MAP,
+    GC_STRUCTINSTANCE,
+    GC_NATIVECLASSINSTANCE,
+    GC_NATIVESTRUCTINSTANCE,
 };
 
 struct GCObject
 {
-    int refCount;
+    bool marked = false;
+    GCObjectType type  = GC_NONE;
+
     GCObject();
     virtual ~GCObject();
-    virtual void grab();
-    virtual void release();
     virtual void drop() {}
 };
-
-

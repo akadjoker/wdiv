@@ -68,20 +68,15 @@ struct Value
 
   Value();
 
- 
   ~Value();
 
-  // Copy constructor - grab when copying
-  Value(const Value &other);
-
-  // Copy assignment
-  Value &operator=(const Value &other);
-
-  // Move assignment
-  Value &operator=(Value &&other) noexcept;
-
-  // Move constructor - steal reference
-  Value(Value &&other) noexcept;
+  Value &operator=(const Value &other)
+  {
+    type = other.type;
+    as = other.as;
+    return *this; // Apenas copia pointer!
+  }
+ 
 
   static Value makeNil();
   static Value makeBool(bool b);
