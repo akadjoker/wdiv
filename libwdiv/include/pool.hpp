@@ -2,68 +2,26 @@
 #include "config.hpp"
 #include "string.hpp"
 #include "vector.hpp"
-#include "map.hpp"  
-#include "types.hpp"  
+
 
 struct Value;
 struct Process;
 
  
- 
- struct CStringHash
-{
-    size_t operator()(const char *str) const
-    {
-        // FNV-1a hash
-        size_t hash = 2166136261u;
-        while (*str)
-        {
-            hash ^= (unsigned char)*str++;
-            hash *= 16777619u;
-        }
-        return hash;
-    }
-};
-
-
-struct CStringEq
-{
-    bool operator()(const char *a, const char *b) const
-    {
-        return strcmp(a, b) == 0;
-    }
-};
 
 class StringPool
 {
 private:
     HeapAllocator allocator;
-    Vector<String *> statics;
-    HashMap<const char *, int, CStringHash, CStringEq> pool;
-    size_t bytesAllocated = 0;
-    friend class Interpreter;
-    String * dummyString = nullptr;
-    public:
-    StringPool();
-    ~StringPool();
 
-    size_t getBytesAllocated() { return bytesAllocated; }
-    
-    Vector<String *> map;
+public:
+    StringPool() = default;
+    ~StringPool() = default;
 
-    String *allocString();
+    String *create(const char *str, uint32 len);
 
-    void deallocString(String *s);
+    String *create(const char *str);
 
-
-    String *create(const char *str, uint32 len,bool isStatic);
-
-    String *create(const char *str, bool isStatic);
-
-    String *format(const char *fmt, ...);  
-
-
-    String* getString(int index);
 
 
     int indexOf(String *str, String *substr, int startIndex = 0);
@@ -84,16 +42,10 @@ private:
     String *at(String *str, int index);
     String *repeat(String *str, int count);
 
-    String *toString(int value);
-    String *toString(double value);
-
     void destroy(String *s);
 
     void clear();
 
-    void removeWhite();
-    
-    HashMap<const char*, String *, CStringHash, CStringEq> interns;
 
     static StringPool &instance()
     {
@@ -123,23 +75,7 @@ public:
     void clear();
 
 };
-
-
-inline bool compareString(String *a, String *b)
-{
-    if (a == nullptr || b == nullptr)
-        return false;
-
-  //  Info("Compare string %s %s hash %d %d len %d %d", a->chars(), b->chars(), a->hash, b->hash, a->length(), b->length());
-
-    if (a->hash != b->hash)
-        return false;
-    if (a == b)
-        return true;
-    if (a->length() != b->length())
-        return false;
-    return memcmp(a->chars(), b->chars(), a->length()) == 0;
-}
+ 
 
 inline String *createString(const char *str, uint32 len)
 {
@@ -148,19 +84,15 @@ inline String *createString(const char *str, uint32 len)
 
 inline String *createString(const char *str)
 {
-    return StringPool::instance().create(str,false);
-}
-
- 
-
-inline String *createStaticString(const char *str, uint32 len)
-{
-    return StringPool::instance().create(str, len, true);
+    return StringPool::instance().create(str);
 }
 
 inline String *createStaticString(const char *str)
 {
-    return StringPool::instance().create(str, true);
+    return StringPool::instance().create(str);
 }
 
- 
+inline void destroyString(String *s)
+{
+    StringPool::instance().destroy(s);
+}

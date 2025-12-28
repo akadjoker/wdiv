@@ -245,20 +245,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 break;
             }
 
-            if (a.isString() && b.isDouble())
-            {
-                String *right = StringPool::instance().toString(b.asDouble());
-                String *result = StringPool::instance().concat(a.asString(), right);
-                PUSH(Value::makeString(result));
-                break;
-            }
-            if (a.isString() && b.isInt())
-            {
-                String *right = StringPool::instance().toString(b.asInt());
-                String *result = StringPool::instance().concat(a.asString(), right);
-                PUSH(Value::makeString(result));
-                break;
-            }
+           
 
             if (a.isInt() && b.isInt())
             {
@@ -904,7 +891,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             else if (callee.type == ValueType::NATIVESTRUCT)
             {
-                int structId = callee.as.id;
+                int structId = callee.as.integer;
                 NativeStructDef *def = nativeStructs[structId];
                 // Cria instance wrapper
                 Value literal = Value::makeNativeStructInstance(def->structSize);
@@ -1573,140 +1560,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
 #define ARGS_CLEANUP() fiber->stackTop -= (argCount + 1)
 
-            if (compareString(nameValue.asString(), staticFree))
-            {
-                if (argCount != 0)
-                {
-                    runtimeError("free() expects 0 arguments");
-                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                }
-                if (receiver.type == ValueType::NATIVESTRUCTINSTANCE)
-                {
-                    ARGS_CLEANUP();
-                    NativeStructInstance *inst = receiver.as.nativeStructInstance;
-                    inst->release();
-                    PUSH(Value::makeNil());
-                    break;
-                }
-                else if (receiver.type == ValueType::NATIVECLASSINSTANCE)
-                {
-                    ARGS_CLEANUP();
-                    NativeInstance *inst = receiver.as.nativeClassInstance;
-                    inst->release();
-                    PUSH(Value::makeNil());
-                    break;
-                }
-                else if (receiver.type == ValueType::STRUCTINSTANCE)
-                {
-                    ARGS_CLEANUP();
-                    StructInstance *inst = receiver.asStructInstance();
-                    inst->release();
-                    PUSH(Value::makeNil());
-                    break;
-                }
-                else if (receiver.type == ValueType::CLASSINSTANCE)
-                {
-                    ARGS_CLEANUP();
-                    ClassInstance *inst = receiver.as.classInstance;
-                    inst->release();
-                    PUSH(Value::makeNil());
-                    break;
-                }
-                else if (receiver.type == ValueType::ARRAY)
-                {
-                    ARGS_CLEANUP();
-                    ArrayInstance *inst = receiver.as.array;
-                    inst->release();
-                    PUSH(Value::makeNil());
-                    break;
-                }
-                else if (receiver.type == ValueType::MAP)
-                {
-                    ARGS_CLEANUP();
-                    MapInstance *inst = receiver.asMap();
-                    inst->release();
-                    PUSH(Value::makeNil());
-                    break;
-                }
-                else
-                {
-                    runtimeError("This Type is not supported by free()");
-                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                }
-            }else  if (compareString(nameValue.asString(), staticToString))
-            {
-                if (argCount != 0)
-                {
-                    runtimeError("toString() expects 0 arguments");
-                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                }
-                if (receiver.type == ValueType::NATIVESTRUCTINSTANCE)
-                {
-                    ARGS_CLEANUP();
-                    PUSH(Value::makeString("<nativestruct>"));
-                    break;
-                } else if (receiver.type == ValueType::NATIVECLASSINSTANCE)
-                {
-                    ARGS_CLEANUP();
-                    PUSH(Value::makeString("<nativeclass>"));
-                    break;
-                } else if (receiver.type == ValueType::STRUCTINSTANCE)
-                {
-                    ARGS_CLEANUP();
-                    PUSH(Value::makeString("<struct>"));
-                    break;
-                } else if (receiver.type == ValueType::CLASSINSTANCE)
-                {
-                    ARGS_CLEANUP();
-                    PUSH(Value::makeString("<class>"));
-                    break;
-                } else if (receiver.type == ValueType::ARRAY)
-                {
-                    ARGS_CLEANUP();
-                    PUSH(Value::makeString("<array>"));
-                    break;
-                } else if (receiver.type == ValueType::MAP)
-                {
-                    ARGS_CLEANUP();
-                    PUSH(Value::makeString("<map>"));
-                    break;
-                } else if (receiver.type == ValueType::STRING)
-                {
-                    ARGS_CLEANUP();
-                    String *str = receiver.asString();
-                    PUSH(Value::makeString(str->chars()));
-                    break;
-                }  else if (receiver.type == ValueType::INT)
-                {
-                    ARGS_CLEANUP();
-                    int i = receiver.asInt();
-                    char buf[32];
-                    sprintf(buf, "%d", i);
-                    PUSH(Value::makeString(buf));
-                    break;
-                } else if (receiver.type == ValueType::FLOAT)
-                {
-                    ARGS_CLEANUP();
-                    float f = receiver.asFloat();
-                    char buf[32];
-                    sprintf(buf, "%f", f);
-                    PUSH(Value::makeString(buf));
-                    break;
-                } else if (receiver.type == ValueType::DOUBLE)
-                {
-                    ARGS_CLEANUP();
-                    double d = receiver.asDouble();
-                    char buf[32];
-                    sprintf(buf, "%f", d);
-                    PUSH(Value::makeString(buf));
-                    break;
-                }
-                else 
-                {
-                    runtimeError("This Type is not supported by toString()");
-                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                }
-            }
+         
 
 
             // === STRING METHODS ===
@@ -2044,18 +1898,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     PUSH(Value::makeNil());
                     break;
                 }
-                else if (compareString(nameValue.asString(), staticFree))
-                {
-                    if (argCount != 0)
-                    {
-                        runtimeError("free() expects 0 arguments");
-                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                    }
-                    arr->release();
-                    ARGS_CLEANUP();
-                    PUSH(Value::makeNil());
-                    break;
-                }
+              
                 else
                 {
                     runtimeError("Array has no method '%s'", name);
@@ -2115,32 +1958,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     PUSH(Value::makeNil());
                     break;
                 }
-                else if (compareString(nameValue.asString(), staticFree))
-                {
-                    if (argCount != 0)
-                    {
-                        runtimeError("clear() expects 0 arguments");
-                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                    }
-
-                    map->table.destroy();
-                    ARGS_CLEANUP();
-                    PUSH(Value::makeNil());
-                    break;
-                }
-                else if (compareString(nameValue.asString(), staticFree))
-                {
-                    if (argCount != 0)
-                    {
-                        runtimeError("free() expects 0 arguments");
-                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                    }
-
-                    map->release();
-                    ARGS_CLEANUP();
-                    PUSH(Value::makeNil());
-                    break;
-                }
+                 
                 else if (strcmp(name, "len") == 0 || strcmp(name, "length") == 0)
                 {
                     if (argCount != 0)
@@ -2240,18 +2058,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 NativeInstance *instance = receiver.asNativeClassInstance();
                 NativeClassDef *klass = instance->klass;
 
-                if (compareString(nameValue.asString(), staticFree))
-                {
-                    if (argCount != 0)
-                    {
-                        runtimeError("clear() expects 0 arguments");
-                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                    }
-                    instance->release();
-                    PUSH(Value::makeNil());
-                    break;
-                }
-
+               
                 NativeMethod method;
                 if (!instance->klass->methods.get(nameValue.asString(), &method))
                 {

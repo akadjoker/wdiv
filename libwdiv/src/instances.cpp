@@ -137,121 +137,49 @@ MapInstance *InstancePool::getMap(int id)
 
 StructInstance *InstancePool::createStruct()
 {
-    StructInstance *instance = nullptr;
-
-#if USE_ARENA
-    void *mem = arena.Allocate(sizeof(StructInstance));
-    instance = new (mem) StructInstance();
-#else
-    instance = new StructInstance();
-#endif
-
-    instance->index = structInstances.size();
-    structInstances.push(instance);
-    bytesAllocated += sizeof(StructInstance);
-    totalStructs++;
+    void *mem = (StructInstance *)arena.Allocate(sizeof(StructInstance)); // 40kb
+    StructInstance *instance = new (mem) StructInstance();
     return instance;
 }
 
 ArrayInstance *InstancePool::createArray(int reserve)
 {
-    ArrayInstance *instance = nullptr;
-
-#if USE_ARENA
-
-    void *mem = arena.Allocate(sizeof(ArrayInstance));
-    instance = new (mem) ArrayInstance();
-#else
-    instance = new ArrayInstance();
-#endif
-
-    if (reserve != 0)
-        instance->values.reserve(reserve);
-
-    arrayInstances.push(instance);
-
-    bytesAllocated += arraySize;
-
-    totalArrays++;
-
+     void *mem = (ArrayInstance *)arena.Allocate(sizeof(ArrayInstance)); // 32kb
+    ArrayInstance *instance = new (mem) ArrayInstance();
+   // Info("array size %ld",sizeof(ArrayInstance));
     return instance;
 }
 
 MapInstance *InstancePool::createMap()
 {
-    MapInstance *instance = nullptr;
-#if USE_ARENA
-    void *mem = arena.Allocate(sizeof(MapInstance));
-    instance = new (mem) MapInstance();
-#else
-    instance = new MapInstance();
-#endif
-    instance->index = mapInstances.size();
-    mapInstances.push(instance);
-    bytesAllocated += mapSize;
-
-    totalMaps++;
+  void *mem = (MapInstance *)arena.Allocate(sizeof(MapInstance)); // 40kb
+    MapInstance *instance = new (mem) MapInstance();
+    // Info("map size %ld",sizeof(MapInstance));
     return instance;
 }
 
 ClassInstance *InstancePool::createClass()
 {
 
-    ClassInstance *instance = nullptr;
-
-#if USE_ARENA
-    void *mem = arena.Allocate(sizeof(ClassInstance));
-    instance = new (mem) ClassInstance();
-#else
-    instance = new ClassInstance();
-#endif
-
-    instance->index = classesInstances.size();
-    classesInstances.push(instance);
-
-    bytesAllocated += classSize;
-
-    totalClasses++;
+     void *mem = (MapInstance *)arena.Allocate(sizeof(ClassInstance)); // 40kb
+    ClassInstance *instance = new (mem) ClassInstance();
+    //Info("class size %ld", sizeof(ClassInstance));
     return instance;
 }
 
 NativeInstance *InstancePool::createNativeClass()
 {
-    NativeInstance *instance = nullptr;
-
-#if USE_ARENA
-    void *mem = arena.Allocate(sizeof(NativeInstance));
-    instance = new (mem) NativeInstance();
-#else
-    instance = new NativeInstance();
-#endif
-    nativeInstances.push(instance);
-
-    bytesAllocated += nativeClassSize;
-
-    totalNativeClasses++;
-
+      void *mem = (NativeInstance *)arena.Allocate(sizeof(NativeInstance)); // 32kb
+    NativeInstance *instance = new (mem) NativeInstance();
+//    Info(" Create of class instance %ld ", sizeof(NativeInstance));
     return instance;
 }
 
 NativeStructInstance *InstancePool::createNativeStruct(uint32 structSize)
 {
-    NativeStructInstance *instance = nullptr;
-
-#if USE_ARENA
-    void *mem = arena.Allocate(nativeStructSize);
-    instance = new (mem) NativeStructInstance();
-#else
-    instance = new NativeStructInstance();
-#endif
-
-    instance->data = aAlloc(structSize);
-    std::memset(instance->data, 0, structSize);
-    nativeStructInstances.push(instance);
-
-    bytesAllocated += nativeStructSize + structSize;
-
-    totalNativeStructs++;
+   void *mem = (NativeStructInstance *)arena.Allocate(sizeof(NativeStructInstance)); // 32kb
+    NativeStructInstance *instance = new (mem) NativeStructInstance();
+   // Info(" Create of struct instance %ld ", sizeof(NativeStructInstance));
     return instance;
 }
 

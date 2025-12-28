@@ -29,8 +29,7 @@ Interpreter::Interpreter()
 {
 
     InstancePool::instance().setInterpreter(this);
-    staticFree = createStaticString("free");
-    staticToString = createStaticString("toString");
+ 
     compiler = new Compiler(this);
     setPrivateTable();
 
@@ -167,12 +166,12 @@ void Interpreter::gc()
 
 uint32 Interpreter::getTotalStrings()
 {
-    return (uint32)StringPool::instance().map.size();
+    return 0;
 }
 
 uint32 Interpreter::getStringsBytes()
 {
-    return StringPool::instance().bytesAllocated;
+    return 0;
 }
 
 uint32 Interpreter::getTotalBytes()

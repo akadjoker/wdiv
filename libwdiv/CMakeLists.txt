@@ -32,38 +32,38 @@ target_include_directories(libwdiv PUBLIC include  src)
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     message(STATUS "🐛 Debug mode - sanitizers enabled")
     
-    # target_compile_options(libwdiv PRIVATE
-    #     # Sanitizers
-    #     -fsanitize=address
-    #     -fsanitize=undefined
-    #     -fsanitize=leak
+    target_compile_options(libwdiv PRIVATE
+        # Sanitizers
+        -fsanitize=address
+        -fsanitize=undefined
+        -fsanitize=leak
         
-    #     # Debug info
-    #     -g
-    #     -O0
+        # Debug info
+        -g
+        -O0
         
-    #     # Warnings
-    #     -Wall
-    #     -Wextra
-    #     -Wpedantic
+        # Warnings
+        -Wall
+        -Wextra
+        -Wpedantic
         
-    #     # Debug defines
-    #     -DDEBUG
-    #     -D_DEBUG
-    # )
+        # Debug defines
+        -DDEBUG
+        -D_DEBUG
+    )
     
-    # target_link_options(libwdiv PRIVATE
-    #     -fsanitize=address
-    #     -fsanitize=undefined
-    #     -fsanitize=leak
-    # )
+    target_link_options(libwdiv PRIVATE
+        -fsanitize=address
+        -fsanitize=undefined
+        -fsanitize=leak
+    )
     
  
-    target_compile_options(libwdiv PRIVATE
-        -O2
-        -g
-        -fno-omit-frame-pointer
-    )
+    # target_compile_options(libwdiv PRIVATE
+    #     -O2
+    #     -g
+    #     -fno-omit-frame-pointer
+    # )
  
 
 # ============================================

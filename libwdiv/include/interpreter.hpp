@@ -330,7 +330,29 @@ struct Process
     void release();
     void finalize();
 };
+struct CStringHash
+{
+    size_t operator()(const char *str) const
+    {
+        // FNV-1a hash
+        size_t hash = 2166136261u;
+        while (*str)
+        {
+            hash ^= (unsigned char)*str++;
+            hash *= 16777619u;
+        }
+        return hash;
+    }
+};
 
+// Eq para const char*
+struct CStringEq
+{
+    bool operator()(const char *a, const char *b) const
+    {
+        return strcmp(a, b) == 0;
+    }
+};
 
 
 class Interpreter
@@ -404,9 +426,7 @@ class Interpreter
 
     friend class Compiler;
     friend class InstancePool;
-
-    String *staticFree;
-    String *staticToString;
+ 
 
 public:
     Interpreter();

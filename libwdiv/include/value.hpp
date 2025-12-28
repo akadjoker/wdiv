@@ -48,9 +48,9 @@ struct Value
     int integer;
     float n_float;
     double number;
-    int id;
-    uint32 unsignedInteger;
 
+    uint32 unsignedInteger;
+    String *string;
     ArrayInstance *array;
     StructInstance *structInstance;
     MapInstance *map;

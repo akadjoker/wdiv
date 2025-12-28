@@ -1,16 +1,13 @@
 #pragma once
 #include "arena.hpp"
-#include "types.hpp"
 
-struct String 
+struct String
 {
   static constexpr size_t SMALL_THRESHOLD = 23;
   static constexpr size_t IS_LONG_FLAG = 0x80000000u;
- 
-  int index;
+
   size_t hash;
   size_t length_and_flag;
-  bool persistent;
 
   union
   {
@@ -19,17 +16,14 @@ struct String
   };
 
   bool isLong() const { return length_and_flag & IS_LONG_FLAG; }
-  size_t length() const;
+  size_t length() const { return length_and_flag & ~IS_LONG_FLAG; }
 
   const char *chars() const { return isLong() ? ptr : data; }
   char *chars() { return isLong() ? ptr : data; }
- 
 
-  String();
-  ~String();
 
-  void drop();
 };
+
 
 // inline size_t_t hashString(const char *s, int len)
 // {
@@ -59,6 +53,7 @@ struct String
 //   return h;
 // }
 
+
 // inline size_t_t hashString(const char* s, int len) {
 //   size_t_t h = 2166136261u;
 //   for (int i = 0; i < len; i++) {
@@ -80,18 +75,17 @@ struct String
 //     return h;
 // }
 
-inline size_t hashString(const char *s, uint32 len)
-{
-  size_t h = 2166136261u;
-  const uint8 *p = (const uint8 *)s;
-  const uint8 *end = p + len;
+inline size_t hashString(const char* s, uint32 len) {
+    size_t h = 2166136261u;
+    const uint8* p = (const uint8*)s;
+    const uint8* end = p + len;
 
-  while (p != end)
-  {
-    h ^= *p++;
-    h *= 16777619u; // troca por 709607, 127, 131, 16777619, etc.
-  }
-  return h;
+    while (p != end) {
+        h ^= *p++;
+        h *= 16777619u; // troca por 709607, 127, 131, 16777619, etc.
+    }
+    return h;
 }
 
-// static_assert(sizeof(String) == 32, "ObjString must be 32 bytes");
+
+//static_assert(sizeof(String) == 32, "ObjString must be 32 bytes");

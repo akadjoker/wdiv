@@ -58,6 +58,8 @@ public:
 
 	void Stats();
 
+
+
 	void GetStats(AllocationStats &stats) const;
 	size_t GetTotalAllocated() const { return m_totalAllocated; }
 	size_t GetTotalReserved() const { return m_totalReserved; }
@@ -108,32 +110,3 @@ private:
 	StackEntry m_entries[maxStackEntries];
 	size_t m_entryCount;
 };
-
- 
-
-size_t getMemoryUsage();
- 
-
-
-struct Arena
-{
-    HeapAllocator alloc;
-
-    size_t bytesAllocated;
-
-    size_t totalStructs;
-    size_t totalArrays;
-    size_t totalMaps;
-    size_t totalClasses;
-    size_t totalNativeStructs;
-    size_t totalNativeClasses;
-
-    size_t structSize;
-    size_t arraySize;
-    size_t mapSize;
-    size_t classSize;
-    size_t nativeStructSize;
-    size_t nativeClassSize;
-};
-
-extern Arena gArena;

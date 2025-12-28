@@ -16,24 +16,7 @@ GCObject::~GCObject()
 {
 }
 
-String::String()
-{
-    hash = 0;
-    length_and_flag = 0;
-    index=0;
-
-    // #if PRINT_GC
-    // Info("create string");
-    // #endif
-}
-
-String::~String()
-{
-    // #if PRINT_GC
-    // Info("Delete string");
-    // #endif
-    // Info("String destructor called %d times with refCount %d", destructorCallCount,refCount);
-}
+ 
 
 StructInstance::StructInstance() : GCObject(), def(nullptr)
 {
