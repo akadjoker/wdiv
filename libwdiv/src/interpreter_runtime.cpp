@@ -692,7 +692,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             }
             else if (callee.isStruct())
             {
-                int index = callee.as.structId;
+                int index = callee.as.id;
 
                 StructDef *def = structs[index];
 
@@ -721,7 +721,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 ClassDef *klass = classes[classId];
 
                 Value value = Value::makeClassInstance();
-                ClassInstance *instance = value.as.sClass;
+                ClassInstance *instance = value.asClassInstance();
                 instance->klass = klass;
                 instance->fields.reserve(klass->fieldCount);
 
@@ -731,7 +731,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     instance->fields.push(Value::makeNil());
                 }
 
-                classesInstances.push(instance);
+             
                 // Substitui class por instance na stack
                 fiber->stackTop[-argCount - 1] = value;
 

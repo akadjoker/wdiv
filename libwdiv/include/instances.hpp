@@ -2,6 +2,7 @@
 #include "config.hpp"
 #include "vector.hpp"
 #include "string.hpp"
+#include <vector>
 
 struct StructInstance;
 struct ArrayInstance;
@@ -14,6 +15,7 @@ class InstancePool
 {
     HeapAllocator arena;
  
+        std::vector<ClassInstance *> classesInstances;
 public:
     InstancePool();
     ~InstancePool() ;
@@ -42,6 +44,8 @@ public:
 
     NativeStructInstance* createNativeStruct();
     void freeNativeStruct(NativeStructInstance *n);
+
+    ClassInstance *getClass(int index);
 
     void clear();
  

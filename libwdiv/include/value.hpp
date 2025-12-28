@@ -50,23 +50,18 @@ struct Value
     float n_float;
     double number;
     String *string;
-    int structId;
-    int classId;
-    int nativeClassId;
-    int nativeStructId;
+    int id;
+ 
     uint32 unsignedInteger;
     StructInstance *sInstance;
     ArrayInstance  *array;
     MapInstance    *map;
-    ClassInstance  *sClass;
+
     NativeInstance *sClassInstance;
     NativeStructInstance   *sNativeStruct;
     void* pointer;
 
-    int functionId;
-    int nativeId;
-    int processId;
-    int procNativesId;
+ 
   } as;
 
   Value();

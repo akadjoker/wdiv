@@ -187,7 +187,7 @@ struct NativeStructInstance
 
 struct GCObject
 {
-    int refCount;
+    int index;
     GCObject();
     void grab();
     void release();
@@ -346,7 +346,7 @@ class Interpreter
 
     Vector<StructInstance *> structInstances;
     Vector<ArrayInstance *> arrayInstances;
-    Vector<ClassInstance *> classesInstances;
+ 
 
     Vector<NativeClassDef *> nativeClasses;
     Vector<NativeInstance *> nativeInstances;

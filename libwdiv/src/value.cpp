@@ -92,7 +92,7 @@ Value Value::makeFunction(int idx)
 {
     Value v;
     v.type = ValueType::FUNCTION;
-    v.as.functionId = idx;
+    v.as.id = idx;
     return v;
 }
 
@@ -100,7 +100,7 @@ Value Value::makeNative(int idx)
 {
     Value v;
     v.type = ValueType::NATIVE;
-    v.as.nativeId = idx;
+    v.as.id = idx;
     return v;
 }
 
@@ -108,7 +108,7 @@ Value Value::makeNativeClass(int idx)
 {
     Value v;
     v.type = ValueType::NATIVECLASS;
-    v.as.nativeClassId = idx;
+    v.as.id = idx;
     return v;
 }
 
@@ -126,7 +126,7 @@ Value Value::makeProcess(int idx)
 {
     Value v;
     v.type = ValueType::PROCESS;
-    v.as.processId = idx;
+    v.as.id = idx;
     return v;
 }
 
@@ -134,7 +134,7 @@ Value Value::makeStruct(int idx)
 {
     Value v;
     v.type = ValueType::STRUCT;
-    v.as.structId = idx;
+    v.as.id = idx;
     return v;
 }
 
@@ -168,15 +168,16 @@ Value Value::makeClass(int idx)
 {
     Value v;
     v.type = ValueType::CLASS;
-    v.as.classId = idx;
+    v.as.id = idx;
     return v;
 }
 
 Value Value::makeClassInstance()
 {
-     Value v;
+    ClassInstance *c = InstancePool::instance().creatClass();
+    Value v;
     v.type = ValueType::CLASSINSTANCE;
-    v.as.sClass = InstancePool::instance().creatClass();
+    v.as.id = c->index;
     return v;
 }
 
@@ -192,7 +193,7 @@ Value Value::makeNativeStruct(int idx)
 {
     Value v;
     v.type = ValueType::NATIVESTRUCT;
-    v.as.nativeStructId = idx;
+    v.as.id = idx;
     return v;
 }
 
@@ -260,23 +261,23 @@ float Value::asFloat() const
 const char *Value::asStringChars() const { return as.string->chars(); }
 String *Value::asString() const { return as.string; }
 
-int Value::asFunctionId() const { return as.functionId; }
-int Value::asNativeId() const { return as.nativeId; }
-int Value::asProcessId() const { return as.processId; }
+int Value::asFunctionId() const { return as.id; }
+int Value::asNativeId() const { return as.id; }
+int Value::asProcessId() const { return as.id; }
 
 int Value::asStructId() const
 {
-    return as.structId;
+    return as.id;
 }
 
 int Value::asClassId() const
 {
-    return as.classId;
+    return as.id;
 }
 
 int Value::asClassNativeId() const
 {
-    return as.nativeClassId;
+    return as.id;
 }
 
 void *Value::asPointer() const
@@ -286,7 +287,7 @@ void *Value::asPointer() const
 
 int Value::asNativeStructId() const
 {
-    return as.nativeStructId;
+    return as.id;
 }
 
 StructInstance *Value::asStructInstance() const
@@ -306,7 +307,7 @@ MapInstance *Value::asMap() const
 
 ClassInstance *Value::asClassInstance() const
 {
-    return as.sClass;
+    return InstancePool::instance().getClass(as.id);
 }
 
 NativeInstance *Value::asNativeClassInstance() const
@@ -445,7 +446,7 @@ void printValue(const Value &value)
     }
     case ValueType::CLASSINSTANCE:
     {
-        ClassInstance* inst = value.as.sClass;
+        ClassInstance* inst = value.asClassInstance();
         printf("<instance %s>", inst->klass->name->chars());
         break;
     }

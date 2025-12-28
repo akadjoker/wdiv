@@ -92,12 +92,6 @@ Interpreter::~Interpreter()
     }
     arrayInstances.clear();
 
-    for (size_t i = 0; i < classesInstances.size(); i++)
-    {
-        ClassInstance *a = classesInstances[i];
-        InstancePool::instance().freeClass(a);
-    }
-    classesInstances.clear();
 
     for (size_t j = 0; j < classes.size(); j++)
     {
@@ -667,21 +661,23 @@ StructInstance::StructInstance() : GCObject(), def(nullptr)
 
 StructInstance::~StructInstance()
 {
-    Info("destroy struct %d", refCount);
+ 
 }
 
-GCObject::GCObject() : refCount(1)
+GCObject::GCObject() 
 {
+    index = -1;
+    
 }
 
 void GCObject::grab()
 {
-    refCount++;
+    
 }
 
 void GCObject::release()
 {
-    refCount--;
+    
 }
 
 ArrayInstance::ArrayInstance() : GCObject()

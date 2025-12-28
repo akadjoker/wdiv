@@ -7,6 +7,7 @@
 
 InstancePool::InstancePool()
 {
+    classesInstances.reserve(1024);
 }
 
 InstancePool::~InstancePool()
@@ -58,6 +59,9 @@ ClassInstance *InstancePool::creatClass()
 {
     void *mem = (MapInstance *)arena.Allocate(sizeof(ClassInstance)); // 40kb
     ClassInstance *instance = new (mem) ClassInstance();
+
+    instance->index = classesInstances.size();
+    classesInstances.push_back(instance);
     //Info("class size %ld", sizeof(ClassInstance));
     return instance;
 }
@@ -98,8 +102,22 @@ void InstancePool::freeNativeStruct(NativeStructInstance *n)
     arena.Free(n, sizeof(NativeStructInstance));
 }
 
+ClassInstance *InstancePool::getClass(int index)
+{
+    if (index >= classesInstances.size())
+        return nullptr;
+    return  classesInstances[index];
+}
+
 void InstancePool::clear()
 {
+
+    for (size_t i = 0; i < classesInstances.size(); i++)
+    {
+        ClassInstance *a = classesInstances[i];
+        InstancePool::instance().freeClass(a);
+    }
+    classesInstances.clear();
     Info("Instance pool stats:");
     arena.Stats();
     arena.Clear();
