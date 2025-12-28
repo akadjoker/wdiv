@@ -48,7 +48,7 @@ struct Value
     int integer;
     float real;
     double number;
- 
+    uint32 process;
     
     ClassInstance *classInstance; 
     ArrayInstance *array;
@@ -80,7 +80,7 @@ struct Value
   static Value makeNative(int idx);
   static Value makeNativeClass(int idx);
   static Value makeNativeClassInstance();
-  static Value makeProcess(int idx);
+  static Value makeProcess(uint32 idx);
   static Value makeStruct(int idx);
   static Value makeStructInstance();
   static Value makeMap();
@@ -130,7 +130,7 @@ struct Value
   const char *asStringChars() const;
   int asFunctionId() const;
   int asNativeId() const;
-  int asProcessId() const;
+  uint32 asProcessId() const;
   int asStructId() const;
   int asClassId() const;
   int asClassNativeId() const;

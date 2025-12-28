@@ -934,7 +934,7 @@ void Compiler::processDeclaration()
     isProcess_ = true;
     argNames.clear();
 
-    // Warning("Compiling process '%s'", nameToken.lexeme.c_str());
+     Warning("Compiling process '%s'", nameToken.lexeme.c_str());
 
     // Cria função para o process
     int funcIndex;
@@ -980,10 +980,10 @@ void Compiler::processDeclaration()
     }
     argNames.clear();
 
-    uint32 index = vm_->getTotalProcesses() - 1;
-    // Warning("Process '%s' registered with index %d", nameToken.lexeme.c_str(), index);
+ 
+    Warning("Process '%s' registered with index %d", nameToken.lexeme.c_str(), proc->index);
 
-    emitConstant(Value::makeProcess(index));
+    emitConstant(Value::makeProcess(proc->index));
     uint8 nameConstant = identifierConstant(nameToken);
     defineVariable(nameConstant);
 

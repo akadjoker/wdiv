@@ -170,7 +170,21 @@ public:
     }
 
     // Accessors
-    T &operator[](size_t i) { return data_[i]; }
+    T &operator[](size_t index) 
+    {
+    //       #ifdef DEBUG
+    // if (index >= size_) {
+    //     fprintf(stderr, "Vector overflow: index=%zu, size=%zu\n", 
+    //             index, size_);
+    //     abort();
+    // }
+    // if ((int64_t)index < 0) {  // Catch wraparound
+    //     fprintf(stderr, "Vector negative index: %lld\n", (int64_t)index);
+    //     abort();
+    // }
+    // #endif
+         return data_[index]; 
+        }
     const T &operator[](size_t i) const { return data_[i]; }
 
     T *data() { return data_; }

@@ -633,6 +633,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             if (callee.isFunction())
             {
                 int index = callee.asFunctionId();
+                if (index<0 || index >= functions.size())
+                {
+                    runtimeError("Invalid function");
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
 
                 Function *func = functions[index];
                 if (!func)
@@ -662,6 +667,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             else if (callee.isNative())
             {
                 int index = callee.asNativeId();
+
                 NativeDef nativeFunc = natives[index];
                 if (nativeFunc.arity != -1 && argCount != nativeFunc.arity)
                 {
@@ -681,7 +687,17 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             else if (callee.isProcess())
             {
 
-                int index = callee.asProcessId();
+                            printf("Call : (");
+             printValue(callee);
+             printf(") count %d\n", argCount);
+
+                uint32 index = callee.asProcessId();
+                if (index >= processes.size())
+                {
+                    runtimeError("Invalid process");
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+
                 ProcessDef *blueprint = processes[index];
 
                 if (!blueprint)

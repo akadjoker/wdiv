@@ -443,7 +443,10 @@ Fiber *Interpreter::get_ready_fiber(Process *proc)
     int totalFibers = proc->nextFiberIndex;
 
     if (totalFibers == 0)
+    {
+        Warning("No ready fiber");
         return nullptr;
+    }
 
     // printf("[get_ready_fiber] Checking %d fibers, time=%.3f\n", totalFibers,
     // currentTime);

@@ -182,11 +182,11 @@ Value Value::makeNativeClass(int idx)
     return v;
 }
 
-Value Value::makeProcess(int idx)
+Value Value::makeProcess(uint32 idx)
 {
     Value v;
     v.type = ValueType::PROCESS;
-    v.as.integer = idx;
+    v.as.process = idx;
     return v;
 }
 
@@ -341,10 +341,10 @@ int Value::asNativeId() const
     VALUE_TYPE_CHECK(type == ValueType::NATIVE, "Try to get native function but is %s", typeToString(type));
     return as.integer; 
 }
-int Value::asProcessId() const 
+uint32 Value::asProcessId() const 
 { 
     VALUE_TYPE_CHECK(type == ValueType::PROCESS, "Try to get process but is %s", typeToString(type));
-    return as.integer; 
+    return as.process; 
 }
 
 int Value::asStructId() const
@@ -468,7 +468,7 @@ static void printValueIndented(const Value &value, int depth = 0)
         printf("<native>");
         break;
     case ValueType::PROCESS:
-        printf("<process:%d>", value.as.integer);
+        printf("<process:%d>", value.as.process);
         break;
     case ValueType::ARRAY:
     {
@@ -639,6 +639,8 @@ bool valuesEqual(const Value &a, const Value &b)
         return a.as.sNativeStruct == b.as.sNativeStruct;
     case ValueType::POINTER:
         return a.as.pointer == b.as.pointer;
+    case ValueType::PROCESS:
+        return a.as.process == b.as.process;
     default:
         return false;
     }
