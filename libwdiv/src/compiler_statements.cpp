@@ -187,31 +187,6 @@ void Compiler::varDeclaration()
     consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration");
 }
 
-// void Compiler::varDeclaration()
-// {
-//     consume(TOKEN_IDENTIFIER, "Expect variable name");
-//     Token nameToken = previous;
-
-//     uint8 global = identifierConstant(nameToken);
-
-//     if (scopeDepth > 0)
-//     {
-//         declareVariable();
-//     }
-
-//     if (match(TOKEN_EQUAL))
-//     {
-//         expression();
-//     }
-//     else
-//     {
-//         emitByte(OP_NIL);
-//     }
-
-//     consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration");
-
-//     defineVariable(global);
-// }
 
 void Compiler::variable(bool canAssign)
 {
@@ -709,7 +684,7 @@ void Compiler::switchStatement()
         patchJump(caseJump);
         emitByte(OP_POP); // [value] - Pop comparison result
 
-        // ← switch value ainda no stack para próximo case
+
     }
 
     // Default (opcional)

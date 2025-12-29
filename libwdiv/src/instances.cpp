@@ -119,6 +119,6 @@ void InstancePool::clear()
     }
     classesInstances.clear();
     Info("Instance pool stats:");
-    arena.Stats();
+   // arena.Stats();
     arena.Clear();
 }

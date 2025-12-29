@@ -116,7 +116,7 @@ Interpreter::~Interpreter() {
 
 
   Info("Heap stats:");
-  heapAllocator.Stats();
+  //heapAllocator.Stats();
   heapAllocator.Clear();
 
   StringPool::instance().clear();

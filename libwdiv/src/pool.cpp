@@ -72,7 +72,7 @@ void StringPool::clear()
     dummyString->~String();
     aFree(dummyString);
 
-    allocator.Stats();
+  //  allocator.Stats();
     allocator.Clear();
 
     map.clear();

@@ -603,6 +603,8 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                 }
 
+            //    Debug::dumpFunction(func);
+
                 if (argCount != func->arity)
                 {
                     runtimeError("Function %s expected %d arguments but got %d",func->name->chars(), func->arity, argCount);
@@ -623,7 +625,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 CallFrame *newFrame = &fiber->frames[fiber->frameCount++];
                 newFrame->func = func;
                 newFrame->ip = func->chunk->code;
-                newFrame->slots = fiber->stackTop - argCount; // Argumentos começam aqui
+                newFrame->slots = fiber->stackTop - argCount ; // Argumentos começam aqui
             }
             else if (callee.isNative())
             {
@@ -888,8 +890,12 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             //  Função nested - retorna para onde estava a chamada
             CallFrame *finished = &fiber->frames[fiber->frameCount];
+            
+            
+
             fiber->stackTop = finished->slots;
             *fiber->stackTop++ = result;
+            //fiber->stackTop[-1] = result;
 
             LOAD_FRAME();
             break;
@@ -1450,30 +1456,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             const char *name = nameValue.asStringChars();
             Value receiver = NPEEK(argCount);
-
-//             printf("\n=== OP_INVOKE DEBUG ===\n");
-// printf("Method: %s\n", name);
-// printf("ArgCount: %d\n", argCount);
-// printf("Stack size: %d\n", (int)(fiber->stackTop - fiber->stack));
-// printf("Receiver (NPEEK(%d)): ", argCount);
-// printValue(receiver);
-// printf("\n");
-// printf("Type: ");
-// if (receiver.isString()) printf("STRING");
-// else if (receiver.isInt()) printf("INT");
-// else if (receiver.isDouble()) printf("DOUBLE");
-// else if (receiver.isNil()) printf("NIL");
-// else printf("UNKNOWN");
-// printf("\n");
-
-// // Mostra o stack todo
-// printf("Full stack:\n");
-// for (int i = 0; i < (fiber->stackTop - fiber->stack); i++) {
-//     printf("  [%d] ", i);
-//     printValue(fiber->stack[i]);
-//     printf("\n");
-// }
-// printf("=======================\n");
+ 
 #define ARGS_CLEANUP() fiber->stackTop -= (argCount + 1)
 
             // === STRING METHODS ===
@@ -1963,7 +1946,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     CallFrame *newFrame = &currentFiber->frames[currentFiber->frameCount];
                     newFrame->func = method;
                     newFrame->ip = method->chunk->code;
-                    newFrame->slots = currentFiber->stackTop - argCount - 1;
+                    newFrame->slots = currentFiber->stackTop - argCount -1;
 
                     currentFiber->frameCount++;
 
@@ -2062,7 +2045,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             CallFrame *newFrame = &fiber->frames[fiber->frameCount];
             newFrame->func = method;
             newFrame->ip = method->chunk->code;
-            newFrame->slots = fiber->stackTop - argCount - 1; //  Aponta para self
+            newFrame->slots = fiber->stackTop - argCount -1; //  Aponta para self
 
             fiber->frameCount++;
 
