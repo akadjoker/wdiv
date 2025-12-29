@@ -2,73 +2,135 @@
 #include "value.hpp"
 #include "arena.hpp"
 #include "interpreter.hpp"
+#include "instances.hpp"
 #include <ctype.h>
+#include <new>
+#include <stdarg.h>
+#include "string.hpp"
 
-String *StringPool::create(const char *str, uint32 len)
+size_t String::length() const
 {
-    uint32 h = hashString(str, len);
 
-    // Aloca objeto (32 bytes)
-    String *s = (String *)allocator.Allocate(sizeof(String));
-    s->hash = h;
+    return length_and_flag & ~IS_LONG_FLAG;
+}
 
+StringPool::StringPool()
+{
+    bytesAllocated = 0;
+    dummyString = allocString();
+    size_t len = 0;
+    const char *str = "NULL";
+    dummyString->length_and_flag = len;
+    dummyString->ptr = nullptr;
+    std::memcpy(dummyString->data, str, len);
+    dummyString->data[len] = '\0';
+
+    dummyString->index = -1;
+    dummyString->hash = hashString(dummyString->chars(), len);
+    bytesAllocated += sizeof(String) + len;
+}
+
+StringPool::~StringPool()
+{
+}
+
+// ============= STRING ALLOC =============
+
+String *StringPool::allocString()
+{
+    void *mem = aAlloc(sizeof(String));
+    String *s = new (mem) String();
+    return s;
+}
+
+void StringPool::deallocString(String *s)
+{
+    if (!s)
+        return;
+
+    //    Info("Dealloc string %p", s);
+    bytesAllocated -= sizeof(String) + s->length() + 1;
+
+    if (s->isLong() && s->ptr)
+        aFree(s->ptr);
+
+    s->~String();
+    aFree(s);
+}
+
+void StringPool::clear()
+{
+    Info("String pool clear %d strings", map.size());
+    Info("Allocated %d bytes", bytesAllocated);
+
+    for (size_t i = 0; i < map.size(); i++)
+    {
+        String *s = map[i];
+        deallocString(s);
+    }
+
+    dummyString->~String();
+    aFree(dummyString);
+
+    allocator.Stats();
+    allocator.Clear();
+
+    map.clear();
+    pool.destroy();
+}
+
+String *StringPool::create(const char *str, uint32 len, bool isStatic)
+{
+    // Cache hit?
+
+    int index = 0;
+
+    if (pool.get(str, &index))
+    {
+        String *s = map[index];
+        return s;
+    }
+
+    // New string
+    String *s = allocString();
+ 
+
+    // Copy data
     if (len <= String::SMALL_THRESHOLD)
     {
-        // Small - inline
         s->length_and_flag = len;
         std::memcpy(s->data, str, len);
         s->data[len] = '\0';
     }
     else
     {
-        // Long - aloca buffer
         s->length_and_flag = len | String::IS_LONG_FLAG;
         s->ptr = (char *)allocator.Allocate(len + 1);
         std::memcpy(s->ptr, str, len);
         s->ptr[len] = '\0';
     }
 
+    s->hash = hashString(s->chars(), len);
+    bytesAllocated += sizeof(String) + len;
+    s->index = map.size();
 
-   // Warning(" Create string %s", s->chars());
+   // Info("Create string %s hash %d len %d", s->chars(), s->hash, s->length());
+    map.push(s);
+    pool.set(s->chars(), map.size() - 1);
+
+   
+    // Store in pool
+
     return s;
 }
 
-void StringPool::destroy(String *s)
+String *StringPool::create(const char *str, bool isStatic)
 {
-    if (!s)
-        return;
-
-    //Warning(" Destroy string %s", s->chars());
-    if (s->isLong())
-    {
-
-        allocator.Free(s->ptr, s->length() + 1);
-        s->ptr=nullptr;
-    }
-
-    allocator.Free(s, sizeof(String));
+    return create(str, std::strlen(str), isStatic);
 }
-
-String *StringPool::create(const char *str)
-{
-        return create(str, std::strlen(str));
-}
-
-
-
-String *StringPool::toString(int value)
-{
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%d", value);
-    return create(buf, false);
-}
-
-String *StringPool::toString(double value)
-{
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%.6f", value);
-    return create(buf, false);
-}
+// ========================================
+// CONCAT - OTIMIZADO
+// ========================================
 
 String *StringPool::concat(String *a, String *b)
 {
@@ -77,128 +139,73 @@ String *StringPool::concat(String *a, String *b)
 
     // Fast paths
     if (lenA == 0)
-        return b; // "" + "abc" = "abc"
+        return b;
     if (lenB == 0)
-        return a; // "abc" + "" = "abc"
+        return a;
 
-    size_t len = lenA + lenB;
-    String *s = (String *)allocator.Allocate(sizeof(String));
+    size_t totalLen = lenA + lenB;
 
-    if (len <= String::SMALL_THRESHOLD)
-    {
-        s->length_and_flag = static_cast<uint32>(len);
-        std::memcpy(s->data, a->chars(), lenA);
-        std::memcpy(s->data + lenA, b->chars(), lenB);
-        s->data[len] = '\0';
-    }
-    else
-    {
-        s->length_and_flag = static_cast<uint32>(len) | String::IS_LONG_FLAG;
-        s->ptr = (char *)allocator.Allocate(len + 1);
-        std::memcpy(s->ptr, a->chars(), lenA);
-        std::memcpy(s->ptr + lenA, b->chars(), lenB);
-        s->ptr[len] = '\0';
-    }
+    //  USA ALLOCA para buffer temporário
+    char *temp = (char *)alloca(totalLen + 1);
+    std::memcpy(temp, a->chars(), lenA);
+    std::memcpy(temp + lenA, b->chars(), lenB);
+    temp[totalLen] = '\0';
 
-    s->hash = hashString(s->chars(), static_cast<int>(len));
-    return s;
+    //  Cria string (com interning!)
+    return create(temp, totalLen);
 }
 
-
-
-void StringPool::clear()
-{
-
-   
-
-    //Info("String pool stats:");
- //   allocator.Stats();
- 
-    allocator.Clear();
-}
+// ========================================
+// UPPER/LOWER - OTIMIZADO
+// ========================================
 
 String *StringPool::upper(String *src)
 {
     if (!src)
-        return nullptr;
+        return create("", 0);
 
     size_t len = src->length();
+
+    //  ALLOCA buffer temporário
+    char *temp = (char *)alloca(len + 1);
+
     const char *str = src->chars();
-
-    // Aloca objeto String (32 bytes)
-    String *s = (String *)allocator.Allocate(sizeof(String));
-
-    if (len <= String::SMALL_THRESHOLD)
+    for (size_t i = 0; i < len; i++)
     {
-        // Small - inline
-        s->length_and_flag = static_cast<uint32>(len);
-
-        for (size_t i = 0; i < len; i++)
-        {
-            s->data[i] = (char)toupper((unsigned char)str[i]);
-        }
-        s->data[len] = '\0';
+        temp[i] = (char)toupper((unsigned char)str[i]);
     }
-    else
-    {
-        // Long - aloca buffer
-        s->length_and_flag = static_cast<uint32>(len) | String::IS_LONG_FLAG;
-        s->ptr = (char *)allocator.Allocate(len + 1);
+    temp[len] = '\0';
 
-        for (size_t i = 0; i < len; i++)
-        {
-            s->ptr[i] = (char)toupper((unsigned char)str[i]);
-        }
-        s->ptr[len] = '\0';
-    }
-
-    s->hash = hashString(s->chars(), static_cast<uint32>(len));
-    return s;
+    return create(temp, len);
 }
 
 String *StringPool::lower(String *src)
 {
     if (!src)
-        return nullptr;
+        return create("", 0);
 
     size_t len = src->length();
+
+    char *temp = (char *)alloca(len + 1);
+
     const char *str = src->chars();
-
-    // Aloca objeto String (32 bytes)
-    String *s = (String *)allocator.Allocate(sizeof(String));
-
-    if (len <= String::SMALL_THRESHOLD)
+    for (size_t i = 0; i < len; i++)
     {
-        // Small - inline
-        s->length_and_flag = static_cast<uint32>(len);
-
-        for (size_t i = 0; i < len; i++)
-        {
-            s->data[i] = (char)tolower((unsigned char)str[i]);
-        }
-        s->data[len] = '\0';
+        temp[i] = (char)tolower((unsigned char)str[i]);
     }
-    else
-    {
-        // Long - aloca buffer
-        s->length_and_flag = static_cast<uint32>(len) | String::IS_LONG_FLAG;
-        s->ptr = (char *)allocator.Allocate(len + 1);
+    temp[len] = '\0';
 
-        for (size_t i = 0; i < len; i++)
-        {
-            s->ptr[i] = (char)tolower((unsigned char)str[i]);
-        }
-        s->ptr[len] = '\0';
-    }
-
-    s->hash = hashString(s->chars(), static_cast<uint32>(len));
-    return s;
+    return create(temp, len);
 }
+
+// ========================================
+// SUBSTRING  
+// ========================================
 
 String *StringPool::substring(String *src, uint32 start, uint32 end)
 {
     if (!src)
-        return create("", 0); // String vazia
+        return create("", 0);
 
     size_t len = src->length();
 
@@ -211,11 +218,18 @@ String *StringPool::substring(String *src, uint32 start, uint32 end)
 
     size_t newLen = end - start;
     if (newLen == 0)
-        return create("", 0); // String vazia
+        return create("", 0);
 
-    const char *str = src->chars() + start;
-    return create(str, newLen);
+    char *temp = (char *)alloca(newLen + 1);
+    std::memcpy(temp, src->chars() + start, newLen);
+    temp[newLen] = '\0';
+
+    return create(temp, newLen);
 }
+
+// ========================================
+// REPLACE -  
+// ========================================
 
 String *StringPool::replace(String *src, const char *oldStr, const char *newStr)
 {
@@ -240,26 +254,13 @@ String *StringPool::replace(String *src, const char *oldStr, const char *newStr)
     }
 
     if (count == 0)
-        return src; // Sem mudanças
+        return src;
 
     // Calcula tamanho final
     size_t finalLen = len - (count * oldLen) + (count * newLen);
 
-    // Aloca String
-    String *s = (String *)allocator.Allocate(sizeof(String));
-
-    char *dest;
-    if (finalLen <= String::SMALL_THRESHOLD)
-    {
-        s->length_and_flag = static_cast<uint32>(finalLen);
-        dest = s->data;
-    }
-    else
-    {
-        s->length_and_flag = static_cast<uint32>(finalLen) | String::IS_LONG_FLAG;
-        s->ptr = (char *)allocator.Allocate(finalLen + 1);
-        dest = s->ptr;
-    }
+    //  ALLOCA buffer temporário
+    char *temp = (char *)alloca(finalLen + 1);
 
     // Copia com substituições
     const char *current = str;
@@ -267,13 +268,11 @@ String *StringPool::replace(String *src, const char *oldStr, const char *newStr)
 
     while ((pos = strstr(current, oldStr)) != nullptr)
     {
-        // Copia até a ocorrência
         size_t copyLen = pos - current;
-        std::memcpy(dest + destIdx, current, copyLen);
+        std::memcpy(temp + destIdx, current, copyLen);
         destIdx += copyLen;
 
-        // Copia substituto
-        std::memcpy(dest + destIdx, newStr, newLen);
+        std::memcpy(temp + destIdx, newStr, newLen);
         destIdx += newLen;
 
         current = pos + oldLen;
@@ -281,12 +280,15 @@ String *StringPool::replace(String *src, const char *oldStr, const char *newStr)
 
     // Copia resto
     size_t remainLen = len - (current - str);
-    std::memcpy(dest + destIdx, current, remainLen);
-    dest[finalLen] = '\0';
+    std::memcpy(temp + destIdx, current, remainLen);
+    temp[finalLen] = '\0';
 
-    s->hash = hashString(s->chars(), static_cast<uint32>(finalLen));
-    return s;
+    return create(temp, finalLen);
 }
+
+// ========================================
+// AT -
+// ========================================
 
 String *StringPool::at(String *str, int index)
 {
@@ -295,52 +297,29 @@ String *StringPool::at(String *str, int index)
 
     int len = str->length();
 
+    // Python-style negative indexing
     if (index < 0)
         index += len;
 
     if (index < 0 || index >= len)
-    {
-        return create("", 0); // String vazia
-    }
+        return create("", 0);
 
     char buf[2] = {str->chars()[index], '\0'};
     return create(buf, 1);
 }
 
-// Contains - verifica se contém substring
+// ========================================
+// CONTAINS/STARTSWITH/ENDSWITH -
+// ========================================
+
 bool StringPool::contains(String *str, String *substr)
 {
     if (!str || !substr)
         return false;
     if (substr->length() == 0)
-        return true; // String vazia sempre contém
+        return true;
 
     return strstr(str->chars(), substr->chars()) != nullptr;
-}
-
-// Trim - remove espaços início/fim
-String *StringPool::trim(String *str)
-{
-    if (!str)
-        return create("", 0);
-
-    const char *start = str->chars();
-    const char *end = start + str->length() - 1;
-
-    // Trim início
-    while (*start && isspace((unsigned char)*start))
-        start++;
-
-    // Trim fim
-    while (end > start && isspace((unsigned char)*end))
-        end--;
-
-    // Se tudo é espaço
-    if (end < start)
-        return create("", 0);
-
-    size_t len = end - start + 1;
-    return create(start, len);
 }
 
 bool StringPool::startsWith(String *str, String *prefix)
@@ -368,6 +347,41 @@ bool StringPool::endsWith(String *str, String *suffix)
                   suffix->chars()) == 0;
 }
 
+// ========================================
+// TRIM  
+// ========================================
+
+String *StringPool::trim(String *str)
+{
+    if (!str)
+        return create("", 0);
+
+    const char *start = str->chars();
+    const char *end = start + str->length() - 1;
+
+    while (*start && isspace((unsigned char)*start))
+        start++;
+
+    while (end > start && isspace((unsigned char)*end))
+        end--;
+
+    if (end < start)
+        return create("", 0);
+
+    size_t len = end - start + 1;
+
+    //  create() já lida com substring não null-terminated
+    char *temp = (char *)alloca(len + 1);
+    std::memcpy(temp, start, len);
+    temp[len] = '\0';
+
+    return create(temp, len);
+}
+
+// ========================================
+// INDEXOF -
+// ========================================
+
 int StringPool::indexOf(String *str, String *substr, int startIndex)
 {
     if (!str || !substr)
@@ -376,13 +390,12 @@ int StringPool::indexOf(String *str, String *substr, int startIndex)
         return startIndex;
 
     int strLen = str->length();
- 
+
     if (startIndex < 0)
         startIndex = 0;
     if (startIndex >= strLen)
         return -1;
 
- 
     const char *start = str->chars() + startIndex;
     const char *found = strstr(start, substr->chars());
 
@@ -392,15 +405,25 @@ int StringPool::indexOf(String *str, String *substr, int startIndex)
     return (int)(found - str->chars());
 }
 
- 
 int StringPool::indexOf(String *str, const char *substr, int startIndex)
 {
     if (!str || !substr)
         return -1;
-    return indexOf(str, create(substr), startIndex);
+
+    //  OTIMIZAÇÃO: Evita criar String se não encontrar
+    const char *start = str->chars() + (startIndex < 0 ? 0 : startIndex);
+    const char *found = strstr(start, substr);
+
+    if (!found)
+        return -1;
+
+    return (int)(found - str->chars());
 }
 
-// Repeat - repete string N vezes
+// ========================================
+// REPEAT 
+// ========================================
+
 String *StringPool::repeat(String *str, int count)
 {
     if (!str || count <= 0)
@@ -411,31 +434,101 @@ String *StringPool::repeat(String *str, int count)
     size_t len = str->length();
     size_t totalLen = len * count;
 
-    // Aloca String
-    String *s = (String *)allocator.Allocate(sizeof(String));
+    //  ALLOCA se não for muito grande
+    char *temp;
+    bool useAlloca = (totalLen < 4096); // Stack limit
 
-    char *dest;
-    if (totalLen <= String::SMALL_THRESHOLD)
+    if (useAlloca)
     {
-        s->length_and_flag = static_cast<uint32>(totalLen);
-        dest = s->data;
+        temp = (char *)alloca(totalLen + 1);
     }
     else
     {
-        s->length_and_flag = static_cast<uint32>(totalLen) | String::IS_LONG_FLAG;
-        s->ptr = (char *)allocator.Allocate(totalLen + 1);
-        dest = s->ptr;
+        temp = (char *)allocator.Allocate(totalLen + 1);
     }
 
     // Repete
     for (int i = 0; i < count; i++)
     {
-        std::memcpy(dest + (i * len), str->chars(), len);
+        std::memcpy(temp + (i * len), str->chars(), len);
     }
-    dest[totalLen] = '\0';
+    temp[totalLen] = '\0';
 
-    s->hash = hashString(dest, static_cast<uint32>(totalLen));
-    return s;
+    String *result = create(temp, totalLen);
+
+    if (!useAlloca)
+    {
+        allocator.Free(temp, totalLen + 1);
+    }
+
+    return result;
+}
+
+// ========================================
+// TOSTRING -
+// ========================================
+
+String *StringPool::toString(int value)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%d", value);
+    return create(buf, false);
+}
+
+String *StringPool::toString(double value)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.6f", value);
+    return create(buf, false);
+}
+
+// ========================================
+// FORMAT - OTIMIZADO
+// ========================================
+
+String *StringPool::format(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+
+    char *buffer = (char *)alloca(4096);
+
+    int len = vsnprintf(buffer, 4096, fmt, args);
+    va_end(args);
+
+    if (len < 0 || len >= 4096)
+    {
+        // Fallback: heap allocation
+        va_start(args, fmt);
+        int needed = vsnprintf(nullptr, 0, fmt, args);
+        va_end(args);
+
+        if (needed < 0)
+            return create("", 0);
+
+        char *heap = (char *)aAlloc(needed + 1);
+
+        va_start(args, fmt);
+        vsnprintf(heap, needed + 1, fmt, args);
+        va_end(args);
+
+        String *result = create(heap, needed);
+        aFree(heap);
+
+        return result;
+    }
+
+    return create(buffer, len);
+}
+
+String *StringPool::getString(int index)
+{
+    if (index < 0 || index >= map.size())
+    {
+        Warning("String index out of bounds: %d", index);
+        return dummyString;
+    }
+    return map[index];
 }
 
 //     // Split - divide string por separador
@@ -524,10 +617,10 @@ ProcessPool::ProcessPool()
 
 Process *ProcessPool::create()
 {
-    Process * proc=nullptr;
+    Process *proc = nullptr;
     if (!pool.size())
     {
-        proc = (Process*) aAlloc(sizeof(Process));
+        proc = (Process *)aAlloc(sizeof(Process));
         return proc;
     }
 
@@ -543,10 +636,9 @@ void ProcessPool::destory(Process *proc)
 
 void ProcessPool::free(Process *proc)
 {
-        proc->release();
-        aFree(proc);
+    proc->release();
+    aFree(proc);
 }
-
 
 void ProcessPool::clear()
 {

@@ -444,12 +444,12 @@ bool Interpreter::callFunction(const char *name, int argCount)
 
     if (!functionsMap.get(funcName, &func))
     {
-        destroyString(funcName);
+ 
         runtimeError("Undefined function: %s", name);
         return false;
     }
 
-    destroyString(funcName);
+  
     return callFunction(func, argCount);
 }
 
@@ -528,11 +528,11 @@ Process *Interpreter::callProcess(const char *name, int argCount)
 
     if (!processesMap.get(procName, &proc))
     {
-        destroyString(procName);
+       
         runtimeError("Undefined process: %s", name);
         return nullptr;
     }
 
-    destroyString(procName);
+ 
     return callProcess(proc, argCount);
 }

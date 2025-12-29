@@ -108,7 +108,7 @@ ProcessDef *Interpreter::addProcess(const char *name, Function *func)
     ProcessDef *existing = nullptr;
     if (processesMap.get(pName, &existing))
     {
-        destroyString(pName);
+       
         return existing;
     }
 

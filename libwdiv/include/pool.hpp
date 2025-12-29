@@ -2,77 +2,164 @@
 #include "config.hpp"
 #include "string.hpp"
 #include "vector.hpp"
+#include "map.hpp"  
+#include "types.hpp"  
 
 struct Value;
 struct Process;
 
-class StringPool {
+ 
+struct CStringHash
+{
+    size_t operator()(const char *str) const
+    {
+        // FNV-1a hash
+        size_t hash = 2166136261u;
+        while (*str)
+        {
+            hash ^= (unsigned char)*str++;
+            hash *= 16777619u;
+        }
+        return hash;
+    }
+};
+
+// Eq para const char*
+struct CStringEq
+{
+    bool operator()(const char *a, const char *b) const
+    {
+        return strcmp(a, b) == 0;
+    }
+};
+
+
+class StringPool
+{
 private:
-  HeapAllocator allocator;
+    HeapAllocator allocator;
+    Vector<String *> statics;
+    HashMap<const char *, int, CStringHash, CStringEq> pool;
+    size_t bytesAllocated = 0;
+    friend class Interpreter;
+    String * dummyString = nullptr;
+    public:
+    StringPool();
+    ~StringPool();
 
-public:
-  StringPool() = default;
-  ~StringPool() = default;
+    size_t getBytesAllocated() { return bytesAllocated; }
+    
+    Vector<String *> map;
 
-  String *create(const char *str, uint32 len);
+    String *allocString();
 
-  String *create(const char *str);
+    void deallocString(String *s);
 
-  int indexOf(String *str, String *substr, int startIndex = 0);
-  int indexOf(String *str, const char *substr, int startIndex = 0);
 
-  String *concat(String *a, String *b);
-  String *upper(String *src);
-  String *lower(String *src);
-  String *substring(String *src, uint32 start, uint32 end);
-  String *replace(String *src, const char *oldStr, const char *newStr);
+    String *create(const char *str, uint32 len,bool isStatic);
 
-  String *to_string(Value v);
-  String *toString(int value);
-  String *toString(double value);
+    String *create(const char *str, bool isStatic);
 
-  String *trim(String *str);
-  bool contains(String *str, String *substr);
-  bool startsWith(String *str, String *prefix);
-  bool endsWith(String *str, String *suffix);
-  String *at(String *str, int index);
-  String *repeat(String *str, int count);
+    String *format(const char *fmt, ...);  
 
-  void destroy(String *s);
 
-  void clear();
+    String* getString(int index);
 
-  static StringPool &instance() {
-    static StringPool pool;
-    return pool;
-  }
+
+    int indexOf(String *str, String *substr, int startIndex = 0);
+    int indexOf(String *str, const char *substr, int startIndex = 0);
+
+    String *concat(String *a, String *b);
+    String *upper(String *src);
+    String *lower(String *src);
+    String *substring(String *src, uint32 start, uint32 end);
+    String *replace(String *src, const char *oldStr, const char *newStr);
+
+    String *to_string(Value v);
+
+    String *trim(String *str);
+    bool contains(String *str, String *substr);
+    bool startsWith(String *str, String *prefix);
+    bool endsWith(String *str, String *suffix);
+    String *at(String *str, int index);
+    String *repeat(String *str, int count);
+
+    String *toString(int value);
+    String *toString(double value);
+
+    void destroy(String *s);
+
+    void clear();
+
+    void removeWhite();
+    
+    HashMap<const char*, String *, CStringHash, CStringEq> interns;
+
+    static StringPool &instance()
+    {
+        static StringPool pool;
+        return pool;
+    }
 };
 
-class ProcessPool {
 
-  Vector<Process *> pool;
+class ProcessPool 
+{
 
+    Vector<Process*> pool;
 public:
-  ProcessPool();
-  ~ProcessPool() = default;
+    ProcessPool();
+    ~ProcessPool() = default;
 
-  static ProcessPool &instance() {
-    static ProcessPool pool;
-    return pool;
-  }
+    static ProcessPool &instance()
+    {
+        static ProcessPool pool;
+        return pool;
+    }
 
-  Process *create();
-  void free(Process *proc);
-  void destory(Process *proc);
-  void clear();
+    Process* create();
+    void free(Process *proc);
+    void destory(Process *proc);
+    void clear();
+
 };
 
-inline String *createString(const char *str, uint32 len) {
-  return StringPool::instance().create(str, len);
+
+inline bool compareString(String *a, String *b)
+{
+    if (a == nullptr || b == nullptr)
+        return false;
+
+  //  Info("Compare string %s %s hash %d %d len %d %d", a->chars(), b->chars(), a->hash, b->hash, a->length(), b->length());
+
+    if (a->hash != b->hash)
+        return false;
+    if (a == b)
+        return true;
+    if (a->length() != b->length())
+        return false;
+    return memcmp(a->chars(), b->chars(), a->length()) == 0;
 }
 
-inline String *createString(const char *str) {
-  return StringPool::instance().create(str);
+inline String *createString(const char *str, uint32 len)
+{
+    return StringPool::instance().create(str, len);
 }
 
-inline void destroyString(String *s) { StringPool::instance().destroy(s); }
+inline String *createString(const char *str)
+{
+    return StringPool::instance().create(str,false);
+}
+
+ 
+inline String *createStaticString(const char *str, uint32 len)
+{
+    return StringPool::instance().create(str, len, true);
+}
+
+inline String *createStaticString(const char *str)
+{
+    return StringPool::instance().create(str, true);
+}
+
+ 

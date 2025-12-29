@@ -605,7 +605,12 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
                 if (argCount != func->arity)
                 {
-                    runtimeError("Expected %d arguments but got %d", func->arity, argCount);
+                    runtimeError("Function %s expected %d arguments but got %d",func->name->chars(), func->arity, argCount);
+                    for (int i = 0; i < argCount; i++)
+                    {
+                        printValue(NPEEK(i));
+                        printf(" ");
+                    }
                     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                 }
 

@@ -4,10 +4,7 @@
 
 Function::~Function()
 {
-    if (name)
-    {
-        destroyString(name);
-    }
+   
     if (chunk)
     {
         chunk->clear();
@@ -44,7 +41,7 @@ bool Interpreter::functionExists(const char *name)
 {
     String *pName = createString(name);
     bool exists = functionsMap.exist(pName);
-    destroyString(pName);
+ 
     return exists;
 }
 
@@ -56,7 +53,7 @@ int Interpreter::registerNative(const char *name, NativeFunction func, int arity
     NativeDef existing;
     if (nativesMap.get(nName, &existing))
     {
-        destroyString(nName);
+   
         return -1; // Já registrado
     }
 
@@ -86,7 +83,7 @@ void Interpreter::destroyFunction(Function *func)
     {
         Warning(" Remove Function %s", funcName->chars());
 
-        destroyString(funcName);
+  
     }
 
     func->chunk->clear();

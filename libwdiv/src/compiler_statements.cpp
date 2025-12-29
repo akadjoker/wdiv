@@ -977,7 +977,7 @@ void Compiler::processDeclaration()
 
             proc->argsNames.push(255); // Marcador "sem private"
         }
-        destroyString(argNames[i]);
+
     }
     argNames.clear();
 

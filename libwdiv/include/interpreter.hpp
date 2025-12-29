@@ -1,6 +1,7 @@
 #pragma once
 #include "config.hpp"
 #include "map.hpp"
+#include "pool.hpp"
 #include "vector.hpp"
 #include "string.hpp"
 #include "arena.hpp"
@@ -50,29 +51,6 @@ struct StringHasher
     size_t operator()(String *x) const { return x->hash; }
 };
 
-struct CStringHash
-{
-    size_t operator()(const char *str) const
-    {
-        // FNV-1a hash
-        size_t hash = 2166136261u;
-        while (*str)
-        {
-            hash ^= (unsigned char)*str++;
-            hash *= 16777619u;
-        }
-        return hash;
-    }
-};
-
-// Eq para const char*
-struct CStringEq
-{
-    bool operator()(const char *a, const char *b) const
-    {
-        return strcmp(a, b) == 0;
-    }
-};
 
 enum class FieldType : uint8_t
 {
@@ -346,7 +324,7 @@ class Interpreter
     Vector<NativeDef> natives;
     Vector<StructDef *> structs;
     Vector<ClassDef *> classes;
-    Vector<Value> globalList;
+ 
 
     Vector<StructInstance *> structInstances;
     Vector<ArrayInstance *> arrayInstances;

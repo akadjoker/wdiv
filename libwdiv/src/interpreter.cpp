@@ -2,9 +2,6 @@
 #include "compiler.hpp"
 #include "debug.hpp"
 #include "instances.hpp"
-#include "opcode.hpp"
-#include "pool.hpp"
-#include <new>
 #include <stdarg.h>
 
 Interpreter::Interpreter() {
@@ -19,15 +16,12 @@ Interpreter::~Interpreter() {
 
   for (size_t i = 0; i < natives.size(); i++) {
     NativeDef &native = natives[i];
-    if (native.name) {
-      destroyString(native.name);
-    }
   }
   natives.clear();
 
   for (size_t i = 0; i < structs.size(); i++) {
     StructDef *a = structs[i];
-    destroyString(a->name);
+
     delete a;
   }
   structs.clear();
@@ -62,7 +56,7 @@ Interpreter::~Interpreter() {
 
   for (size_t i = 0; i < nativeStructs.size(); i++) {
     NativeStructDef *a = nativeStructs[i];
-    destroyString(a->name);
+
     delete a;
   }
   nativeStructs.clear();
@@ -79,6 +73,47 @@ Interpreter::~Interpreter() {
   }
 
   classes.clear();
+
+
+   functionsMap.destroy();
+  processesMap.destroy();
+
+  for (size_t i = 0; i < functions.size(); i++) {
+    Function *func = functions[i];
+    delete func;
+  }
+  functions.clear();
+
+  for (size_t i = 0; i < functionsClass.size(); i++) {
+    Function *func = functionsClass[i];
+    delete func;
+  }
+  functionsClass.clear();
+
+  for (size_t j = 0; j < processes.size(); j++) {
+    ProcessDef *proc = processes[j];
+    proc->release();
+    delete proc;
+  }
+
+  processes.clear();
+  ProcessPool::instance().clear();
+
+  for (size_t j = 0; j < cleanProcesses.size(); j++) {
+    Process *proc = cleanProcesses[j];
+    proc->release();
+    ProcessPool::instance().free(proc);
+  }
+  cleanProcesses.clear();
+
+  for (size_t i = 0; i < aliveProcesses.size(); i++) {
+    Process *process = aliveProcesses[i];
+    process->release();
+    ProcessPool::instance().free(process);
+  }
+
+  aliveProcesses.clear();
+
 
   Info("Heap stats:");
   heapAllocator.Stats();
@@ -391,7 +426,7 @@ void Interpreter::reset() {
 
   functionsMap.destroy();
   processesMap.destroy();
- 
+
   for (size_t i = 0; i < functions.size(); i++) {
     Function *func = functions[i];
     delete func;
@@ -525,46 +560,6 @@ bool Interpreter::tryGetClassDefenition(const char *name, ClassDef **out) {
   if (classesMap.get(pName, out)) {
     result = true;
   }
-  return result;
-}
-
-int Interpreter::addGlobal(const char *name, Value value) {
-  String *pName = createString(name);
-  if (globals.exist(pName)) {
-    destroyString(pName);
-    return -1;
-  }
-  globals.set(pName, value);
-  globalList.push(value);
-
-  return (int)(globalList.size() - 1);
-}
-
-String *Interpreter::addGlobalEx(const char *name, Value value) {
-  String *pName = createString(name);
-  if (globals.exist(pName)) {
-    destroyString(pName);
-    return nullptr;
-  }
-  globals.set(pName, value);
-  globalList.push(value);
-
-  return pName;
-}
-
-Value Interpreter::getGlobal(uint32 index) {
-  if (index >= globalList.size())
-    return Value::makeNil();
-  return globalList[index];
-}
-
-bool Interpreter::tryGetGlobal(const char *name, Value *value) {
-  String *pName = createString(name);
-  bool result = false;
-  if (globals.get(pName, value)) {
-    result = true;
-  }
-  destroyString(pName);
   return result;
 }
 
