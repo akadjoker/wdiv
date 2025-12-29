@@ -3,12 +3,12 @@
 #include "config.hpp"
 #include "lexer.hpp"
 #include "token.hpp"
-#include "vector.hpp"
 #include "types.hpp"
-#include <vector>
+#include "vector.hpp"
 #include <cstring>
-#include <string>
 #include <set>
+#include <string>
+#include <vector>
 
 class Code;
 struct Value;
@@ -24,284 +24,266 @@ class Interpreter;
 
 typedef void (Compiler::*ParseFn)(bool canAssign);
 
-enum Precedence
-{
-    PREC_NONE,
-    PREC_ASSIGNMENT,
-    PREC_OR,          // ||
-    PREC_AND,         // &&
-    PREC_BITWISE_OR,  // |
-    PREC_BITWISE_XOR, // ^
-    PREC_BITWISE_AND, // &
-    PREC_EQUALITY,    // == !=
-    PREC_COMPARISON,  // < > <= >=
-    PREC_SHIFT,       // << >>
-    PREC_TERM,        // + -
-    PREC_FACTOR,      // * / %
-    PREC_UNARY,       // ! - ~ ++ --
-    PREC_CALL,        // ()
-    PREC_PRIMARY
+enum Precedence {
+  PREC_NONE,
+  PREC_ASSIGNMENT,
+  PREC_OR,          // ||
+  PREC_AND,         // &&
+  PREC_BITWISE_OR,  // |
+  PREC_BITWISE_XOR, // ^
+  PREC_BITWISE_AND, // &
+  PREC_EQUALITY,    // == !=
+  PREC_COMPARISON,  // < > <= >=
+  PREC_SHIFT,       // << >>
+  PREC_TERM,        // + -
+  PREC_FACTOR,      // * / %
+  PREC_UNARY,       // ! - ~ ++ --
+  PREC_CALL,        // ()
+  PREC_PRIMARY
 };
 
-struct ParseRule
-{
-    ParseFn prefix;
-    ParseFn infix;
-    Precedence prec;
+struct ParseRule {
+  ParseFn prefix;
+  ParseFn infix;
+  Precedence prec;
 };
 
 #define MAX_IDENTIFIER_LENGTH 32
 #define MAX_LOCALS 256
 
-struct Local
-{
-    char name[MAX_IDENTIFIER_LENGTH];
-    uint8 length;
-    int depth;
+struct Local {
+  char name[MAX_IDENTIFIER_LENGTH];
+  uint8 length;
+  int depth;
 
-    Local() : length(0), depth(-1)
-    {
-        name[0] = '\0';
+  Local() : length(0), depth(-1) { name[0] = '\0'; }
+
+  bool equals(const std::string &str) const {
+
+    if (length != str.length()) {
+      return false;
     }
 
-    bool equals(const std::string &str) const
-    {
+    return std::memcmp(name, str.c_str(), length) == 0;
+  }
 
-        if (length != str.length())
-        {
-            return false;
-        }
-
-        return std::memcmp(name, str.c_str(), length) == 0;
+  bool equals(const char *str, size_t len) const {
+    if (length != len) {
+      return false;
     }
-
-    bool equals(const char *str, size_t len) const
-    {
-        if (length != len)
-        {
-            return false;
-        }
-        return std::memcmp(name, str, length) == 0;
-    }
+    return std::memcmp(name, str, length) == 0;
+  }
 };
 
 #define MAX_LOOP_DEPTH 32
 #define MAX_BREAKS_PER_LOOP 256
 
-struct LoopContext
-{
-    int loopStart;
-    int breakJumps[MAX_BREAKS_PER_LOOP];
-    int breakCount;
-    int scopeDepth;
+struct LoopContext {
+  int loopStart;
+  int breakJumps[MAX_BREAKS_PER_LOOP];
+  int breakCount;
+  int scopeDepth;
 
-    LoopContext() : loopStart(0), breakCount(0), scopeDepth(0) {}
+  LoopContext() : loopStart(0), breakCount(0), scopeDepth(0) {}
 
-    bool addBreak(int jump)
-    {
-        if (breakCount >= MAX_BREAKS_PER_LOOP)
-        {
+  bool addBreak(int jump) {
+    if (breakCount >= MAX_BREAKS_PER_LOOP) {
 
-            return false;
-        }
-        breakJumps[breakCount++] = jump;
-        return true;
+      return false;
     }
+    breakJumps[breakCount++] = jump;
+    return true;
+  }
 };
 
 struct Label {
-    std::string name;
-    int offset;
+  std::string name;
+  int offset;
 };
 
 struct GotoJump {
-    std::string target;
-    int jumpOffset;
+  std::string target;
+  int jumpOffset;
 };
 
 #define MAX_LOCALS 256
-class Compiler
-{
+class Compiler {
 public:
-    Compiler(Interpreter *vm);
-    ~Compiler();
+  Compiler(Interpreter *vm);
+  ~Compiler();
 
+  void setFileLoader(FileLoaderCallback loader, void *userdata = nullptr);
 
-    void setFileLoader(FileLoaderCallback loader, void* userdata = nullptr);
+  ProcessDef *compile(const std::string &source);
+  ProcessDef *compileExpression(const std::string &source);
 
-    ProcessDef *compile(const std::string &source);
-    ProcessDef *compileExpression(const std::string &source);
-
-    void clear();
+  void clear();
 
 private:
-    Interpreter *vm_;
-    Lexer *lexer;
-    Token current;
-    Token previous;
-    Token next;
+  Interpreter *vm_;
+  Lexer *lexer;
+  Token current;
+  Token previous;
+  Token next;
 
-    int cursor;
+  int cursor;
 
-    FunctionType currentFunctionType;
-    Function *function;
-    Code *currentChunk;
-    Fiber *currentFiber;
-    ClassDef *currentClass;
-    ProcessDef *currentProcess;
-    Vector<String *> argNames;
-     std::vector<Token> tokens;
+  FunctionType currentFunctionType;
+  Function *function;
+  Code *currentChunk;
+  Fiber *currentFiber;
+  ClassDef *currentClass;
+  ProcessDef *currentProcess;
+  Vector<String *> argNames;
+  std::vector<Token> tokens;
 
-    bool hadError;
-    bool panicMode;
+  bool hadError;
+  bool panicMode;
 
-    int scopeDepth;
-    Local locals_[MAX_LOCALS];
-    int localCount_;
+  int scopeDepth;
+  Local locals_[MAX_LOCALS];
+  int localCount_;
 
-    LoopContext loopContexts_[MAX_LOOP_DEPTH];
-    int loopDepth_;
-    bool isProcess_;
+  LoopContext loopContexts_[MAX_LOOP_DEPTH];
+  int loopDepth_;
+  bool isProcess_;
 
-    std::vector<Label> labels;
-    std::vector<GotoJump> pendingGotos;
-    std::vector<GotoJump> pendingGosubs;
+  std::vector<Label> labels;
+  std::vector<GotoJump> pendingGotos;
+  std::vector<GotoJump> pendingGosubs;
 
-    // Token management
-    void advance();
-    Token peek(int offset = 0);
+  // Token management
+  void advance();
+  Token peek(int offset = 0);
 
-    bool checkNext(TokenType t) ;
-    
-    bool check(TokenType type);
-    bool match(TokenType type);
-    void consume(TokenType type, const char *message);
+  bool checkNext(TokenType t);
 
-    void beginLoop(int loopStart);
-    void endLoop();
-    void emitBreak();
-    void emitContinue();
+  bool check(TokenType type);
+  bool match(TokenType type);
+  void consume(TokenType type, const char *message);
 
-    void breakStatement();
-    void continueStatement();
+  void beginLoop(int loopStart);
+  void endLoop();
+  void emitBreak();
+  void emitContinue();
 
-    // Error handling
-    void error(const char *message);
-    void errorAt(Token &token, const char *message);
-    void errorAtCurrent(const char *message);
-    void fail(const char *format, ...);
-    void synchronize();
+  void breakStatement();
+  void continueStatement();
 
-    // Bytecode emission
-    void emitByte(uint8 byte);
-    void emitBytes(uint8 byte1, uint8 byte2);
-    void emitReturn();
-    void emitConstant(Value value);
-    uint8 makeConstant(Value value);
+  // Error handling
+  void error(const char *message);
+  void errorAt(Token &token, const char *message);
+  void errorAtCurrent(const char *message);
+  void fail(const char *format, ...);
+  void synchronize();
 
-    int emitJump(uint8 instruction);
-    void patchJump(int offset);
- 
-    void emitLoop(int loopStart);
+  // Bytecode emission
+  void emitByte(uint8 byte);
+  void emitBytes(uint8 byte1, uint8 byte2);
+  void emitReturn();
+  void emitConstant(Value value);
+  uint8 makeConstant(Value value);
 
-    // Pratt parser
-    void expression();
-    void parsePrecedence(Precedence precedence);
-    ParseRule *getRule(TokenType type);
+  int emitJump(uint8 instruction);
+  void patchJump(int offset);
 
-    // Parse functions (prefix)
-    void number(bool canAssign);
-    void string(bool canAssign);
-    void literal(bool canAssign);
-    void grouping(bool canAssign);
-    void unary(bool canAssign);
-    void variable(bool canAssign);
+  void emitLoop(int loopStart);
 
-    // Parse functions (infix)
-    void binary(bool canAssign);
-    void and_(bool canAssign);
-    void or_(bool canAssign);
-    void call(bool canAssign);
+  // Pratt parser
+  void expression();
+  void parsePrecedence(Precedence precedence);
+  ParseRule *getRule(TokenType type);
 
-    // Statements
-    void declaration();
-    void statement();
-    void varDeclaration();
-    void funDeclaration();
-    void processDeclaration();
-    void expressionStatement();
-    void printStatement();
-    void ifStatement();
-    void whileStatement();
-    void doWhileStatement();
-    void loopStatement();
-    void switchStatement();
-    void forStatement();
-    void returnStatement();
-    void block();
-    void yieldStatement();
-    void fiberStatement();
+  // Parse functions (prefix)
+  void number(bool canAssign);
+  void string(bool canAssign);
+  void literal(bool canAssign);
+  void grouping(bool canAssign);
+  void unary(bool canAssign);
+  void variable(bool canAssign);
 
-    void dot(bool canAssign);
-    void self(bool canAssign);
-    void super(bool canAssign);
+  // Parse functions (infix)
+  void binary(bool canAssign);
+  void and_(bool canAssign);
+  void or_(bool canAssign);
+  void call(bool canAssign);
 
-    void labelStatement();
-    void gotoStatement();
-    void gosubStatement();
-    void resolveGotos();
-    void resolveGosubs();
-    void emitGosubTo(int targetOffset);
-    void patchJumpTo(int operandOffset, int targetOffset);
+  // Statements
+  void declaration();
+  void statement();
+  void varDeclaration();
+  void funDeclaration();
+  void processDeclaration();
+  void expressionStatement();
+  void printStatement();
+  void ifStatement();
+  void whileStatement();
+  void doWhileStatement();
+  void loopStatement();
+  void switchStatement();
+  void forStatement();
+  void returnStatement();
+  void block();
+  void yieldStatement();
+  void fiberStatement();
 
-    void handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssign);
+  void dot(bool canAssign);
+  void self(bool canAssign);
+  void super(bool canAssign);
 
-    void prefixIncrement(bool canAssign);
-    void prefixDecrement(bool canAssign);
+  void labelStatement();
+  void gotoStatement();
+  void gosubStatement();
+  void resolveGotos();
+  void resolveGosubs();
+  void emitGosubTo(int targetOffset);
+  void patchJumpTo(int operandOffset, int targetOffset);
 
-    // Variables
-    uint8 identifierConstant(Token &name);
-    void namedVariable(Token &name, bool canAssign);
-    void defineVariable(uint8 global);
-    void declareVariable();
-    void addLocal(Token &name);
-    int resolveLocal(Token &name);
-    void markInitialized();
+  void handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssign);
 
-    uint8 argumentList();
+  void prefixIncrement(bool canAssign);
+  void prefixDecrement(bool canAssign);
 
-    void compileFunction(Function *func, bool isProcess);
-    void compileProcess(const std::string &name);
+  // Variables
+  uint8 identifierConstant(Token &name);
+  void namedVariable(Token &name, bool canAssign);
+  void defineVariable(uint8 global);
+  void declareVariable();
+  void addLocal(Token &name);
+  int resolveLocal(Token &name);
+  void markInitialized();
 
-    bool isProcessFunction(const char *name) const;
+  uint8 argumentList();
 
-    void structDeclaration() ;
-    void arrayLiteral(bool canAssign);
-    void subscript(bool canAssign) ;
-    void mapLiteral(bool canAssign) ;
+  void compileFunction(Function *func, bool isProcess);
+  void compileProcess(const std::string &name);
 
+  bool isProcessFunction(const char *name) const;
 
+  void structDeclaration();
+  void arrayLiteral(bool canAssign);
+  void subscript(bool canAssign);
+  void mapLiteral(bool canAssign);
 
-    void classDeclaration() ;
-    void method( ClassDef *classDef);
- 
+  void classDeclaration();
+  void method(ClassDef *classDef);
 
-    // Scope
-    void beginScope();
-    void endScope();
+  // Scope
+  void beginScope();
+  void endScope();
 
-    bool inProcessFunction() const;
+  bool inProcessFunction() const;
 
-    void initRules();
+  void initRules();
 
-    void frameStatement();
-    void exitStatement();
+  void frameStatement();
+  void exitStatement();
 
-    void includeStatement();
+  void includeStatement();
 
-    FileLoaderCallback fileLoader = nullptr;
-    void* fileLoaderUserdata = nullptr;
-    std::set<std::string> includedFiles;
+  FileLoaderCallback fileLoader = nullptr;
+  void *fileLoaderUserdata = nullptr;
+  std::set<std::string> includedFiles;
 
-    static ParseRule rules[TOKEN_COUNT];
+  static ParseRule rules[TOKEN_COUNT];
 };

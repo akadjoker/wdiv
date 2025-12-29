@@ -96,6 +96,7 @@ int Interpreter::getProcessPrivateIndex(const char *name)
 
 uint32 Interpreter::liveProcess()
 {
+    if(asEnded) return 0;
     return aliveProcesses.size();
 }
 
@@ -114,6 +115,7 @@ ProcessDef *Interpreter::addProcess(const char *name, Function *func)
     ProcessDef *proc = new ProcessDef();
 
     proc->name = pName;
+    proc->index = processes.size();
     for (int i = 0; i < MAX_FIBERS; i++)
     {
         proc->fibers[i].state = FiberState::DEAD;
@@ -232,6 +234,8 @@ void Process::release()
 
 void Interpreter::update(float deltaTime)
 {
+    // if(    asEnded)
+    //     return;
     currentTime += deltaTime;
     lastFrameTime = deltaTime;
 
@@ -330,7 +334,8 @@ void Interpreter::run_process_step(Process *proc)
     Fiber *fiber = get_ready_fiber(proc);
     if (!fiber)
     {
-         Warning("No ready fiber");
+         asEnded = true;
+      //   Warning("No ready fiber");
         return;
     }
 

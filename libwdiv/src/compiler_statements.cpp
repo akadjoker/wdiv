@@ -909,8 +909,8 @@ void Compiler::funDeclaration()
     consume(TOKEN_IDENTIFIER, "Expect function name");
     Token nameToken = previous;
 
-    int funcIndex;
-    Function *func = vm_->canRegisterFunction(nameToken.lexeme.c_str(), 0, &funcIndex);
+ 
+    Function *func = vm_->addFunction(nameToken.lexeme.c_str(), 0);
 
     if (!func)
     {
@@ -922,7 +922,7 @@ void Compiler::funDeclaration()
     compileFunction(func, false); // false = não é process
 
     // Emite constant com o index da função
-    emitConstant(Value::makeFunction(funcIndex));
+    emitConstant(Value::makeFunction(func->index));
     // Define como global
     uint8 nameConstant = identifierConstant(nameToken);
     defineVariable(nameConstant);
@@ -938,8 +938,8 @@ void Compiler::processDeclaration()
     // Warning("Compiling process '%s'", nameToken.lexeme.c_str());
 
     // Cria função para o process
-    int funcIndex;
-    Function *func = vm_->canRegisterFunction(nameToken.lexeme.c_str(), 0, &funcIndex);
+ 
+    Function *func = vm_->addFunction(nameToken.lexeme.c_str(), 0);
 
     if (!func)
     {
@@ -981,10 +981,10 @@ void Compiler::processDeclaration()
     }
     argNames.clear();
 
-    uint32 index = vm_->getTotalProcesses() - 1;
+ 
     // Warning("Process '%s' registered with index %d", nameToken.lexeme.c_str(), index);
 
-    emitConstant(Value::makeProcess(index));
+    emitConstant(Value::makeProcess(proc->index));
     uint8 nameConstant = identifierConstant(nameToken);
     defineVariable(nameConstant);
 

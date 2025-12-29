@@ -1,3 +1,4 @@
+#include "config.hpp"
 #include "interpreter.hpp"
 #include "pool.hpp"
 
@@ -21,47 +22,23 @@ Function *Interpreter::addFunction(const char *name, int arity)
 
     if (functionsMap.get(pName, &existing))
     {
-        destroyString(pName);
         return nullptr;
     }
 
-    // Function *func = (Function *)arena.Allocate(sizeof(Function));
     Function *func = new Function();
 
     func->arity = arity;
     func->hasReturn = false;
     func->name = pName;
     func->chunk = new Code(16);
+    func->index = functions.size();
 
     functionsMap.set(pName, func);
     functions.push(func);
 
     return func;
 }
-
-Function *Interpreter::canRegisterFunction(const char *name, int arity, int *index)
-{
-    String *pName = createString(name);
-    if (functionsMap.exist(pName))
-    {
-        destroyString(pName);
-        *index = -1;
-        return nullptr;
-    }
-
-    // Function *func = (Function *)arena.Allocate(sizeof(Function));
-    Function *func = new Function();
-
-    func->arity = arity;
-    func->hasReturn = false;
-    func->name = pName;
-    func->chunk= new Code(16);
-
-    functionsMap.set(pName, func);
-    functions.push(func);
-    *index = (int)(functions.size() - 1);
-    return func;
-}
+ 
 
 bool Interpreter::functionExists(const char *name)
 {
@@ -71,24 +48,7 @@ bool Interpreter::functionExists(const char *name)
     return exists;
 }
 
-int Interpreter::registerFunction(const char *name, Function *func)
-{
-    if (!func)
-    {
-        runtimeError("Cannot register null function");
-        return -1;
-    }
-    String *pName = createString(name);
-    if (functionsMap.exist(pName))
-    {
-        destroyString(pName);
-        return -1;
-    }
-    functionsMap.set(pName, func);
-    functions.push(func);
-    uint32 index = (uint32)(functions.size() - 1);
-    return index;
-}
+
 
 int Interpreter::registerNative(const char *name, NativeFunction func, int arity)
 {

@@ -707,7 +707,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             }
             else if (callee.isStruct())
             {
-                int index = callee.as.id;
+                int index = callee.as.integer;
 
                 StructDef *def = structs[index];
 

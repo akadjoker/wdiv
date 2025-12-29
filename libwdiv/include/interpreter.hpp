@@ -112,7 +112,7 @@ struct NativeDef
 
 struct Function
 {
-
+    int index;
     int arity{-1};
     Code *chunk{nullptr};
     String *name{nullptr};
@@ -122,6 +122,7 @@ struct Function
 
 struct StructDef
 {
+    int index;
     String *name;
     HashMap<String *, uint8, StringHasher, StringEq> names;
     uint8 argCount;
@@ -129,6 +130,7 @@ struct StructDef
 
 struct ClassDef
 {
+     int index;
     String *name{nullptr};
     String *parent{nullptr};
     bool inherited{false};
@@ -144,6 +146,7 @@ struct ClassDef
 
 struct NativeClassDef
 {
+    int index;
     String *name;
     NativeConstructor constructor;
     NativeDestructor destructor;
@@ -292,6 +295,7 @@ enum class PrivateIndex : uint8
 
 struct ProcessDef
 {
+    int index;
     Vector<uint8> argsNames;
     String *name{nullptr};
     Fiber fibers[MAX_FIBERS];
@@ -360,6 +364,7 @@ class Interpreter
     Vector<Process *> cleanProcesses;
 
     HeapAllocator heapAllocator;
+    bool asEnded = false;
 
     float currentTime;
     float lastFrameTime;

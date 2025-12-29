@@ -5,7 +5,7 @@
 
 Value::Value() : type(ValueType::NIL)
 {
-    as.integer = 0;
+    as.byte = 0;
 }
 
 // Value::~Value()
@@ -68,7 +68,7 @@ Value Value::makeFloat(float f)
 {
     Value v;
     v.type = ValueType::FLOAT;
-    v.as.number = f;
+    v.as.real = f;
     return v;
 }
 
@@ -92,7 +92,7 @@ Value Value::makeFunction(int idx)
 {
     Value v;
     v.type = ValueType::FUNCTION;
-    v.as.id = idx;
+    v.as.integer = idx;
     return v;
 }
 
@@ -100,7 +100,7 @@ Value Value::makeNative(int idx)
 {
     Value v;
     v.type = ValueType::NATIVE;
-    v.as.id = idx;
+    v.as.integer = idx;
     return v;
 }
 
@@ -108,7 +108,7 @@ Value Value::makeNativeClass(int idx)
 {
     Value v;
     v.type = ValueType::NATIVECLASS;
-    v.as.id = idx;
+    v.as.integer = idx;
     return v;
 }
 
@@ -126,7 +126,7 @@ Value Value::makeProcess(int idx)
 {
     Value v;
     v.type = ValueType::PROCESS;
-    v.as.id = idx;
+    v.as.integer = idx;
     return v;
 }
 
@@ -134,7 +134,7 @@ Value Value::makeStruct(int idx)
 {
     Value v;
     v.type = ValueType::STRUCT;
-    v.as.id = idx;
+    v.as.integer = idx;
     return v;
 }
 
@@ -168,7 +168,7 @@ Value Value::makeClass(int idx)
 {
     Value v;
     v.type = ValueType::CLASS;
-    v.as.id = idx;
+    v.as.integer = idx;
     return v;
 }
 
@@ -177,7 +177,7 @@ Value Value::makeClassInstance()
     ClassInstance *c = InstancePool::instance().creatClass();
     Value v;
     v.type = ValueType::CLASSINSTANCE;
-    v.as.id = c->index;
+    v.as.integer = c->index;
     return v;
 }
 
@@ -193,7 +193,7 @@ Value Value::makeNativeStruct(int idx)
 {
     Value v;
     v.type = ValueType::NATIVESTRUCT;
-    v.as.id = idx;
+    v.as.integer = idx;
     return v;
 }
 
@@ -235,7 +235,7 @@ double Value::asDouble() const
     else if (type == ValueType::INT)
     {
         return static_cast<double>(as.integer);
-    }
+    } 
     Warning("Wrong type conversion to double");
     return 0;
 }
@@ -253,7 +253,7 @@ float Value::asFloat() const
         return static_cast<float>(as.byte);
     } else if (type == ValueType::FLOAT)
     {
-        return as.n_float;
+        return as.real;
     }
     Warning("Wrong type conversion to float");
     return 0;
@@ -261,23 +261,23 @@ float Value::asFloat() const
 const char *Value::asStringChars() const { return as.string->chars(); }
 String *Value::asString() const { return as.string; }
 
-int Value::asFunctionId() const { return as.id; }
-int Value::asNativeId() const { return as.id; }
-int Value::asProcessId() const { return as.id; }
+int Value::asFunctionId() const { return as.integer; }
+int Value::asNativeId() const { return as.integer; }
+int Value::asProcessId() const { return as.integer; }
 
 int Value::asStructId() const
 {
-    return as.id;
+    return as.integer;
 }
 
 int Value::asClassId() const
 {
-    return as.id;
+    return as.integer;
 }
 
 int Value::asClassNativeId() const
 {
-    return as.id;
+    return as.integer;
 }
 
 void *Value::asPointer() const
@@ -287,7 +287,7 @@ void *Value::asPointer() const
 
 int Value::asNativeStructId() const
 {
-    return as.id;
+    return as.integer;
 }
 
 StructInstance *Value::asStructInstance() const
@@ -307,7 +307,7 @@ MapInstance *Value::asMap() const
 
 ClassInstance *Value::asClassInstance() const
 {
-    return InstancePool::instance().getClass(as.id);
+    return InstancePool::instance().getClass(as.integer);
 }
 
 NativeInstance *Value::asNativeClassInstance() const
@@ -358,7 +358,7 @@ void printValue(const Value &value)
         printf("%u", value.as.unsignedInteger);
         break;
     case ValueType::FLOAT:
-        printf("%f", value.as.n_float);
+        printf("%f", value.as.real);
         break;
     case ValueType::DOUBLE:
         printf("%f", value.as.number);
