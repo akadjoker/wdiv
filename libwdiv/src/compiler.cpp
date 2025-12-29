@@ -106,29 +106,46 @@ void Compiler::initRules()
 // MAIN ENTRY POINT
 // ============================================
 
-ProcessDef *Compiler::compile(const std::string &source)
+Function *Compiler::compile(const std::string &source, Interpreter *vm)
 {
     clear();
-
+    vm_ = vm;
     lexer = new Lexer(source);
-    tokens = lexer->scanAll();
+
+    function = vm->addFunction("__main__", 0);
+    currentProcess = vm->addProcess("__main_process__", function);
+    currentChunk = &function->chunk;
+    currentFiber = &currentProcess->fibers[0];
+
+    advance();
+
+    while (!match(TOKEN_EOF))
+    {
+        declaration();
+    }
+
+    emitReturn();
+
+    Function *result = function;
+    function = nullptr;
+
+    if (hadError)
+    {
+        return nullptr;
+    }
+
+    return result;
+}
+
+Process *Compiler::compile(const std::string &source )
+{
+    clear();
+ 
+    lexer = new Lexer(source);
 
     function = vm_->addFunction("__main__", 0);
-    if (!function)
-    {
-        fail("Failed to create main function");
-        hadError = true;
-        return nullptr;
-    }
     currentProcess = vm_->addProcess("__main_process__", function);
-
-    if (!currentProcess)
-    {
-        fail("Failed to create main process");
-        hadError = true;
-        return nullptr;
-    }
-    currentChunk = function->chunk;
+    currentChunk = &function->chunk;
     currentFiber = &currentProcess->fibers[0];
 
     advance();
@@ -386,6 +403,7 @@ int Compiler::emitJump(uint8 instruction)
     return currentChunk->count - 2;
 }
 
+ 
 void Compiler::patchJump(int offset)
 {
     int jump = currentChunk->count - offset - 2;
@@ -411,38 +429,6 @@ void Compiler::emitLoop(int loopStart)
 
     emitByte((offset >> 8) & 0xff);
     emitByte(offset & 0xff);
-}
-
-void Compiler::patchJumpTo(int operandOffset, int targetOffset)
-{
-    int jump = targetOffset - (operandOffset + 2); // target - after operand
-    if (jump < 0)
-    {
-        error("Backward goto must use OP_LOOP");
-        return;
-    }
-    if (jump > UINT16_MAX)
-    {
-        error("Jump distance too large");
-        return;
-    }
-
-    currentChunk->code[operandOffset] = (jump >> 8) & 0xff;
-    currentChunk->code[operandOffset + 1] = jump & 0xff;
-}
-
-void Compiler::emitGosubTo(int targetOffset)
-{
-    emitByte(OP_GOSUB);
-    int from = (int)currentChunk->count + 2;
-    int delta = targetOffset - from;
-    if (delta < -32768 || delta > 32767)
-    {
-        error("gosub jump out of range");
-    }
-
-    emitByte((delta >> 8) & 0xff);
-    emitByte(delta & 0xff);
 }
 
 // ============================================
@@ -1827,144 +1813,6 @@ void Compiler::fiberStatement()
 
     emitByte(OP_SPAWN);
     emitByte(argCount);
-    // emitByte(OP_POP); // descarta o nil/handle se spawn devolver algo
-}
-
-void Compiler::dot(bool canAssign)
-{
-    consume(TOKEN_IDENTIFIER, "Expect property name after '.'");
-    Token propName = previous;
-    uint8 nameIdx = identifierConstant(propName);
-    if (canAssign && match(TOKEN_EQUAL))
-    {
-        // obj.prop = value
-        expression();
-        emitBytes(OP_SET_PROPERTY, nameIdx);
-    }
-    else if (match(TOKEN_LPAREN))
-    {
-        uint8 argCount = argumentList(); // empilha args
-        emitBytes(OP_INVOKE, nameIdx);
-        emitByte(argCount);
-    }
-    else
-    {
-        // obj.prop
-        emitBytes(OP_GET_PROPERTY, nameIdx);
-    }
-}
-
-void Compiler::labelStatement()
-{
-    consume(TOKEN_IDENTIFIER, "Expect label");
-    Token name = previous;
-    consume(TOKEN_COLON, "Expect ':'");
-
-    Label label;
-    label.name = name.lexeme;
-    label.offset = currentChunk->count;
-    for (auto &l : labels)
-    {
-        if (l.name == name.lexeme)
-        {
-            fail("Duplicate '%s' label", name.lexeme.c_str());
-        }
-    }
-    labels.push_back(label);
-}
-
-void Compiler::gotoStatement()
-{
-    consume(TOKEN_IDENTIFIER, "Expect label");
-    Token target = previous;
-    consume(TOKEN_SEMICOLON, "Expect ';'");
-
-    // Backward
-    for (const Label &l : labels)
-    {
-        if (l.name == target.lexeme)
-        {
-            emitLoop(l.offset);
-            return;
-        }
-    }
-
-    // Forward
-    GotoJump jump;
-    jump.target = target.lexeme;
-    jump.jumpOffset = emitJump(OP_JUMP);
-    pendingGotos.push_back(jump);
-}
-
-void Compiler::resolveGotos()
-{
-    for (const GotoJump &jump : pendingGotos)
-    {
-        int targetOffset = -1;
-
-        for (const Label &l : labels)
-        {
-            if (l.name == jump.target)
-            {
-                targetOffset = l.offset;
-                break;
-            }
-        }
-
-        if (targetOffset == -1)
-        {
-            error("Undefined label");
-            continue;
-        }
-
-        patchJumpTo(jump.jumpOffset, targetOffset);
-    }
-
-    pendingGotos.clear();
-}
-
-void Compiler::gosubStatement()
-{
-    consume(TOKEN_IDENTIFIER, "Expect label");
-    Token target = previous;
-    consume(TOKEN_SEMICOLON, "Expect ';'");
-
-    // se já existe label (pode ser backward)
-    for (const Label &l : labels)
-    {
-        if (l.name == target.lexeme)
-        {
-            emitGosubTo(l.offset);
-            return;
-        }
-    }
-
-    // forward: placeholder
-    GotoJump j;
-    j.target = target.lexeme;
-    j.jumpOffset = emitJump(OP_GOSUB); // devolve offset do OPERANDO
-    pendingGosubs.push_back(j);
-}
-
-void Compiler::resolveGosubs()
-{
-    for (const auto &j : pendingGosubs)
-    {
-        int targetOffset = -1;
-        for (const auto &l : labels)
-            if (l.name == j.target)
-            {
-                targetOffset = l.offset;
-                break;
-            }
-
-        if (targetOffset < 0)
-        {
-            error("Undefined label");
-            continue;
-        }
-
-        patchJumpTo(j.jumpOffset, targetOffset); // signed int16
-    }
-    pendingGosubs.clear();
+    //emitByte(OP_POP); // descarta o nil/handle se spawn devolver algo
+    
 }

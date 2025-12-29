@@ -25,7 +25,11 @@ Function *Interpreter::addFunction(const char *name, int arity)
         return nullptr;
     }
 
+<<<<<<< HEAD
  
+=======
+    // Function *func = (Function *)arena.Allocate(sizeof(Function));
+>>>>>>> fdf5e2bc48c434b90d4163ab2d1fe87bbcdd4a33
     Function *func = new Function();
 
     func->arity = arity;
