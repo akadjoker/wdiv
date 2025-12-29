@@ -38,7 +38,7 @@ process bunny1(startX, startY)
         
         if (live < 0) 
         {
-           // break;
+            break;
         }
         
     }
@@ -103,7 +103,7 @@ process main()
 
          if(mouse_down(1))
          {
-            for (var i = 0; i < 100; i++)
+            for (var i = 0; i < 1000; i++)
             {
                  bunny1(mouseX(), mouseY());
             }

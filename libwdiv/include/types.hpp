@@ -8,8 +8,8 @@ typedef const char* (*FileLoaderCallback)(const char* filename, size_t* outSize,
 
 static constexpr int MAX_PRIVATES = 16;
 static constexpr int MAX_FIBERS = 8;
-static constexpr int STACK_MAX = 256;
-static constexpr int FRAMES_MAX = 32;
+static constexpr int STACK_MAX = 512;
+static constexpr int FRAMES_MAX = 512;
 static constexpr int GOSUB_MAX = 16;
 
 enum class InterpretResult : uint8

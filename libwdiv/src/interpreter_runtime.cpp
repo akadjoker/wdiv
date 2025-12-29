@@ -67,6 +67,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
     } while (false)
 
 #define READ_CONSTANT() (func->chunk->constants[READ_BYTE()])
+#define READ_CONSTANT_LONG() (func->chunk->constants[READ_SHORT()])
     LOAD_FRAME();
 
     // printf("[DEBUG] Starting run_fiber: ip=%p, func=%s, offset=%ld\n",
@@ -104,6 +105,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         case OP_CONSTANT:
         {
             Value constant = READ_CONSTANT();
+            PUSH(constant);
+            break;
+        }
+        case OP_CONSTANT_LONG: {
+            Value constant = READ_CONSTANT_LONG();
             PUSH(constant);
             break;
         }
@@ -603,7 +609,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                 }
 
-            //    Debug::dumpFunction(func);
+               // Debug::dumpFunction(func);
 
                 if (argCount != func->arity)
                 {
@@ -625,7 +631,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 CallFrame *newFrame = &fiber->frames[fiber->frameCount++];
                 newFrame->func = func;
                 newFrame->ip = func->chunk->code;
-                newFrame->slots = fiber->stackTop - argCount ; // Argumentos começam aqui
+                newFrame->slots = fiber->stackTop - argCount -1; // Argumentos começam aqui
             }
             else if (callee.isNative())
             {
@@ -891,11 +897,19 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             //  Função nested - retorna para onde estava a chamada
             CallFrame *finished = &fiber->frames[fiber->frameCount];
             
-            
+            //  printf("          ");
+            //         for (Value *slot = fiber->stack; slot < fiber->stackTop; slot++)
+            //         {
+            //             printf("[ ");
+            //             printValue(*slot);
+            //             printf(" ]");
+            //         }
+            //         printf("\n");
 
             fiber->stackTop = finished->slots;
             *fiber->stackTop++ = result;
-            //fiber->stackTop[-1] = result;
+          //  fiber->stackTop[-1] = result;
+            //  fiber->stackTop[-1] = result;
 
             LOAD_FRAME();
             break;

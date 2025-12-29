@@ -182,7 +182,7 @@ private:
   void emitBytes(uint8 byte1, uint8 byte2);
   void emitReturn();
   void emitConstant(Value value);
-  uint8 makeConstant(Value value);
+  int makeConstant(Value value);
 
   int emitJump(uint8 instruction);
   void patchJump(int offset);

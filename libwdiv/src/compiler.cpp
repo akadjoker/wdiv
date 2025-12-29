@@ -338,18 +338,38 @@ void Compiler::emitReturn() {
   emitByte(OP_RETURN);
 }
 
+
 void Compiler::emitConstant(Value value) {
-  emitBytes(OP_CONSTANT, makeConstant(value));
+    int constant = currentChunk->addConstant(value);
+    
+    if (constant <= 255) {
+        emitBytes(OP_CONSTANT, (uint8)constant);
+    } else if (constant <= 65535) {
+        emitByte(OP_CONSTANT_LONG);
+        emitByte((constant >> 8) & 0xff);
+        emitByte(constant & 0xff);
+    } else {
+        error("Too many constants (max 65535)");
+    }
 }
 
-uint8 Compiler::makeConstant(Value value) {
+// void Compiler::emitConstant(Value value) {
+//   emitBytes(OP_CONSTANT, makeConstant(value));
+// }
+
+int Compiler::makeConstant(Value value) 
+{
+
+ 
+
   int constant = currentChunk->addConstant(value);
-  if (constant > UINT8_MAX) {
+  if (constant > UINT8_MAX) 
+  {
     error("Too many constants in one chunk");
     return 0;
   }
 
-  return (uint8)constant;
+  return (int)constant;
 }
 
 // ============================================

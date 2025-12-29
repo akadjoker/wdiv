@@ -13,7 +13,7 @@ class Code
     size_t m_capacity;
     bool m_frozen; 
     public:
-    Code(size_t capacity = 800);
+    Code(size_t capacity = 16);
     
      void freeze() ;
     

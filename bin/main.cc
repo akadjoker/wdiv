@@ -94,8 +94,10 @@
 }
 
 
-print(add(2,2));
-// // Recursão
+def fib(n) {
+    if (n <= 1) return n;
+    return fib(n-1) + fib(n-2);
+}
 
 
 class Point {
@@ -129,10 +131,143 @@ print(c.get()); // 2
 print("✅ Test 3 passed");
 
 
-def fib(n) {
-    if (n <= 1) return n;
-    return fib(n-1) + fib(n-2);
+
+
+print(add(2,2));
+// Recursão
+
+print(fib(7));
+ 
+
+class Builder {
+    var x, y;
+    
+    def init() {
+        self.x = 0;
+        self.y = 0;
+    }
+    
+    def setX(v) {
+        self.x = v;
+        return self;
+    }
+    
+    def setY(v) {
+        self.y = v;
+        return self;
+    }
 }
 
-print(fib(2));
- 
+var b = Builder();
+b.setX(10).setY(20);
+print(b.x);  // 10
+print(b.y);  // 20
+print("✅ Test 4 passed");
+
+class Animal {
+    var name;
+    
+    def init(name) {
+        self.name = name;
+    }
+    
+    def speak() {
+        print(self.name + " makes sound");
+    }
+}
+
+class Dog : Animal {
+    def init(name) {
+        self.name = name;
+    }
+}
+
+var d = Dog("Rex");
+d.speak();  // Rex makes sound
+print("✅ Test 5 passed");
+
+
+class Animal {
+    var name;
+    
+    def init(name) {
+        self.name = name;
+        print("Animal init: " + name);
+    }
+}
+
+class Dog : Animal {
+    var breed;
+    
+    def init(name, breed) {
+        super.init(name);
+        self.breed = breed;
+        print("Dog init: " + breed);
+    }
+}
+
+var d = Dog("Rex", "Labrador");
+print(d.name);   // Rex
+print(d.breed);  // Labrador
+print("✅ Test 6 passed");
+
+
+class Zoo 
+{
+  var aardvark, baboon, cat, donkey, elephant, fox;
+  def init() 
+  {
+    self.aardvark = 1;
+    self.baboon   = 1;
+    self.cat      = 1;
+    self.donkey   = 1;
+    self.elephant = 1;
+    self.fox      = 1;
+  }
+  def ant()    { return self.aardvark; }
+  def banana() { return self.baboon; }
+  def tuna()   { return self.cat; }
+  def hay()    { return self.donkey; }
+  def grass()  { return self.elephant; }
+  def mouse()  { return self.fox; }
+}
+
+// var zoo = Zoo();
+// var sum = 0;
+// var start = clock();
+// while (sum < 100000000) 
+// {
+//   sum = sum + zoo.ant()
+//             + zoo.banana()
+//             + zoo.tuna()
+//             + zoo.hay()
+//             + zoo.grass()
+//             + zoo.mouse();
+// }
+
+// var end =  clock() - start;
+// print(end);
+// print(sum);
+
+
+struct Vec2 
+{
+    x, y
+};
+
+var p=Vec2(1,1);
+
+print(p);
+
+def addPoint(p)
+{
+    p.x =100;
+    p.y =100;
+
+    
+
+}
+
+addPoint(p);
+
+print(p);

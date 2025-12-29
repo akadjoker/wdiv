@@ -10,7 +10,7 @@ Code::Code(size_t capacity)
     code  = (uint8*) aAlloc(capacity * sizeof(uint8));
     lines = (int*)aAlloc(capacity * sizeof(int));
 
-    constants.reserve(8);
+    constants.reserve(256);
     m_frozen=false;
 }
 

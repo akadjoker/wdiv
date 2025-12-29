@@ -1,0 +1,168 @@
+ 
+var totalTests = 0;
+var passedTests = 0;
+
+def assert(condition, message) {
+    totalTests = totalTests + 1;
+    if (condition) {
+        passedTests = passedTests + 1;
+        print("✅ " + message);
+    } else {
+        print("❌ FAILED: " + message);
+    }
+}
+
+print("========================================");
+print("   BULANG COMPREHENSIVE TEST SUITE");
+print("========================================\n");
+
+// ============================================
+// TEST 1: BASIC ARITHMETIC
+// ============================================
+print("\n[TEST 1] Basic Arithmetic");
+assert(2 + 2 == 4, "Addition");
+assert(10 - 3 == 7, "Subtraction");
+assert(5 * 6 == 30, "Multiplication");
+assert(20 / 4 == 5, "Division");
+assert(17 % 5 == 2, "Modulo");
+assert(-5 + 10 == 5, "Negative numbers");
+assert(2 + 3 * 4 == 14, "Operator precedence");
+assert((2 + 3) * 4 == 20, "Parentheses grouping");
+
+// ============================================
+// TEST 2: COMPARISON & LOGICAL
+// ============================================
+print("\n[TEST 2] Comparison & Logical");
+assert(5 > 3, "Greater than");
+assert(3 < 5, "Less than");
+assert(5 >= 5, "Greater or equal");
+assert(3 <= 3, "Less or equal");
+assert(5 == 5, "Equal");
+assert(5 != 3, "Not equal");
+assert(true && true, "AND true");
+assert(!(false && true), "AND false");
+assert(true || false, "OR true");
+assert(!(false || false), "OR false");
+assert(!false, "NOT");
+
+// ============================================
+// TEST 3: BITWISE OPERATIONS
+// ============================================
+print("\n[TEST 3] Bitwise Operations");
+assert((5 | 3) == 7, "Bitwise OR");
+assert((5 & 3) == 1, "Bitwise AND");
+assert((5 ^ 3) == 6, "Bitwise XOR");
+assert((8 << 2) == 32, "Left shift");
+assert((32 >> 2) == 8, "Right shift");
+assert((~0) == -1, "Bitwise NOT"); 
+
+
+// ============================================
+// TEST 4: VARIABLES & SCOPE
+// ============================================
+print("\n[TEST 4] Variables & Scope");
+var globalVar = 100;
+assert(globalVar == 100, "Global variable");
+
+{
+    var localVar = 200;
+    assert(localVar == 200, "Local variable");
+    globalVar = 150;
+}
+assert(globalVar == 150, "Global modified in scope");
+
+// ============================================
+// TEST 5: FUNCTIONS - BASIC
+// ============================================
+print("\n[TEST 5] Functions - Basic");
+
+def add(a, b) {
+    return a + b;
+}
+assert(add(5, 3) == 8, "Function with 2 args");
+
+def triple(x) {
+    return x * 3;
+}
+assert(triple(7) == 21, "Function with 1 arg");
+
+def noArgs() {
+    return 42;
+}
+assert(noArgs() == 42, "Function with no args");
+
+def multiReturn(x) {
+    if (x > 0) return 1;
+    if (x < 0) return -1;
+    return 0;
+}
+assert(multiReturn(5) == 1, "Multiple return paths");
+assert(multiReturn(-5) == -1, "Multiple return paths negative");
+assert(multiReturn(0) == 0, "Multiple return paths zero");
+
+// ============================================
+// TEST 6: FUNCTIONS - RECURSION
+// ============================================
+print("\n[TEST 6] Functions - Recursion");
+
+def factorial(n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);
+}
+assert(factorial(5) == 120, "Factorial recursion");
+assert(factorial(0) == 1, "Factorial base case");
+
+def fib(n) {
+    if (n <= 1) return n;
+    return fib(n - 1) + fib(n - 2);
+}
+assert(fib(0) == 0, "Fibonacci(0)");
+assert(fib(1) == 1, "Fibonacci(1)");
+assert(fib(7) == 13, "Fibonacci(7)");
+assert(fib(10) == 55, "Fibonacci(10)");
+
+def countdown(n) {
+    if (n == 0) return 0;
+    return countdown(n - 1) + 1;
+}
+assert(countdown(10) == 10, "Deep recursion");
+
+
+// ============================================
+// TEST 7: FUNCTIONS - NESTED CALLS
+// ============================================
+print("\n[TEST 7] Functions - Nested Calls");
+
+def mult(a, b) {
+    return a * b;
+}
+
+def addMult(a, b, c) {
+    return add(a, mult(b, c));
+}
+assert(addMult(2, 3, 4) == 14, "Nested function calls");
+
+def chain(x) {
+    return add(mult(x, 2), triple(x));
+}
+assert(chain(5) == 25, "Complex nested calls");
+
+ 
+ // ============================================
+// FINAL REPORT
+// ============================================
+print("\n========================================");
+print("         STRESS TEST RESULTS");
+print("========================================");
+print("Total Tests: " + totalTests);
+print("Passed:      " + passedTests);
+print("Failed:      " + (totalTests - passedTests));
+
+if (totalTests == passedTests) {
+    print("\n🎉 ALL STRESS TESTS PASSED! 🎉");
+    print("BuLang handles edge cases and stress well!");
+} else {
+    print("\n⚠️  SOME STRESS TESTS FAILED");
+    print("Review edge case handling!");
+}
+print("========================================\n");

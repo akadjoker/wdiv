@@ -5,6 +5,7 @@ enum Opcode : uint8
 {
     // Literals
     OP_CONSTANT,
+    OP_CONSTANT_LONG,
     OP_NIL,
     OP_TRUE,
     OP_FALSE,

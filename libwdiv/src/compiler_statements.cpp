@@ -1002,6 +1002,13 @@ void Compiler::compileFunction(Function *func, bool isProcess)
     // Parse parâmetros
     beginScope();
     consume(TOKEN_LPAREN, "Expect '(' after name");
+    if (!isProcess) 
+    {
+        Token dummyToken;
+        dummyToken.lexeme = func->name->chars();
+        addLocal(dummyToken);
+        markInitialized();
+   }
 
     if (!check(TOKEN_RPAREN))
     {

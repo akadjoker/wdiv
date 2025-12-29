@@ -1,0 +1,209 @@
+
+var totalTests = 0;
+var passedTests = 0;
+
+def assert(condition, message) {
+    totalTests = totalTests + 1;
+    if (condition) {
+        passedTests = passedTests + 1;
+        print("✅ " + message);
+    } else {
+        print("❌ FAILED: " + message);
+    }
+}
+
+print("========================================");
+print("   BULANG COMPREHENSIVE TEST SUITE");
+print("========================================\n");
+
+// ============================================
+// TEST 9: ARRAYS
+// ============================================
+print("\n[TEST 9] Arrays");
+
+var arr = [1, 2, 3, 4, 5];
+assert(arr[0] == 1, "Array index 0");
+assert(arr[4] == 5, "Array index 4");
+assert(arr[-1] == 5, "Array negative index");
+
+arr[2] = 99;
+assert(arr[2] == 99, "Array assignment");
+
+var empty = [];
+assert(empty.length() == 0, "Empty array length");
+
+// ============================================
+// TEST 10: MAPS
+// ============================================
+print("\n[TEST 10] Maps");
+
+var map = {"name": "Test", "value": 42};
+assert(map["name"] == "Test", "Map string key");
+assert(map["value"] == 42, "Map int value");
+
+map["new"] = 100;
+assert(map["new"] == 100, "Map assignment");
+
+
+// ============================================
+// TEST 11: CLASSES - BASIC
+// ============================================
+print("\n[TEST 11] Classes - Basic");
+
+class Point {
+    var x, y;
+    
+    def init(x, y) {
+        self.x = x;
+        self.y = y;
+    }
+    
+    def sum() {
+        return self.x + self.y;
+    }
+}
+
+var p = Point(10, 20);
+assert(p.x == 10, "Class field x");
+assert(p.y == 20, "Class field y");
+assert(p.sum() == 30, "Class method");
+
+p.x = 15;
+assert(p.x == 15, "Class field mutation");
+assert(p.sum() == 35, "Method after mutation");
+
+// ============================================
+// TEST 12: CLASSES - METHOD CHAINING
+// ============================================
+print("\n[TEST 12] Classes - Method Chaining");
+
+class Builder {
+    var x, y;
+    
+    def init() {
+        self.x = 0;
+        self.y = 0;
+    }
+    
+    def setX(v) {
+        self.x = v;
+        return self;
+    }
+    
+    def setY(v) {
+        self.y = v;
+        return self;
+    }
+    
+    def getSum() {
+        return self.x + self.y;
+    }
+}
+
+var b = Builder();
+b.setX(10).setY(20);
+assert(b.x == 10, "Chained setX");
+assert(b.y == 20, "Chained setY");
+assert(b.getSum() == 30, "Method after chaining");
+
+// ============================================
+// TEST 13: CLASSES - INHERITANCE
+// ============================================
+print("\n[TEST 13] Classes - Inheritance");
+
+class Animal {
+    var name, age;
+    
+    def init(name, age) {
+        self.name = name;
+        self.age = age;
+    }
+    
+    def describe() {
+        return self.name + " is " + self.age;
+    }
+}
+
+class Dog : Animal {
+    var breed;
+    
+    def init(name, age, breed) {
+        self.name = name;
+        self.age = age;
+        self.breed = breed;
+    }
+    
+    def fullInfo() {
+        return self.describe() + " (" + self.breed + ")";
+    }
+}
+
+var dog = Dog("Rex", 5, "Labrador");
+assert(dog.name == "Rex", "Inherited field name");
+assert(dog.age == 5, "Inherited field age");
+assert(dog.breed == "Labrador", "Own field breed");
+assert(dog.describe() == "Rex is 5", "Inherited method");
+
+// ============================================
+// TEST 14: CLASSES - SUPER
+// ============================================
+print("\n[TEST 14] Classes - Super");
+
+class Base {
+    var value;
+    
+    def init(v) {
+        self.value = v;
+    }
+    
+    def getValue() {
+        return self.value;
+    }
+}
+
+class Derived : Base {
+    var extra;
+    
+    def init(v, e) {
+        super.init(v);
+        self.extra = e;
+    }
+    
+    def getTotal() {
+        return super.getValue() + self.extra;
+    }
+}
+
+var d = Derived(10, 5);
+assert(d.value == 10, "Super init sets value");
+assert(d.extra == 5, "Own field set");
+assert(d.getValue() == 10, "Super method call");
+assert(d.getTotal() == 15, "Method using super");
+
+// ============================================
+// TEST 15: STRUCTS
+// ============================================
+print("\n[TEST 15] Structs");
+
+struct Vec2 {
+    x, y
+};
+
+var v1 = Vec2(3, 4);
+assert(v1.x == 3, "Struct field x");
+assert(v1.y == 4, "Struct field y");
+
+v1.x = 10;
+assert(v1.x == 10, "Struct field mutation");
+
+struct Color {
+    r, g, b, a
+};
+
+var c = Color(255, 128, 64, 255);
+assert(c.r == 255, "Struct with 4 fields");
+assert(c.g == 128, "Struct field 2");
+assert(c.b == 64, "Struct field 3");
+assert(c.a == 255, "Struct field 4");
+
+ 

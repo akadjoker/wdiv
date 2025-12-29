@@ -1,0 +1,30 @@
+
+// ============================================
+// TEST 24: EDGE CASES - RECURSIVE WITH ARGS
+// ============================================
+print("\n[TEST 24] Edge Cases - Recursive with Multiple Args");
+
+def ackermann(m, n) {
+    if (m == 0) return n + 1;
+    if (n == 0) return ackermann(m - 1, 1);
+    return ackermann(m - 1, ackermann(m, n - 1));
+}
+
+assert(ackermann(0, 0) == 1, "Ackermann(0,0)");
+assert(ackermann(1, 2) == 4, "Ackermann(1,2)");
+assert(ackermann(2, 2) == 7, "Ackermann(2,2)");
+
+// ============================================
+// TEST 25: EDGE CASES - ARRAY OPERATIONS
+// ============================================
+print("\n[TEST 25] Edge Cases - Array Operations");
+
+var arr2 = [1, 2, 3];
+arr2.push(4);
+assert(arr2.length() == 4, "Array push");
+
+var last = arr2.pop();
+assert(last == 4, "Array pop returns value");
+assert(arr2.length() == 3, "Array length after pop");
+
+ 

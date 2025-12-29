@@ -51,6 +51,7 @@ MapInstance *InstancePool::createMap()
 
 void InstancePool::freeMap(MapInstance *m)
 {
+    m->table.destroy();
     m->~MapInstance();
     arena.Free(m, sizeof(MapInstance));
 }

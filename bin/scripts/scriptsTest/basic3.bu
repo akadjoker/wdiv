@@ -1,0 +1,151 @@
+
+var totalTests = 0;
+var passedTests = 0;
+
+def assert(condition, message) {
+    totalTests = totalTests + 1;
+    if (condition) {
+        passedTests = passedTests + 1;
+        print("✅ " + message);
+    } else {
+        print("❌ FAILED: " + message);
+    }
+}
+
+print("========================================");
+print("   BULANG COMPREHENSIVE TEST SUITE");
+print("========================================\n");
+
+
+// ============================================
+// TEST 16: LOOPS - FOR
+// ============================================
+print("\n[TEST 16] Loops - For");
+
+var sum1 = 0;
+for (var i = 0; i < 10; i++) {
+    sum1 = sum1 + i;
+}
+assert(sum1 == 45, "For loop sum");
+
+var product = 1;
+for (var i = 1; i <= 5; i++) {
+    product = product * i;
+}
+assert(product == 120, "For loop product");
+
+// ============================================
+// TEST 17: LOOPS - WHILE
+// ============================================
+print("\n[TEST 17] Loops - While");
+
+var count = 0;
+var i = 0;
+while (i < 10) {
+    count = count + 1;
+    i = i + 1;
+}
+assert(count == 10, "While loop");
+
+// ============================================
+// TEST 18: LOOPS - BREAK/CONTINUE
+// ============================================
+print("\n[TEST 18] Loops - Break/Continue");
+
+var sum2 = 0;
+for (var i = 0; i < 100; i++) {
+    if (i == 10) break;
+    sum2 = sum2 + i;
+}
+assert(sum2 == 45, "Break in for loop");
+
+var sum3 = 0;
+for (var i = 0; i < 10; i++) {
+    if (i % 2 == 0) continue;
+    sum3 = sum3 + i;
+}
+assert(sum3 == 25, "Continue in for loop");
+
+// ============================================
+// TEST 19: NESTED LOOPS
+// ============================================
+print("\n[TEST 19] Nested Loops");
+
+var sum4 = 0;
+for (var i = 0; i < 5; i++) {
+    for (var j = 0; j < 5; j++) {
+        sum4 = sum4 + 1;
+    }
+}
+assert(sum4 == 25, "Nested loops");
+
+
+// ============================================
+// TEST 20: EDGE CASES - EMPTY RETURNS
+// ============================================
+print("\n[TEST 20] Edge Cases - Empty Returns");
+
+def emptyReturn() {
+    return;
+}
+var result = emptyReturn();
+assert(result == nil, "Empty return gives nil");
+
+def implicitReturn() {
+    var x = 42;
+}
+result = implicitReturn();
+assert(result == nil, "Implicit return gives nil");
+
+// ============================================
+// TEST 21: EDGE CASES - FUNCTION AS VALUE
+// ============================================
+print("\n[TEST 21] Edge Cases - Function as Value");
+
+def makeAdder(x) {
+    return x;
+}
+var val = makeAdder(5);
+assert(val == 5, "Function returns value");
+
+// ============================================
+// TEST 22: EDGE CASES - MULTIPLE INSTANCES
+// ============================================
+print("\n[TEST 22] Edge Cases - Multiple Instances");
+
+class Counter {
+    var count;
+    
+    def init() {
+        self.count = 0;
+    }
+    
+    def inc() {
+        self.count = self.count + 1;
+    }
+}
+
+var c1 = Counter();
+var c2 = Counter();
+c1.inc();
+c1.inc();
+c2.inc();
+
+assert(c1.count == 2, "Counter 1 independent");
+assert(c2.count == 1, "Counter 2 independent");
+
+// ============================================
+// TEST 23: EDGE CASES - NESTED FUNCTION CALLS
+// ============================================
+print("\n[TEST 23] Edge Cases - Deep Nesting");
+
+def f1(x) { return x + 1; }
+def f2(x) { return f1(x) + 1; }
+def f3(x) { return f2(x) + 1; }
+def f4(x) { return f3(x) + 1; }
+def f5(x) { return f4(x) + 1; }
+
+assert(f5(0) == 5, "Deep nested calls");
+
+
+ 

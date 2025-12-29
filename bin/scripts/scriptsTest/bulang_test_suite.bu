@@ -1,0 +1,525 @@
+// ============================================
+// BULANG COMPREHENSIVE TEST SUITE
+// ============================================
+// Test ALL features before adding new ones
+
+print("========================================");
+print("   BULANG COMPREHENSIVE TEST SUITE");
+print("========================================\n");
+
+var totalTests = 0;
+var passedTests = 0;
+
+def assert(condition, message) {
+    totalTests = totalTests + 1;
+    if (condition) {
+        passedTests = passedTests + 1;
+        print("✅ " + message);
+    } else {
+        print("❌ FAILED: " + message);
+    }
+}
+
+// ============================================
+// TEST 1: BASIC ARITHMETIC
+// ============================================
+print("\n[TEST 1] Basic Arithmetic");
+assert(2 + 2 == 4, "Addition");
+assert(10 - 3 == 7, "Subtraction");
+assert(5 * 6 == 30, "Multiplication");
+assert(20 / 4 == 5, "Division");
+assert(17 % 5 == 2, "Modulo");
+assert(-5 + 10 == 5, "Negative numbers");
+assert(2 + 3 * 4 == 14, "Operator precedence");
+assert((2 + 3) * 4 == 20, "Parentheses grouping");
+
+// ============================================
+// TEST 2: COMPARISON & LOGICAL
+// ============================================
+print("\n[TEST 2] Comparison & Logical");
+assert(5 > 3, "Greater than");
+assert(3 < 5, "Less than");
+assert(5 >= 5, "Greater or equal");
+assert(3 <= 3, "Less or equal");
+assert(5 == 5, "Equal");
+assert(5 != 3, "Not equal");
+assert(true && true, "AND true");
+assert(!(false && true), "AND false");
+assert(true || false, "OR true");
+assert(!(false || false), "OR false");
+assert(!false, "NOT");
+
+// ============================================
+// TEST 3: BITWISE OPERATIONS
+// ============================================
+print("\n[TEST 3] Bitwise Operations");
+assert((5 | 3) == 7, "Bitwise OR");
+assert((5 & 3) == 1, "Bitwise AND");
+assert((5 ^ 3) == 6, "Bitwise XOR");
+assert((8 << 2) == 32, "Left shift");
+assert((32 >> 2) == 8, "Right shift");
+assert((~0) == -1, "Bitwise NOT");
+
+// ============================================
+// TEST 4: VARIABLES & SCOPE
+// ============================================
+print("\n[TEST 4] Variables & Scope");
+var globalVar = 100;
+assert(globalVar == 100, "Global variable");
+
+{
+    var localVar = 200;
+    assert(localVar == 200, "Local variable");
+    globalVar = 150;
+}
+assert(globalVar == 150, "Global modified in scope");
+
+// ============================================
+// TEST 5: FUNCTIONS - BASIC
+// ============================================
+print("\n[TEST 5] Functions - Basic");
+
+def add(a, b) {
+    return a + b;
+}
+assert(add(5, 3) == 8, "Function with 2 args");
+
+def triple(x) {
+    return x * 3;
+}
+assert(triple(7) == 21, "Function with 1 arg");
+
+def noArgs() {
+    return 42;
+}
+assert(noArgs() == 42, "Function with no args");
+
+def multiReturn(x) {
+    if (x > 0) return 1;
+    if (x < 0) return -1;
+    return 0;
+}
+assert(multiReturn(5) == 1, "Multiple return paths");
+assert(multiReturn(-5) == -1, "Multiple return paths negative");
+assert(multiReturn(0) == 0, "Multiple return paths zero");
+
+// ============================================
+// TEST 6: FUNCTIONS - RECURSION
+// ============================================
+print("\n[TEST 6] Functions - Recursion");
+
+def factorial(n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);
+}
+assert(factorial(5) == 120, "Factorial recursion");
+assert(factorial(0) == 1, "Factorial base case");
+
+def fib(n) {
+    if (n <= 1) return n;
+    return fib(n - 1) + fib(n - 2);
+}
+assert(fib(0) == 0, "Fibonacci(0)");
+assert(fib(1) == 1, "Fibonacci(1)");
+assert(fib(7) == 13, "Fibonacci(7)");
+assert(fib(10) == 55, "Fibonacci(10)");
+
+def countdown(n) {
+    if (n == 0) return 0;
+    return countdown(n - 1) + 1;
+}
+assert(countdown(10) == 10, "Deep recursion");
+
+// ============================================
+// TEST 7: FUNCTIONS - NESTED CALLS
+// ============================================
+print("\n[TEST 7] Functions - Nested Calls");
+
+def mult(a, b) {
+    return a * b;
+}
+
+def addMult(a, b, c) {
+    return add(a, mult(b, c));
+}
+assert(addMult(2, 3, 4) == 14, "Nested function calls");
+
+def chain(x) {
+    return add(mult(x, 2), triple(x));
+}
+assert(chain(5) == 25, "Complex nested calls");
+
+// ============================================
+// TEST 8: STRINGS
+// ============================================
+print("\n[TEST 8] Strings");
+
+var str1 = "Hello";
+var str2 = "World";
+assert(str1 + " " + str2 == "Hello World", "String concatenation");
+assert(str1 + 42 == "Hello42", "String + int");
+
+// ============================================
+// TEST 9: ARRAYS
+// ============================================
+print("\n[TEST 9] Arrays");
+
+var arr = [1, 2, 3, 4, 5];
+assert(arr[0] == 1, "Array index 0");
+assert(arr[4] == 5, "Array index 4");
+assert(arr[-1] == 5, "Array negative index");
+
+arr[2] = 99;
+assert(arr[2] == 99, "Array assignment");
+
+var empty = [];
+assert(empty.length() == 0, "Empty array length");
+
+// ============================================
+// TEST 10: MAPS
+// ============================================
+print("\n[TEST 10] Maps");
+
+var map = {"name": "Test", "value": 42};
+assert(map["name"] == "Test", "Map string key");
+assert(map["value"] == 42, "Map int value");
+
+map["new"] = 100;
+assert(map["new"] == 100, "Map assignment");
+
+// ============================================
+// TEST 11: CLASSES - BASIC
+// ============================================
+print("\n[TEST 11] Classes - Basic");
+
+class Point {
+    var x, y;
+    
+    def init(x, y) {
+        self.x = x;
+        self.y = y;
+    }
+    
+    def sum() {
+        return self.x + self.y;
+    }
+}
+
+var p = Point(10, 20);
+assert(p.x == 10, "Class field x");
+assert(p.y == 20, "Class field y");
+assert(p.sum() == 30, "Class method");
+
+p.x = 15;
+assert(p.x == 15, "Class field mutation");
+assert(p.sum() == 35, "Method after mutation");
+
+// ============================================
+// TEST 12: CLASSES - METHOD CHAINING
+// ============================================
+print("\n[TEST 12] Classes - Method Chaining");
+
+class Builder {
+    var x, y;
+    
+    def init() {
+        self.x = 0;
+        self.y = 0;
+    }
+    
+    def setX(v) {
+        self.x = v;
+        return self;
+    }
+    
+    def setY(v) {
+        self.y = v;
+        return self;
+    }
+    
+    def getSum() {
+        return self.x + self.y;
+    }
+}
+
+var b = Builder();
+b.setX(10).setY(20);
+assert(b.x == 10, "Chained setX");
+assert(b.y == 20, "Chained setY");
+assert(b.getSum() == 30, "Method after chaining");
+
+// ============================================
+// TEST 13: CLASSES - INHERITANCE
+// ============================================
+print("\n[TEST 13] Classes - Inheritance");
+
+class Animal {
+    var name, age;
+    
+    def init(name, age) {
+        self.name = name;
+        self.age = age;
+    }
+    
+    def describe() {
+        return self.name + " is " + self.age;
+    }
+}
+
+class Dog : Animal {
+    var breed;
+    
+    def init(name, age, breed) {
+        self.name = name;
+        self.age = age;
+        self.breed = breed;
+    }
+    
+    def fullInfo() {
+        return self.describe() + " (" + self.breed + ")";
+    }
+}
+
+var dog = Dog("Rex", 5, "Labrador");
+assert(dog.name == "Rex", "Inherited field name");
+assert(dog.age == 5, "Inherited field age");
+assert(dog.breed == "Labrador", "Own field breed");
+assert(dog.describe() == "Rex is 5", "Inherited method");
+
+// ============================================
+// TEST 14: CLASSES - SUPER
+// ============================================
+print("\n[TEST 14] Classes - Super");
+
+class Base {
+    var value;
+    
+    def init(v) {
+        self.value = v;
+    }
+    
+    def getValue() {
+        return self.value;
+    }
+}
+
+class Derived : Base {
+    var extra;
+    
+    def init(v, e) {
+        super.init(v);
+        self.extra = e;
+    }
+    
+    def getTotal() {
+        return super.getValue() + self.extra;
+    }
+}
+
+var d = Derived(10, 5);
+assert(d.value == 10, "Super init sets value");
+assert(d.extra == 5, "Own field set");
+assert(d.getValue() == 10, "Super method call");
+assert(d.getTotal() == 15, "Method using super");
+
+// ============================================
+// TEST 15: STRUCTS
+// ============================================
+print("\n[TEST 15] Structs");
+
+struct Vec2 {
+    x, y
+};
+
+var v1 = Vec2(3, 4);
+assert(v1.x == 3, "Struct field x");
+assert(v1.y == 4, "Struct field y");
+
+v1.x = 10;
+assert(v1.x == 10, "Struct field mutation");
+
+struct Color {
+    r, g, b, a
+};
+
+var c = Color(255, 128, 64, 255);
+assert(c.r == 255, "Struct with 4 fields");
+assert(c.g == 128, "Struct field 2");
+assert(c.b == 64, "Struct field 3");
+assert(c.a == 255, "Struct field 4");
+
+// ============================================
+// TEST 16: LOOPS - FOR
+// ============================================
+print("\n[TEST 16] Loops - For");
+
+var sum1 = 0;
+for (var i = 0; i < 10; i++) {
+    sum1 = sum1 + i;
+}
+assert(sum1 == 45, "For loop sum");
+
+var product = 1;
+for (var i = 1; i <= 5; i++) {
+    product = product * i;
+}
+assert(product == 120, "For loop product");
+
+// ============================================
+// TEST 17: LOOPS - WHILE
+// ============================================
+print("\n[TEST 17] Loops - While");
+
+var count = 0;
+var i = 0;
+while (i < 10) {
+    count = count + 1;
+    i = i + 1;
+}
+assert(count == 10, "While loop");
+
+// ============================================
+// TEST 18: LOOPS - BREAK/CONTINUE
+// ============================================
+print("\n[TEST 18] Loops - Break/Continue");
+
+var sum2 = 0;
+for (var i = 0; i < 100; i++) {
+    if (i == 10) break;
+    sum2 = sum2 + i;
+}
+assert(sum2 == 45, "Break in for loop");
+
+var sum3 = 0;
+for (var i = 0; i < 10; i++) {
+    if (i % 2 == 0) continue;
+    sum3 = sum3 + i;
+}
+assert(sum3 == 25, "Continue in for loop");
+
+// ============================================
+// TEST 19: NESTED LOOPS
+// ============================================
+print("\n[TEST 19] Nested Loops");
+
+var sum4 = 0;
+for (var i = 0; i < 5; i++) {
+    for (var j = 0; j < 5; j++) {
+        sum4 = sum4 + 1;
+    }
+}
+assert(sum4 == 25, "Nested loops");
+
+// ============================================
+// TEST 20: EDGE CASES - EMPTY RETURNS
+// ============================================
+print("\n[TEST 20] Edge Cases - Empty Returns");
+
+def emptyReturn() {
+    return;
+}
+var result = emptyReturn();
+assert(result == nil, "Empty return gives nil");
+
+def implicitReturn() {
+    var x = 42;
+}
+result = implicitReturn();
+assert(result == nil, "Implicit return gives nil");
+
+// ============================================
+// TEST 21: EDGE CASES - FUNCTION AS VALUE
+// ============================================
+print("\n[TEST 21] Edge Cases - Function as Value");
+
+def makeAdder(x) {
+    return x;
+}
+var val = makeAdder(5);
+assert(val == 5, "Function returns value");
+
+// ============================================
+// TEST 22: EDGE CASES - MULTIPLE INSTANCES
+// ============================================
+print("\n[TEST 22] Edge Cases - Multiple Instances");
+
+class Counter {
+    var count;
+    
+    def init() {
+        self.count = 0;
+    }
+    
+    def inc() {
+        self.count = self.count + 1;
+    }
+}
+
+var c1 = Counter();
+var c2 = Counter();
+c1.inc();
+c1.inc();
+c2.inc();
+
+assert(c1.count == 2, "Counter 1 independent");
+assert(c2.count == 1, "Counter 2 independent");
+
+// ============================================
+// TEST 23: EDGE CASES - NESTED FUNCTION CALLS
+// ============================================
+print("\n[TEST 23] Edge Cases - Deep Nesting");
+
+def f1(x) { return x + 1; }
+def f2(x) { return f1(x) + 1; }
+def f3(x) { return f2(x) + 1; }
+def f4(x) { return f3(x) + 1; }
+def f5(x) { return f4(x) + 1; }
+
+assert(f5(0) == 5, "Deep nested calls");
+
+// ============================================
+// TEST 24: EDGE CASES - RECURSIVE WITH ARGS
+// ============================================
+print("\n[TEST 24] Edge Cases - Recursive with Multiple Args");
+
+def ackermann(m, n) {
+    if (m == 0) return n + 1;
+    if (n == 0) return ackermann(m - 1, 1);
+    return ackermann(m - 1, ackermann(m, n - 1));
+}
+
+assert(ackermann(0, 0) == 1, "Ackermann(0,0)");
+assert(ackermann(1, 2) == 4, "Ackermann(1,2)");
+assert(ackermann(2, 2) == 7, "Ackermann(2,2)");
+
+// ============================================
+// TEST 25: EDGE CASES - ARRAY OPERATIONS
+// ============================================
+print("\n[TEST 25] Edge Cases - Array Operations");
+
+var arr2 = [1, 2, 3];
+arr2.push(4);
+assert(arr2.length() == 4, "Array push");
+
+var last = arr2.pop();
+assert(last == 4, "Array pop returns value");
+assert(arr2.length() == 3, "Array length after pop");
+
+// ============================================
+// FINAL REPORT
+// ============================================
+print("\n========================================");
+print("         TEST RESULTS");
+print("========================================");
+print("Total Tests: " + totalTests);
+print("Passed:      " + passedTests);
+print("Failed:      " + (totalTests - passedTests));
+
+if (totalTests == passedTests) {
+    print("\n🎉 ALL TESTS PASSED! 🎉");
+    print("BuLang is SOLID and ready for new features!");
+} else {
+    print("\n⚠️  SOME TESTS FAILED");
+    print("Fix these before adding new features!");
+}
+print("========================================\n")
