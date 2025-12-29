@@ -66,8 +66,8 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         func = frame->func;                            \
     } while (false)
 
-#define READ_CONSTANT() (func->chunk->constants[READ_BYTE()])
-#define READ_CONSTANT_LONG() (func->chunk->constants[READ_SHORT()])
+#define READ_CONSTANT() (func->chunk->constants[READ_SHORT()])
+
     LOAD_FRAME();
 
     // printf("[DEBUG] Starting run_fiber: ip=%p, func=%s, offset=%ld\n",
@@ -108,11 +108,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             PUSH(constant);
             break;
         }
-        case OP_CONSTANT_LONG: {
-            Value constant = READ_CONSTANT_LONG();
-            PUSH(constant);
-            break;
-        }
+     
 
         case OP_NIL:
             PUSH(Value::makeNil());
