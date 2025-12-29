@@ -34,10 +34,9 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset) {
   switch (instruction) {
   // -------- Literals --------
   case OP_CONSTANT:
-    return constantInstruction("OP_CONSTANT", chunk, offset);
-  case OP_CONSTANT_LONG: {
+   {
     uint16 constant = (chunk.code[offset + 1] << 8) | chunk.code[offset + 2];
-    printf("%-16s %5d '", "OP_CONSTANT_LONG", constant);
+    printf("%-16s %5d '", "OP_CONSTANT", constant);
     printValue(chunk.constants[constant]);
     printf("'\n");
     return offset + 3;

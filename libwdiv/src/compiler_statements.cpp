@@ -218,13 +218,13 @@ void Compiler::or_(bool canAssign)
     patchJump(endJump);
 }
 
-uint8 Compiler::identifierConstant(Token &name)
+uint16 Compiler::identifierConstant(Token &name)
 {
 
     return makeConstant(Value::makeString(name.lexeme.c_str()));
 }
 
-void Compiler::handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssign)
+void Compiler::handle_assignment(uint16 getOp, uint16 setOp, int arg, bool canAssign)
 {
 
     if (match(TOKEN_PLUS_PLUS))
@@ -328,7 +328,7 @@ void Compiler::namedVariable(Token &name, bool canAssign)
     handle_assignment(getOp, setOp, arg, canAssign);
 }
 
-void Compiler::defineVariable(uint8 global)
+void Compiler::defineVariable(uint16 global)
 {
     if (scopeDepth > 0)
     {
@@ -849,9 +849,9 @@ void Compiler::returnStatement()
     function->hasReturn = true;
 }
 
-uint8 Compiler::argumentList()
+uint16 Compiler::argumentList()
 {
-    uint8 argCount = 0;
+    uint16 argCount = 0;
 
     if (!check(TOKEN_RPAREN))
     {
@@ -874,7 +874,7 @@ uint8 Compiler::argumentList()
 void Compiler::call(bool canAssign)
 {
     (void)canAssign;
-    uint8 argCount = argumentList();
+    uint16 argCount = argumentList();
     emitByte(OP_CALL);
     emitByte(argCount);
 }
@@ -899,7 +899,7 @@ void Compiler::funDeclaration()
     // Emite constant com o index da função
     emitConstant(Value::makeFunction(func->index));
     // Define como global
-    uint8 nameConstant = identifierConstant(nameToken);
+    uint16 nameConstant = identifierConstant(nameToken);
     defineVariable(nameConstant);
 }
 
@@ -960,7 +960,7 @@ void Compiler::processDeclaration()
     // Warning("Process '%s' registered with index %d", nameToken.lexeme.c_str(), index);
 
     emitConstant(Value::makeProcess(proc->index));
-    uint8 nameConstant = identifierConstant(nameToken);
+    uint16 nameConstant = identifierConstant(nameToken);
     defineVariable(nameConstant);
 
     proc->finalize();
@@ -1153,7 +1153,7 @@ void Compiler::frameStatement()
     else
     {
         // frame; = frame(100);
-        emitBytes(OP_CONSTANT, makeConstant(Value::makeInt(100)));
+        emitConstant(Value::makeInt(100));
     }
 
     consume(TOKEN_SEMICOLON, "Expect ';' after frame");
@@ -1259,7 +1259,7 @@ void Compiler::yieldStatement()
     else
     {
 
-        emitBytes(OP_CONSTANT, makeConstant(Value::makeDouble(1.0)));
+        emitConstant(Value::makeDouble(1.0));
     }
 
     consume(TOKEN_SEMICOLON, "Expect ';' after yild");
@@ -1275,7 +1275,7 @@ void Compiler::fiberStatement()
 
     consume(TOKEN_LPAREN, "Expect '(' after fiber function name.");
 
-    uint8 argCount = 0;
+    uint16 argCount = 0;
 
     if (!check(TOKEN_RPAREN))
     {
@@ -1334,7 +1334,7 @@ void Compiler::super(bool canAssign)
     consume(TOKEN_DOT, "Expect '.' after 'super'");
     consume(TOKEN_IDENTIFIER, "Expect superclass method name");
     Token methodName = previous;
-    uint8_t nameIdx = identifierConstant(methodName);
+    uint16 nameIdx = identifierConstant(methodName);
 
     consume(TOKEN_LPAREN, "Expect '(' after method name");
 
@@ -1342,7 +1342,7 @@ void Compiler::super(bool canAssign)
     emitBytes(OP_GET_LOCAL, 0);
 
     // DEPOIS ARGUMENTOS!
-    uint8_t argCount = argumentList();
+    uint16 argCount = argumentList();
 
     // Emite OP_SUPER_INVOKE
     emitBytes(OP_SUPER_INVOKE, nameIdx);
@@ -1354,12 +1354,12 @@ void Compiler::dot(bool canAssign)
 {
     consume(TOKEN_IDENTIFIER, "Expect property name after '.'");
     Token propName = previous;
-    uint8_t nameIdx = identifierConstant(propName);
+    uint16 nameIdx = identifierConstant(propName);
 
     //  METHOD CALL
     if (match(TOKEN_LPAREN))
     {
-        uint8_t argCount = argumentList();
+        uint16 argCount = argumentList();
         emitBytes(OP_INVOKE, nameIdx);
         emitByte(argCount);
     }
@@ -1528,7 +1528,7 @@ void Compiler::structDeclaration()
 {
     consume(TOKEN_IDENTIFIER, "Expect struct name");
     Token structName = previous;
-    uint8_t nameConstant = identifierConstant(structName);
+    uint16 nameConstant = identifierConstant(structName);
 
     consume(TOKEN_LBRACE, "Expect '{' before struct body");
 
@@ -1581,7 +1581,7 @@ void Compiler::classDeclaration()
 {
     consume(TOKEN_IDENTIFIER, "Expect class name");
     Token className = previous;
-    uint8_t nameConstant = identifierConstant(className);
+    uint16 nameConstant = identifierConstant(className);
 
     //  Regista class blueprint na VM
     int classId;
