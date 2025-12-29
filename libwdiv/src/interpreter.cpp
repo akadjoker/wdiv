@@ -507,12 +507,13 @@ StructDef *Interpreter::addStruct(String *name, int *id) {
   }
   StructDef *proc = new StructDef();
   structsMap.set(name, proc);
+  proc->index= (int)structs.size();
   *id = (int)structs.size();
   structs.push(proc);
   return proc;
 }
 
-StructDef *Interpreter::registerStruct(String *name, int *id) {
+StructDef *Interpreter::registerStruct(String *name) {
   if (structsMap.exist(name)) {
     return nullptr;
   }
@@ -522,15 +523,15 @@ StructDef *Interpreter::registerStruct(String *name, int *id) {
   proc->name = name;
   proc->argCount = 0;
   structsMap.set(name, proc);
+  proc->index= (int)structs.size();
 
-  *id = (int)structs.size();
-
+ 
   structs.push(proc);
 
   return proc;
 }
 
-ClassDef *Interpreter::registerClass(String *name, int *id) {
+ClassDef *Interpreter::registerClass(String *name) {
   if (structsMap.exist(name)) {
     return nullptr;
   }
@@ -539,7 +540,7 @@ ClassDef *Interpreter::registerClass(String *name, int *id) {
   proc->name = name;
   classesMap.set(name, proc);
 
-  *id = (int)classes.size();
+  proc->index = (int)classes.size();
 
   classes.push(proc);
 

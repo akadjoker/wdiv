@@ -218,13 +218,13 @@ void Compiler::or_(bool canAssign)
     patchJump(endJump);
 }
 
-uint16 Compiler::identifierConstant(Token &name)
+uint8 Compiler::identifierConstant(Token &name)
 {
 
     return makeConstant(Value::makeString(name.lexeme.c_str()));
 }
 
-void Compiler::handle_assignment(uint16 getOp, uint16 setOp, int arg, bool canAssign)
+void Compiler::handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssign)
 {
 
     if (match(TOKEN_PLUS_PLUS))
@@ -328,7 +328,7 @@ void Compiler::namedVariable(Token &name, bool canAssign)
     handle_assignment(getOp, setOp, arg, canAssign);
 }
 
-void Compiler::defineVariable(uint16 global)
+void Compiler::defineVariable(uint8 global)
 {
     if (scopeDepth > 0)
     {
@@ -849,9 +849,9 @@ void Compiler::returnStatement()
     function->hasReturn = true;
 }
 
-uint16 Compiler::argumentList()
+uint8 Compiler::argumentList()
 {
-    uint16 argCount = 0;
+    uint8 argCount = 0;
 
     if (!check(TOKEN_RPAREN))
     {
@@ -874,7 +874,7 @@ uint16 Compiler::argumentList()
 void Compiler::call(bool canAssign)
 {
     (void)canAssign;
-    uint16 argCount = argumentList();
+    uint8 argCount = argumentList();
     emitByte(OP_CALL);
     emitByte(argCount);
 }
@@ -899,7 +899,7 @@ void Compiler::funDeclaration()
     // Emite constant com o index da função
     emitConstant(Value::makeFunction(func->index));
     // Define como global
-    uint16 nameConstant = identifierConstant(nameToken);
+    uint8 nameConstant = identifierConstant(nameToken);
     defineVariable(nameConstant);
 }
 
@@ -960,7 +960,7 @@ void Compiler::processDeclaration()
     // Warning("Process '%s' registered with index %d", nameToken.lexeme.c_str(), index);
 
     emitConstant(Value::makeProcess(proc->index));
-    uint16 nameConstant = identifierConstant(nameToken);
+    uint8 nameConstant = identifierConstant(nameToken);
     defineVariable(nameConstant);
 
     proc->finalize();
@@ -1153,7 +1153,7 @@ void Compiler::frameStatement()
     else
     {
         // frame; = frame(100);
-        emitConstant(Value::makeInt(100));
+        emitBytes(OP_CONSTANT, makeConstant(Value::makeInt(100)));
     }
 
     consume(TOKEN_SEMICOLON, "Expect ';' after frame");
@@ -1259,7 +1259,7 @@ void Compiler::yieldStatement()
     else
     {
 
-        emitConstant(Value::makeDouble(1.0));
+        emitBytes(OP_CONSTANT, makeConstant(Value::makeDouble(1.0)));
     }
 
     consume(TOKEN_SEMICOLON, "Expect ';' after yild");
@@ -1275,7 +1275,7 @@ void Compiler::fiberStatement()
 
     consume(TOKEN_LPAREN, "Expect '(' after fiber function name.");
 
-    uint16 argCount = 0;
+    uint8 argCount = 0;
 
     if (!check(TOKEN_RPAREN))
     {
@@ -1301,65 +1301,18 @@ void Compiler::fiberStatement()
     // emitByte(OP_POP); // descarta o nil/handle se spawn devolver algo
 }
 
-void Compiler::self(bool canAssign)
-{
-    (void)canAssign;
-    if (currentClass == nullptr)
-    {
-        error("Cannot use 'self' outside of a class");
-        return;
-    }
-    Token selfToken;
-    selfToken.lexeme = "self";
-    selfToken.type = TOKEN_IDENTIFIER;
-    namedVariable(selfToken, canAssign);
-}
-
-void Compiler::super(bool canAssign)
-{
-    (void)canAssign;
-
-    if (currentClass == nullptr)
-    {
-        error("Cannot use 'super' outside of a class");
-        return;
-    }
-
-    if (currentClass->superclass == nullptr)
-    {
-        error("Cannot use 'super' in a class with no superclass");
-        return;
-    }
-
-    consume(TOKEN_DOT, "Expect '.' after 'super'");
-    consume(TOKEN_IDENTIFIER, "Expect superclass method name");
-    Token methodName = previous;
-    uint16 nameIdx = identifierConstant(methodName);
-
-    consume(TOKEN_LPAREN, "Expect '(' after method name");
-
-    // SELF PRIMEIRO!
-    emitBytes(OP_GET_LOCAL, 0);
-
-    // DEPOIS ARGUMENTOS!
-    uint16 argCount = argumentList();
-
-    // Emite OP_SUPER_INVOKE
-    emitBytes(OP_SUPER_INVOKE, nameIdx);
-    emitByte(argCount);
-}
 
 
 void Compiler::dot(bool canAssign)
 {
     consume(TOKEN_IDENTIFIER, "Expect property name after '.'");
     Token propName = previous;
-    uint16 nameIdx = identifierConstant(propName);
+    uint8_t nameIdx = identifierConstant(propName);
 
     //  METHOD CALL
     if (match(TOKEN_LPAREN))
     {
-        uint16 argCount = argumentList();
+        uint8_t argCount = argumentList();
         emitBytes(OP_INVOKE, nameIdx);
         emitByte(argCount);
     }
@@ -1528,14 +1481,13 @@ void Compiler::structDeclaration()
 {
     consume(TOKEN_IDENTIFIER, "Expect struct name");
     Token structName = previous;
-    uint16 nameConstant = identifierConstant(structName);
+    uint8_t nameConstant = identifierConstant(structName);
 
     consume(TOKEN_LBRACE, "Expect '{' before struct body");
 
-    int index = 0;
+    
     StructDef *structDef = vm_->registerStruct(
-        createString(structName.lexeme.c_str()),
-        &index);
+        createString(structName.lexeme.c_str()));
 
     if (!structDef)
     {
@@ -1545,13 +1497,13 @@ void Compiler::structDeclaration()
 
     structDef->argCount = 0;
 
-    // ✅ Loop externo: múltiplas linhas de fields
+    //  Loop externo: múltiplas linhas de fields
     while (!check(TOKEN_RBRACE) && !check(TOKEN_EOF))
     {
-        // ✅ Opcional: pode ter 'var' ou não
+        //  Opcional: pode ter 'var' ou não
         bool hasVar = match(TOKEN_VAR);
 
-        // ✅ Loop interno: múltiplos fields separados por vírgula
+        //  Loop interno: múltiplos fields separados por vírgula
         do
         {
             consume(TOKEN_IDENTIFIER, "Expect field name");
@@ -1562,32 +1514,87 @@ void Compiler::structDeclaration()
 
         } while (match(TOKEN_COMMA));
 
-        // ✅ Se tinha 'var', precisa de ';'
+        //  Se tinha 'var', precisa de ';'
         if (hasVar)
         {
             consume(TOKEN_SEMICOLON, "Expect ';' after field declaration");
         }
-        // ✅ Se não tinha 'var', aceita ',' ou '}'
+        //  Se não tinha 'var', aceita ',' ou '}'
     }
 
     consume(TOKEN_RBRACE, "Expect '}' after struct body");
     consume(TOKEN_SEMICOLON, "Expect ';' after struct");
 
-    emitConstant(Value::makeStruct(index));
+    emitConstant(Value::makeStruct(structDef->index));
     defineVariable(nameConstant);
+}
+
+
+void Compiler::self(bool canAssign)
+{
+    (void)canAssign;
+    if (currentClass == nullptr)
+    {
+        error("Cannot use 'self' outside of a class");
+        return;
+    }
+    Token selfToken;
+    selfToken.lexeme = "self";
+    selfToken.type = TOKEN_IDENTIFIER;
+    namedVariable(selfToken, canAssign);
+}
+
+void Compiler::super(bool canAssign)
+{
+    (void)canAssign;
+
+    if (currentClass == nullptr)
+    {
+        error("Cannot use 'super' outside of a class");
+        return;
+    }
+
+    if (currentClass->superclass == nullptr)
+    {
+        error("Cannot use 'super' in a class with no superclass");
+        return;
+    }
+
+    consume(TOKEN_DOT, "Expect '.' after 'super'");
+    consume(TOKEN_IDENTIFIER, "Expect superclass method name");
+    Token methodName = previous;
+    uint8_t nameIdx = identifierConstant(methodName);
+
+    consume(TOKEN_LPAREN, "Expect '(' after method name");
+
+    // SELF PRIMEIRO!
+    emitBytes(OP_GET_LOCAL, 0);
+
+    // DEPOIS ARGUMENTOS!
+    uint8_t argCount = argumentList();
+
+    // printf("[COMPILER] super.%s em classe %s (ID=%d), super=%s\n", 
+    //        methodName.lexeme.c_str(),
+    //        currentClass->name->chars(),
+    //        currentClass->index,
+    //        currentClass->superclass->name->chars());
+    
+    emitBytes(OP_SUPER_INVOKE, currentClass->index);
+    emitByte(nameIdx);
+    emitByte(argCount);
+    
 }
 
 void Compiler::classDeclaration()
 {
     consume(TOKEN_IDENTIFIER, "Expect class name");
     Token className = previous;
-    uint16 nameConstant = identifierConstant(className);
+    uint8_t nameConstant = identifierConstant(className);
 
     //  Regista class blueprint na VM
-    int classId;
+    
     ClassDef *classDef = vm_->registerClass(
-        createString(className.lexeme.c_str()),
-        &classId);
+        createString(className.lexeme.c_str()));
 
     if (!classDef)
     {
@@ -1599,7 +1606,7 @@ void Compiler::classDeclaration()
     // printf("fieldCount inicial: %d\n", classDef->fieldCount);
 
     // Emite class ID como constante
-    emitConstant(Value::makeClass(classId));
+    emitConstant(Value::makeClass(classDef->index));
     defineVariable(nameConstant);
 
     // Herança?
@@ -1624,7 +1631,7 @@ void Compiler::classDeclaration()
         classDef->inherited = true;
         classDef->parent = classSuper->name;
 
-        Warning(" class %s herdar  class %s", className.lexeme.c_str(), name);
+     //   Warning(" class %s herdar  class %s", className.lexeme.c_str(), name);
         classDef->superclass = classSuper;
 
         // //  COPIA MÉTODOS DO PARENT!
@@ -1641,26 +1648,7 @@ void Compiler::classDeclaration()
             classDef->fieldCount++; });
     }
     consume(TOKEN_LBRACE, "Expect '{'");
-    // while (check(TOKEN_VAR))
-    // {
-    //     advance(); // consome 'var'
-
-    //     consume(TOKEN_IDENTIFIER, "Expect field name");
-    //     Token fieldName = previous;
-
-    //     String *name = createString(fieldName.lexeme.c_str());
-    //     classDef->fieldNames.set(name, classDef->fieldCount);
-    //     classDef->fieldCount++;
-
-    //     // Ignora inicialização (vai no init)
-    //     if (match(TOKEN_EQUAL))
-    //     {
-    //         expression();
-    //         emitByte(OP_POP);
-    //     }
-
-    //     consume(TOKEN_SEMICOLON, "Expect ';'");
-    // }
+ 
 
     while (check(TOKEN_VAR))
     {

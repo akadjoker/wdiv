@@ -66,8 +66,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         func = frame->func;                            \
     } while (false)
 
-#define READ_CONSTANT() (func->chunk->constants[READ_SHORT()])
-
+#define READ_CONSTANT() (func->chunk->constants[READ_BYTE()])
     LOAD_FRAME();
 
     // printf("[DEBUG] Starting run_fiber: ip=%p, func=%s, offset=%ld\n",
@@ -108,7 +107,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             PUSH(constant);
             break;
         }
-     
+ 
 
         case OP_NIL:
             PUSH(Value::makeNil());
@@ -2001,68 +2000,73 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
 
-        case OP_SUPER_INVOKE:
-        {
-            uint8_t nameIdx = READ_BYTE();
-            uint8_t argCount = READ_BYTE();
+case OP_SUPER_INVOKE: {
+    uint8_t ownerClassId = READ_BYTE();
+    uint8_t nameIdx = READ_BYTE();
+    uint8_t argCount = READ_BYTE();
+    
+    Value nameValue = func->chunk->constants[nameIdx];
+    String *methodName = nameValue.asString();
+    Value self = NPEEK(argCount);
+    
+    if (!self.isClassInstance()) {
+        runtimeError("'super' requires an instance");
+        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+    }
+    
+    ClassInstance *instance = self.asClassInstance();
+    ClassDef* ownerClass = classes[ownerClassId];
+    
+    // printf("[RUNTIME] super.%s: ownerClassId=%d (%s), super=%s\n",
+    //        methodName->chars(), ownerClassId,
+    //        ownerClass->name->chars(),
+    //        ownerClass->superclass ? ownerClass->superclass->name->chars() : "NULL");
+    
 
-            Value nameValue = func->chunk->constants[nameIdx];
-            String *methodName = nameValue.asString();
-
-            Value self = NPEEK(argCount); // Pega self ANTES dos args
-
-            // printf("Super member: ");
-            // printValueNl(nameValue);
-            // printf(" Super class: ");
-            // printValueNl(self);
-            // printf(" args %d \n",argCount);
-
-            if (!self.isClassInstance())
-            {
-                runtimeError("'super' requires an instance");
-                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            }
-
-            ClassInstance *instance = self.asClassInstance();
-
-            if (!instance->klass->superclass)
-            {
-                runtimeError("Class has no superclass");
-                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            }
-
-            // Procura método no SUPERCLASS )
-            Function *method;
-            if (!instance->klass->superclass->methods.get(methodName, &method))
-            {
-                runtimeError("Undefined method '%s' in superclass", methodName->chars());
-                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            }
-
-            if (argCount != method->arity)
-            {
-                runtimeError("Method '%s' expects %d arguments, got %d",
-                             methodName->chars(), method->arity, argCount);
-                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            }
-            // Setup call frame
-            if (fiber->frameCount >= FRAMES_MAX)
-            {
-                runtimeError("Stack overflow");
-                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            }
-
-            CallFrame *newFrame = &fiber->frames[fiber->frameCount];
-            newFrame->func = method;
-            newFrame->ip = method->chunk->code;
-            newFrame->slots = fiber->stackTop - argCount -1; //  Aponta para self
-
-            fiber->frameCount++;
-
-            STORE_FRAME();
-            LOAD_FRAME();
-            break;
+    
+    if (!ownerClass->superclass) {  // ← USA ownerClass!
+        runtimeError("Class has no superclass");
+        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+    }
+    
+    Function *method;
+    
+    // ✅ Caso especial para init()
+    if (strcmp(methodName->chars(), "init") == 0) {
+        method = ownerClass->superclass->constructor;  // ← USA ownerClass!
+        if (!method) {
+            runtimeError("Superclass has no init()");
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
+    } else {
+        // Métodos normais
+        if (!ownerClass->superclass->methods.get(methodName, &method)) {
+            runtimeError("Undefined method '%s'", methodName->chars());
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+        }
+    }
+    
+    if (argCount != method->arity) {
+        runtimeError("Method expects %d arguments, got %d",
+                     method->arity, argCount);
+        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+    }
+    
+    if (fiber->frameCount >= FRAMES_MAX) {
+        runtimeError("Stack overflow");
+        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+    }
+    
+    CallFrame *newFrame = &fiber->frames[fiber->frameCount];
+    newFrame->func = method;
+    newFrame->ip = method->chunk->code;
+    newFrame->slots = fiber->stackTop - argCount - 1;
+    fiber->frameCount++;
+    
+    STORE_FRAME();
+    LOAD_FRAME();
+    break;
+}
 
         case OP_GOSUB:
         {

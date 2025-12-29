@@ -373,8 +373,8 @@ public:
 
   StructDef *addStruct(String *nam, int *id);
 
-  StructDef *registerStruct(String *nam, int *id);
-  ClassDef *registerClass(String *nam, int *id);
+  StructDef *registerStruct(String *name);
+  ClassDef *registerClass(String *nam);
 
   bool containsClassDefenition(String *name);
   bool getClassDefenition(String *name, ClassDef *result);
