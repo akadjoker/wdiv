@@ -1,11 +1,13 @@
 #include "compiler.hpp"
 #include "interpreter.hpp"
 #include "pool.hpp"
+#include "pool.hpp"
 #include "code.hpp"
 #include "value.hpp"
 #include "opcode.hpp"
 #include <cstdio>
 #include <cstdlib>
+#include <stdarg.h>
 #include <stdarg.h>
 
 // ============================================
