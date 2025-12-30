@@ -298,8 +298,8 @@ int main()
                      std::istreambuf_iterator<char>());
 
 
-    vm.compile(code.c_str(), false);
-    vm.dumpToFile("space_shooter.dump");                     
+    //vm.compile(code.c_str(), false);
+    //vm.dumpToFile("space_shooter.dump");                     
 
     if (!vm.run(code.c_str(), false))
     {

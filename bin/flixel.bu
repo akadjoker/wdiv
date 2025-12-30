@@ -2,9 +2,10 @@
 // BULANG PLATFORMER - Main Game
 // ============================================
 
-include "consts.bu";
-include "platform.bu";
-include "player.bu";
+include "plataform/consts.bu";
+include "plataform/platform.bu";
+include "plataform/player.bu";
+
 
 // ============================================
 // GAME INITIALIZATION
