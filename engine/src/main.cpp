@@ -1,6 +1,10 @@
 
 #include "raylib.h"
 #include "Graph.h"
+#include "LayerSystem.h"
+#include "Physics2D.h"
+#include "GameEntity.h"
+
 #include <iostream>
 #include <sstream>
 

@@ -25,6 +25,7 @@ add_subdirectory(tests)
 add_subdirectory(fisica)
 add_subdirectory(fisica2)
 add_subdirectory(fisica3)
+add_subdirectory(fisica4)
 add_subdirectory(engine)
 
 add_subdirectory(testPool)

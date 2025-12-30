@@ -1,4 +1,4 @@
-project(engine)
+project(fisica4)
 cmake_policy(SET CMP0072 NEW)
 
 
@@ -19,33 +19,37 @@ endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
 
+
+
+
 file(GLOB SOURCES "src/*.cpp")
-add_executable(engine   ${SOURCES})
+add_executable(fisica4   ${SOURCES})
 
 
 target_include_directories(libwdiv PUBLIC  include src)
 
 
+
 if(CMAKE_BUILD_TYPE MATCHES Debug)
 
 if (UNIX)
-target_compile_options(engine PRIVATE -fsanitize=address -fsanitize=undefined -fsanitize=leak -g  -D_DEBUG -DVERBOSE)
-target_link_options(engine PRIVATE -fsanitize=address -fsanitize=undefined -fsanitize=leak -g  -D_DEBUG) 
+target_compile_options(fisica4 PRIVATE -fsanitize=address -fsanitize=undefined -fsanitize=leak -g  -D_DEBUG -DVERBOSE)
+target_link_options(fisica4 PRIVATE -fsanitize=address -fsanitize=undefined -fsanitize=leak -g  -D_DEBUG) 
 endif()
 
 
 elseif(CMAKE_BUILD_TYPE MATCHES Release)
-    target_compile_options(engine PRIVATE -O3   -DNDEBUG )
-    target_link_options(engine PRIVATE -O3   -DNDEBUG )
+    target_compile_options(fisica4 PRIVATE -O3   -DNDEBUG )
+    target_link_options(fisica4 PRIVATE -O3   -DNDEBUG )
 endif()
 
-target_link_libraries(engine libwdiv raylib)
+target_link_libraries(fisica4 libwdiv raylib)
 
 if (WIN32)
-    target_link_libraries(engine Winmm.lib)
+    target_link_libraries(fisica4 Winmm.lib)
 endif()
 
 
 if (UNIX)
-    target_link_libraries(engine  m )
+    target_link_libraries(fisica4  m )
 endif()
