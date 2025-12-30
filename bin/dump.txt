@@ -1,0 +1,339 @@
+ 
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=2, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=2, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=2, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=2, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+✓ Loaded: ./space_shooter/player.bu (4538 bytes)
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=2, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=2, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=4, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=2, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=3
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=2, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=4, scopeDepth=3
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=4, scopeDepth=4
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=4, scopeDepth=4
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=4, scopeDepth=3
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=4, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=4, scopeDepth=3
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=1, scopeDepth=1
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=3, scopeDepth=2
+  → 'self' resolved as LOCAL[0]
+
+[namedVariable] Processing 'self'
+  localCount=4, scopeDepth=3
+  → 'self' resolved as LOCAL[0]
+  

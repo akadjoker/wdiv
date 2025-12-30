@@ -55,8 +55,9 @@ struct Local {
   char name[MAX_IDENTIFIER_LENGTH];
   uint8 length;
   int depth;
+    bool usedInitLocal;
 
-  Local() : length(0), depth(-1) { name[0] = '\0'; }
+  Local() : length(0), depth(-1), usedInitLocal(false) { name[0] = '\0'; }
 
   bool equals(const std::string &str) const {
 
@@ -147,7 +148,7 @@ private:
   LoopContext loopContexts_[MAX_LOOP_DEPTH];
   int loopDepth_;
   bool isProcess_;
-
+ 
   std::vector<Label> labels;
   std::vector<GotoJump> pendingGotos;
   std::vector<GotoJump> pendingGosubs;

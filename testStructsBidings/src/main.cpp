@@ -9,15 +9,64 @@
 #include "bidings.hpp"
 #include "interpreter.hpp"
 
-Value native_write(Interpreter *vm, int argCount, Value *args)
+// Helper: converte Value para string
+static void valueToString(const Value &v, std::string &out)
 {
-    if (argCount < 1 || !args[0].isString())
+    char buffer[256];
+
+    switch (v.type)
     {
-        vm->runtimeError("write expects string as first argument");
+    case ValueType::NIL:
+        out += "nil";
+        break;
+    case ValueType::BOOL:
+        out += v.as.boolean ? "true" : "false";
+        break;
+    case ValueType::BYTE:
+        snprintf(buffer, 256, "%u", v.as.byte);
+        out += buffer;
+        break;
+    case ValueType::INT:
+        snprintf(buffer, 256, "%d", v.as.integer);
+        out += buffer;
+        break;
+    case ValueType::UINT:
+        snprintf(buffer, 256, "%u", v.as.unsignedInteger);
+        out += buffer;
+        break;
+    case ValueType::FLOAT:
+        snprintf(buffer, 256, "%.2f", v.as.real);
+        out += buffer;
+        break;
+    case ValueType::DOUBLE:
+        snprintf(buffer, 256, "%.2f", v.as.number);
+        out += buffer;
+        break;
+    case ValueType::STRING:
+        out += v.as.string->chars();
+        break;
+    case ValueType::ARRAY:
+        out += "[array]";
+        break;
+    case ValueType::MAP:
+        out += "{map}";
+        break;
+    default:
+        out += "<object>";
+    }
+}
+
+Value native_format(Interpreter *vm, int argCount, Value *args)
+{
+    if (argCount < 1 || args[0].type != ValueType::STRING)
+    {
+        vm->runtimeError("format expects string as first argument");
         return Value::makeNil();
     }
 
-    const char *fmt = args[0].asString()->chars();
+  
+
+    const char *fmt = args[0].as.string->chars();
     std::string result;
     int argIndex = 1;
 
@@ -25,23 +74,40 @@ Value native_write(Interpreter *vm, int argCount, Value *args)
     {
         if (fmt[i] == '{' && fmt[i + 1] == '}')
         {
-
             if (argIndex < argCount)
             {
+                valueToString(args[argIndex++], result);
+            }
+            i++;
+        }
+        else
+        {
+            result += fmt[i];
+        }
+    }
 
-                char buffer[64];
-                Value v = args[argIndex++];
+    return Value::makeString(result.c_str());
+}
 
-                if (v.isInt())
-                    snprintf(buffer, 64, "%d", v.asInt());
-                else if (v.isDouble())
-                    snprintf(buffer, 64, "%.2f", v.asDouble());
-                else if (v.isString())
-                    snprintf(buffer, 64, "%s", v.asString()->chars());
-                else
-                    snprintf(buffer, 64, "<TODO>");
+Value native_write(Interpreter *vm, int argCount, Value *args)
+{
+    if (argCount < 1 || args[0].type != ValueType::STRING)
+    {
+        vm->runtimeError("write expects string as first argument");
+        return Value::makeNil();
+    }
 
-                result += buffer;
+    const char *fmt = args[0].as.string->chars();
+    std::string result;
+    int argIndex = 1;
+
+    for (int i = 0; fmt[i] != '\0'; i++)
+    {
+        if (fmt[i] == '{' && fmt[i + 1] == '}')
+        {
+            if (argIndex < argCount)
+            {
+                valueToString(args[argIndex++], result);
             }
             i++;
         }
@@ -55,50 +121,6 @@ Value native_write(Interpreter *vm, int argCount, Value *args)
     return Value::makeNil();
 }
 
-Value native_format(Interpreter *vm, int argCount, Value *args)
-{
-    if (argCount < 1 || !args[0].isString())
-    {
-        vm->runtimeError("format expects string as first argument");
-        return Value::makeNil();
-    }
-
-    const char *fmt = args[0].asString()->chars();
-    std::string result;
-    int argIndex = 1;
-
-    for (int i = 0; fmt[i] != '\0'; i++)
-    {
-        if (fmt[i] == '{' && fmt[i + 1] == '}')
-        {
-            // Substitui {}
-            if (argIndex < argCount)
-            {
-                // Converte Value para string
-                char buffer[64];
-                Value v = args[argIndex++];
-
-                if (v.isInt())
-                    snprintf(buffer, 64, "%ld", v.asInt());
-                else if (v.isDouble())
-                    snprintf(buffer, 64, "%.2f", v.asDouble());
-                else if (v.isString())
-                    snprintf(buffer, 64, "%s", v.asString()->chars());
-                else
-                    snprintf(buffer, 64, "<TODO>");
-
-                result += buffer;
-            }
-            i++; // salta '}'
-        }
-        else
-        {
-            result += fmt[i];
-        }
-    }
-
-    return Value::makeString(result.c_str());
-}
 
 Value native_sqrt(Interpreter *vm, int argCount, Value *args)
 {

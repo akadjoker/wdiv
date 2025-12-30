@@ -338,7 +338,8 @@ void Compiler::emitReturn() {
   emitByte(OP_RETURN);
 }
 
-void Compiler::emitConstant(Value value) {
+void Compiler::emitConstant(Value value) 
+{
   emitBytes(OP_CONSTANT, makeConstant(value));
 }
 
@@ -346,7 +347,6 @@ uint8 Compiler::makeConstant(Value value)
 {
 
 
-  
   int constant = currentChunk->addConstant(value);
   if (constant > UINT8_MAX) 
   {

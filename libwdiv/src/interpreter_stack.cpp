@@ -14,6 +14,12 @@ const char *valueTypeToString(ValueType type)
         return "bool";
     case ValueType::INT:
         return "int";
+    case ValueType::BYTE:
+        return "byte";
+    case ValueType::FLOAT:
+        return "float";
+    case ValueType::UINT:
+        return "uint";
     case ValueType::DOUBLE:
         return "float";
     case ValueType::STRING:

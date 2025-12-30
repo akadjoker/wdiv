@@ -1,0 +1,81 @@
+class Dog {
+    var name;
+    var age;
+    
+    def init(name, age) 
+    {
+        self.name = name;
+        self.age = age;
+        print("Dog created!");
+    }
+    
+    def speak() 
+    {
+        print(self.name);
+        print("barks");
+        return self;
+    }
+    
+    def grow(by) 
+    {
+        self.age = self.age + by;  
+        print(self.age);
+        print(by);
+        return self;
+    }
+ 
+}
+
+class Player {
+    var x;
+    var y;
+    var hp;
+    
+    def init(x, y) 
+    {
+        self.x = x;
+        self.y = y;
+        self.hp = 100;
+        print("init player");
+    }
+    
+    def move(dx, dy) 
+    {
+         print("move player");
+         print(dx);
+         print(dy);
+         self.x = self.x + 1;
+         self.y = self.y + 1;
+        return self;
+    }
+    
+    def damage(amount) 
+    {
+        print("damage player");
+        // self.hp = self.hp - amount;
+        // if (self.hp <= 0) 
+        // {
+        //     print("Player died!");
+        // }
+        return self;
+    }
+}
+
+// def a1(dog)
+// {
+//     dog.speak();
+// }
+
+ 
+var dog = Dog("Rex", 5);
+dog.speak();  // "Rex barks!"
+dog.grow(5).speak();  // Method chaining funciona!
+dog.speak();  // "Rex barks!"
+print(dog.name);
+
+// a1(dog);
+
+var player = Player(100, 100);
+player.move(10, 0).damage(20).move(0, 10);  // Method chaining!
+
+ 

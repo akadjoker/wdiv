@@ -3,4 +3,7 @@
 /bin/game
 /bin/main
 /bin/testStructs
+/bin/flixel
+/bin/tests
+
 .cache

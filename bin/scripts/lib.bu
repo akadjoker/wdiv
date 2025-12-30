@@ -1,0 +1,70 @@
+// stdlib.bu - BuLang Standard Library
+
+// === ARRAY UTILITIES ===
+
+def forEach(arr, callback) {
+    var i = 0;
+    while (i < arr.length()) {
+        callback(arr[i], i);
+        i = i + 1;
+    }
+}
+
+def map(arr, fn) {
+    var result = [];
+    var i = 0;
+    while (i < arr.length()) {
+        result.push(fn(arr[i], i));
+        i = i + 1;
+    }
+    return result;
+}
+
+def filter(arr, fn) {
+    var result = [];
+    var i = 0;
+    while (i < arr.length()) {
+        if (fn(arr[i], i)) {
+            result.push(arr[i]);
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+def reduce(arr, fn, initial) {
+    var acc = initial;
+    var i = 0;
+    while (i < arr.length()) {
+        acc = fn(acc, arr[i], i);
+        i = i + 1;
+    }
+    return acc;
+}
+
+def find(arr, fn) {
+    var i = 0;
+    while (i < arr.length()) {
+        if (fn(arr[i], i)) {
+            return arr[i];
+        }
+        i = i + 1;
+    }
+    return nil;
+}
+
+// === MATH ===
+
+def min(a, b) {
+    if (a < b) return a;
+    return b;
+}
+
+def max(a, b) {
+    if (a > b) return a;
+    return b;
+}
+
+def clamp(value, minVal, maxVal) {
+    return max(minVal, min(maxVal, value));
+}

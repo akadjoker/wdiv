@@ -21,6 +21,7 @@ void Code::freeze()
 
 int Code::addConstant(Value value)
 {
+    
     constants.push(value);
     return static_cast<int>(constants.size() - 1);
 }

@@ -60,13 +60,13 @@ const Value &Array::back() const
 
 Value &Array::operator[](size_t i)
 {
-   assert(i < count);
+ 
     return data[i];
 }
 
 const Value &Array::operator[](size_t i) const
 {
-   assert(i < count);
+ 
     return data[i];
 }
 

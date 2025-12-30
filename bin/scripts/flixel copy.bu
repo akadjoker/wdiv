@@ -1,0 +1,150 @@
+// ============================================
+// MINI PLATFORMER - Mouse Control
+// ============================================
+
+var WHITE = Color(255, 255, 255, 255);
+var BLACK = Color(0, 0, 0, 255);
+var RED = Color(255, 0, 0, 255);
+var GREEN = Color(0, 255, 0, 255);
+var BLUE = Color(0, 100, 255, 255);
+var GRAY = Color(100, 100, 100, 255);
+
+var GRAVITY = 0.5;
+var JUMP_FORCE = -12;
+
+// ============================================
+// PLAYER CLASS
+// ============================================
+class Player {
+    var x, y, vx, vy;
+    var width, height;
+    var grounded;
+    
+    def init(x, y) {
+        self.x = x;
+        self.y = y;
+        self.vx = 0;
+        self.vy = 0;
+        self.width = 32;
+        self.height = 48;
+        self.grounded = false;
+    }
+    
+    def update(platforms) {
+        // Mouse control: Click esquerda move, direita pula
+        var mouseX = GetMouseX();
+        
+        // Move em direção ao mouse
+        if (mouseX > self.x + 20) {
+            self.vx = 3;
+        } else if (mouseX < self.x - 20) {
+            self.vx = -3;
+        } else {
+            self.vx = 0;
+        }
+        
+        // Click direito = pulo
+        if (self.grounded && IsMouseButtonPressed(1)) {
+            self.vy = JUMP_FORCE;
+            self.grounded = false;
+        }
+        
+        // Gravidade
+        self.vy = self.vy + GRAVITY;
+        
+        // Move
+        self.x = self.x + self.vx;
+        self.y = self.y + self.vy;
+        
+        // Colisão com plataformas
+        self.grounded = false;
+        for (var i = 0; i < platforms.length(); i++) {
+            var plat = platforms[i];
+            if (self.checkCollision(plat)) {
+                if (self.vy > 0) {
+                    self.y = plat.y - self.height;
+                    self.vy = 0;
+                    self.grounded = true;
+                }
+            }
+        }
+        
+        // Limites
+        if (self.x < 0) { self.x = 0; }
+        if (self.x > 800 - self.width) { self.x = 800 - self.width; }
+        if (self.y > 450) { self.y = 100; }
+    }
+    
+    def checkCollision(plat) {
+        return self.x < plat.x + plat.width &&
+               self.x + self.width > plat.x &&
+               self.y < plat.y + plat.height &&
+               self.y + self.height > plat.y;
+    }
+    
+    def draw() {
+        DrawRectangle(self.x, self.y, self.width, self.height, GREEN);
+        DrawRectangle(self.x + 8, self.y + 12, 6, 6, BLACK);
+        DrawRectangle(self.x + 18, self.y + 12, 6, 6, BLACK);
+    }
+}
+
+// ============================================
+// PLATFORM CLASS
+// ============================================
+class Platform {
+    var x, y, width, height;
+    
+    def init(x, y, w, h) {
+        self.x = x;
+        self.y = y;
+        self.width = w;
+        self.height = h;
+    }
+    
+    def draw() {
+        DrawRectangle(self.x, self.y, self.width, self.height, GRAY);
+    }
+}
+
+// ============================================
+// GAME
+// ============================================
+
+InitWindow(800, 450, "BuLang Platformer - Mouse Control");
+SetTargetFPS(60);
+
+var player = Player(100, 100);
+
+var platforms = [];
+platforms.push(Platform(0, 400, 800, 50));
+platforms.push(Platform(200, 330, 150, 20));
+platforms.push(Platform(450, 260, 120, 20));
+platforms.push(Platform(150, 200, 100, 20));
+platforms.push(Platform(600, 180, 150, 20));
+
+while (!WindowShouldClose()) {
+    player.update(platforms);
+    
+    BeginDrawing();
+    ClearBackground(BLUE);
+    
+    for (var i = 0; i < platforms.length(); i++) {
+        platforms[i].draw();
+    }
+    
+    player.draw();
+    
+    // Mouse cursor
+    var mx = GetMouseX();
+    var my = GetMouseY();
+    DrawCircle(mx, my, 5, RED);
+    
+    DrawText("Move mouse to control player", 10, 10, 15, WHITE);
+    DrawText("Right click to jump!", 10, 30, 15, WHITE);
+    DrawFps(700, 10);
+    
+    EndDrawing();
+}
+
+CloseWindow();

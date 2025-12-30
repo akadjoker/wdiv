@@ -11,12 +11,14 @@
 #ifdef NDEBUG
 #define WDIV_ASSERT(condition, ...) ((void)0)
 #else
-#define WDIV_ASSERT(condition, ...)                                            \
-  do {                                                                         \
-    if (!(condition)) {                                                        \
-      Error("ASSERT FAILED: %s:%d: %s", __FILE__, __LINE__, #condition);       \
-      assert(false);                                                           \
-    }                                                                          \
+#define WDIV_ASSERT(condition, ...)                                      \
+  do                                                                     \
+  {                                                                      \
+    if (!(condition))                                                    \
+    {                                                                    \
+      Error("ASSERT FAILED: %s:%d: %s", __FILE__, __LINE__, #condition); \
+      assert(false);                                                     \
+    }                                                                    \
   } while (0)
 #endif
 
@@ -27,12 +29,15 @@ struct Process;
 class Interpreter;
 class Compiler;
 
-struct IntEq {
+struct IntEq
+{
   bool operator()(int a, int b) const { return a == b; }
 };
 
-struct StringEq {
-  bool operator()(String *a, String *b) const {
+struct StringEq
+{
+  bool operator()(String *a, String *b) const
+  {
     if (a == b)
       return true;
     if (a->length() != b->length())
@@ -41,11 +46,13 @@ struct StringEq {
   }
 };
 
-struct StringHasher {
+struct StringHasher
+{
   size_t operator()(String *x) const { return x->hash; }
 };
 
-enum class FieldType : uint8_t {
+enum class FieldType : uint8_t
+{
   BYTE,    // byte
   INT,     // int
   UINT,    // uint
@@ -67,19 +74,22 @@ typedef void (*NativeStructCtor)(Interpreter *vm, void *buffer, int argc,
                                  Value *args);
 typedef void (*NativeStructDtor)(Interpreter *vm, void *buffer);
 
-struct NativeProperty {
+struct NativeProperty
+{
   NativeGetter getter;
   NativeSetter setter; // null = read-only
 };
 
-struct NativeDef {
+struct NativeDef
+{
   String *name{nullptr};
   NativeFunction func;
   int arity{0};
   uint32 index{0};
 };
 
-struct Function {
+struct Function
+{
   int index;
   int arity{-1};
   Code *chunk{nullptr};
@@ -88,14 +98,16 @@ struct Function {
   ~Function();
 };
 
-struct StructDef {
+struct StructDef
+{
   int index;
   String *name;
   HashMap<String *, uint8, StringHasher, StringEq> names;
   uint8 argCount;
 };
 
-struct ClassDef {
+struct ClassDef
+{
   int index;
   String *name{nullptr};
   String *parent{nullptr};
@@ -111,7 +123,8 @@ struct ClassDef {
   ~ClassDef();
 };
 
-struct NativeClassDef {
+struct NativeClassDef
+{
   int index;
   String *name;
   NativeConstructor constructor;
@@ -125,19 +138,22 @@ struct NativeClassDef {
   int argCount; // Args do constructor
 };
 
-struct NativeInstance {
+struct NativeInstance
+{
   NativeClassDef *klass;
   void *userData; //  Ponteiro para struct C++
   int refCount;
 };
 
-struct NativeFieldDef {
+struct NativeFieldDef
+{
   size_t offset;
   FieldType type;
   bool readOnly;
 };
 
-struct NativeStructDef {
+struct NativeStructDef
+{
   String *name;
   size_t structSize;
   HashMap<String *, NativeFieldDef, StringHasher, StringEq> fields;
@@ -145,38 +161,44 @@ struct NativeStructDef {
   NativeStructDtor destructor;  // nullable
 };
 
-struct NativeStructInstance {
+struct NativeStructInstance
+{
   NativeStructDef *def;
   void *data; // Malloc'd block (structSize bytes)
 };
 
-struct GCObject {
+struct GCObject
+{
   int index;
   GCObject();
   void grab();
   void release();
 };
 
-struct StructInstance : public GCObject {
+struct StructInstance : public GCObject
+{
   StructDef *def;
   Vector<Value> values;
   StructInstance();
   ~StructInstance();
 };
 
-struct ArrayInstance : public GCObject {
+struct ArrayInstance : public GCObject
+{
   Vector<Value> values;
   ArrayInstance();
   ~ArrayInstance();
 };
 
-struct MapInstance : public GCObject {
+struct MapInstance : public GCObject
+{
   HashMap<String *, Value, StringHasher, StringEq> table;
   MapInstance();
   ~MapInstance();
 };
 
-struct ClassInstance : public GCObject {
+struct ClassInstance : public GCObject
+{
   ClassDef *klass;
 
   Vector<Value> fields;
@@ -186,21 +208,25 @@ struct ClassInstance : public GCObject {
   bool getMethod(String *name, Function **func);
 };
 
-struct CallFrame {
+struct CallFrame
+{
   Function *func{nullptr};
   uint8 *ip{nullptr};
   Value *slots{nullptr};
 };
 
-struct VMHooks {
+struct VMHooks
+{
   void (*onStart)(Process *p) = nullptr;
   void (*onUpdate)(Process *p, float dt) = nullptr;
   void (*onRender)(Process *p) = nullptr;
   void (*onDestroy)(Process *p, int exitCode) = nullptr;
 };
 
-struct FiberResult {
-  enum Reason : uint8 {
+struct FiberResult
+{
+  enum Reason : uint8
+  {
     FIBER_YIELD,   // yield N
     PROCESS_FRAME, // frame(N)
     FIBER_DONE,    // return/end
@@ -213,7 +239,8 @@ struct FiberResult {
   int framePercent; // Se PROCESS_FRAME
 };
 
-struct Fiber {
+struct Fiber
+{
 
   FiberState state; // Estado da FIBER (yield)
   float resumeTime; // Quando acorda (yield)
@@ -230,7 +257,8 @@ struct Fiber {
       : state(FiberState::DEAD), resumeTime(0), ip(nullptr), stackTop(stack),
         frameCount(0) {}
 };
-enum class PrivateIndex : uint8 {
+enum class PrivateIndex : uint8
+{
   X = 0,
   Y = 1,
   Z = 2,
@@ -243,7 +271,8 @@ enum class PrivateIndex : uint8 {
 
 };
 
-struct ProcessDef {
+struct ProcessDef
+{
   int index;
   Vector<uint8> argsNames;
   String *name{nullptr};
@@ -255,7 +284,8 @@ struct ProcessDef {
   void release();
 };
 
-struct Process {
+struct Process
+{
 
   String *name{nullptr};
   uint32 id;
@@ -278,7 +308,8 @@ struct Process {
   void finalize();
 };
 
-class Interpreter {
+class Interpreter
+{
 
   HashMap<String *, Function *, StringHasher, StringEq> functionsMap;
   HashMap<String *, ProcessDef *, StringHasher, StringEq> processesMap;
@@ -340,6 +371,9 @@ class Interpreter {
 
   friend class Compiler;
 
+  void dumpAllFunctions(FILE *f);
+  void dumpAllClasses(FILE *f);
+
 public:
   Interpreter();
   ~Interpreter();
@@ -347,6 +381,7 @@ public:
 
   int getProcessPrivateIndex(const char *name);
 
+  void dumpToFile(const char *filename);
   uint32 liveProcess();
 
   void setFileLoader(FileLoaderCallback loader, void *userdata = nullptr);
@@ -360,6 +395,7 @@ public:
                          NativeSetter setter = nullptr // null = read-only
   );
 
+  Value createNativeStruct(int structId, int argc, Value *args);
   NativeStructDef *registerNativeStruct(const char *name, size_t structSize,
                                         NativeStructCtor ctor = nullptr,
                                         NativeStructDtor dtor = nullptr);
@@ -411,6 +447,7 @@ public:
   Function *compile(const char *source);
   Function *compileExpression(const char *source);
   bool run(const char *source, bool dump = false);
+  bool compile(const char *source, bool dump  );
 
   void reset();
 

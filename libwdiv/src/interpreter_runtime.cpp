@@ -95,7 +95,30 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         Debug::disassembleInstruction(func->chunk, offset);
 #endif
 
+//    printf("[EXEC] opcode: %d at offset %ld\n", *ip, (long)(ip - func->chunk->code));
+   
         uint8 instruction = READ_BYTE();
+
+ 
+
+        // if (instruction > 57) 
+        // {  // Opcode inválido
+        //     printf("[ERROR] Invalid opcode %d!\n", instruction);
+        //     printf("  func: %s\n", func->name->chars());
+        //     printf("  ip offset: %ld\n", (long)(ip - func->chunk->code - 1));
+        //     printf("  chunk size: %d\n", func->chunk->count);
+            
+        //     // Printa últimos 10 opcodes
+        //     printf("  Last 10 opcodes:\n");
+        //     for (int i = -10; i < 0; i++) {
+        //         if (ip + i >= func->chunk->code) {
+        //             printf("    [%d]: %d\n", i, ip[i]);
+        //         }
+        //     }
+            
+        //     runtimeError("Unknown opcode %d", instruction);
+        //     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+        // }
 
         switch (instruction)
         {
@@ -107,7 +130,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             PUSH(constant);
             break;
         }
- 
 
         case OP_NIL:
             PUSH(Value::makeNil());
@@ -140,6 +162,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         case OP_GET_LOCAL:
         {
             uint8 slot = READ_BYTE();
+            
             PUSH(stackStart[slot]);
             break;
         }
@@ -204,17 +227,20 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             // ========== ARITHMETIC ==========
 
-              case OP_ADD:
+        // ============================================
+        // OP_ADD
+        // ============================================
+        case OP_ADD:
         {
             BINARY_OP_PREP();
 
+            // String concatenation
             if (a.isString() && b.isString())
             {
                 String *result = StringPool::instance().concat(a.asString(), b.asString());
                 PUSH(Value::makeString(result));
                 break;
             }
-
             if (a.isString() && b.isDouble())
             {
                 String *right = StringPool::instance().toString(b.asDouble());
@@ -230,153 +256,178 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 break;
             }
 
+            // Numeric operations
             if (a.isInt() && b.isInt())
             {
                 PUSH(Value::makeInt(a.asInt() + b.asInt()));
                 break;
             }
-
             if (a.isInt() && b.isDouble())
             {
-                PUSH(Value::makeInt(a.asInt() + b.asDouble()));
-                // PUSH(Value::makeDouble(a.asInt() + b.asDouble()));
+                PUSH(Value::makeDouble(a.asInt() + b.asDouble())); // ← FIX!
                 break;
             }
-
             if (a.isDouble() && b.isInt())
             {
                 PUSH(Value::makeDouble(a.asDouble() + b.asInt()));
                 break;
             }
-
-            double da, db;
-            if (!toNumberPair(a, b, da, db))
+            if (a.isDouble() && b.isDouble())
             {
-                runtimeError("Operands 'add' must be numbers or strings");
-                printf(" a: ");
-                printValue(a);
-                printf(" b: ");
-                printValue(b);
-                printf("\n");
-
-                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                PUSH(Value::makeDouble(a.asDouble() + b.asDouble()));
+                break;
             }
 
-            PUSH(Value::makeDouble(da + db));
-            break;
+            runtimeError("Operands must be numbers or strings");
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
 
+        // ============================================
+        // OP_SUBTRACT
+        // ============================================
         case OP_SUBTRACT:
         {
             BINARY_OP_PREP();
 
-            // Fast-path PRIMEIRO int - int -> int
             if (a.isInt() && b.isInt())
             {
                 PUSH(Value::makeInt(a.asInt() - b.asInt()));
                 break;
             }
-
-            // Só converte se necessário
-            double da, db;
-            if (!toNumberPair(a, b, da, db))
+            if (a.isInt() && b.isDouble())
             {
-                runtimeError("Operands must be numbers");
-                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                PUSH(Value::makeDouble(a.asInt() - b.asDouble())); // ← FIX!
+                break;
+            }
+            if (a.isDouble() && b.isInt())
+            {
+                PUSH(Value::makeDouble(a.asDouble() - b.asInt()));
+                break;
+            }
+            if (a.isDouble() && b.isDouble())
+            {
+                PUSH(Value::makeDouble(a.asDouble() - b.asDouble()));
+                break;
             }
 
-            PUSH(Value::makeDouble(da - db));
-            break;
+            runtimeError("Operands must be numbers");
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
 
+        // ============================================
+        // OP_MULTIPLY
+        // ============================================
         case OP_MULTIPLY:
         {
             BINARY_OP_PREP();
 
-            // Fast-path PRIMEIRO int - int -> int
             if (a.isInt() && b.isInt())
             {
                 PUSH(Value::makeInt(a.asInt() * b.asInt()));
                 break;
             }
-            double da, db;
-            if (!toNumberPair(a, b, da, db))
+            if (a.isInt() && b.isDouble())
             {
-                runtimeError("Operands must be numbers");
-                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                PUSH(Value::makeDouble(a.asInt() * b.asDouble())); // ← FIX!
+                break;
+            }
+            if (a.isDouble() && b.isInt())
+            {
+                PUSH(Value::makeDouble(a.asDouble() * b.asInt()));
+                break;
+            }
+            if (a.isDouble() && b.isDouble())
+            {
+                PUSH(Value::makeDouble(a.asDouble() * b.asDouble()));
+                break;
             }
 
-            PUSH(Value::makeDouble(da * db));
-            break;
+            runtimeError("Operands must be numbers");
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
 
+        // ============================================
+        // OP_DIVIDE
+        // ============================================
         case OP_DIVIDE:
         {
             BINARY_OP_PREP();
-            if (a.isInt() && b.isInt())
-            {
-                long valueB = b.asInt();
-                if (valueB == 0)
-                {
-                    runtimeError("Division by zero");
-                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                }
-                PUSH(Value::makeInt(a.asInt() / valueB));
-            }
-            else
-            {
 
-                double da, db;
-                if (!toNumberPair(a, b, da, db))
-                {
-                    runtimeError("Operands must be numbers");
-                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                }
-
-                if (db == 0.0)
-                {
-                    runtimeError("Division by zero");
-                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-                }
-
-                PUSH(Value::makeDouble(da / db));
-            }
-            break;
-        }
-
-            //===== MODULO =====
-
-        case OP_MODULO:
-        {
-            BINARY_OP_PREP();
-
-            // int % int  -> int
+            //  retorna double (divisão!)
             if (a.isInt() && b.isInt())
             {
                 if (b.asInt() == 0)
                 {
-                    runtimeError("Division by zero in modulo");
+                    runtimeError("Division by zero");
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                PUSH(Value::makeDouble((double)a.asInt() / b.asInt())); //  Double!
+                break;
+            }
+            if (a.isInt() && b.isDouble())
+            {
+                if (b.asDouble() == 0.0)
+                {
+                    runtimeError("Division by zero");
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                PUSH(Value::makeDouble(a.asInt() / b.asDouble()));
+                break;
+            }
+            if (a.isDouble() && b.isInt())
+            {
+                if (b.asInt() == 0)
+                {
+                    runtimeError("Division by zero");
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                PUSH(Value::makeDouble(a.asDouble() / b.asInt()));
+                break;
+            }
+            if (a.isDouble() && b.isDouble())
+            {
+                if (b.asDouble() == 0.0)
+                {
+                    runtimeError("Division by zero");
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                PUSH(Value::makeDouble(a.asDouble() / b.asDouble()));
+                break;
+            }
+
+            runtimeError("Operands must be numbers");
+            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+        }
+
+        // ============================================
+        // OP_MODULO
+        // ============================================
+        case OP_MODULO:
+        {
+            BINARY_OP_PREP();
+
+            if (a.isInt() && b.isInt())
+            {
+                if (b.asInt() == 0)
+                {
+                    runtimeError("Modulo by zero");
                     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                 }
                 PUSH(Value::makeInt(a.asInt() % b.asInt()));
                 break;
             }
 
-            // Double / int / double -> double (fmod)
-            double da, db;
-            if (!toNumberPair(a, b, da, db))
-            {
-                runtimeError("Operands must be numbers");
-                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-            }
+            // Para doubles, usa fmod
+            double da = a.isInt() ? a.asInt() : a.asDouble();
+            double db = b.isInt() ? b.asInt() : b.asDouble();
 
             if (db == 0.0)
             {
-                runtimeError("Division by zero in modulo");
+                runtimeError("Modulo by zero");
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
-            PUSH(Value::makeDouble(std::fmod(da, db)));
+            PUSH(Value::makeDouble(fmod(da, db)));
             break;
         }
 
@@ -393,9 +444,14 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             {
                 PUSH(Value::makeDouble(-a.asDouble()));
             }
+            else if (a.isBool())
+            {
+                PUSH(Value::makeBool(!a.asBool()));
+            }
             else
             {
-                runtimeError("Operand must be a number");
+                runtimeError("Operand 'NEGATE' must be a number");
+                printValueNl(a);
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
             break;
@@ -430,7 +486,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             double da, db;
             if (!toNumberPair(a, b, da, db))
             {
-                runtimeError("Operands must be numbers");
+                runtimeError("Operands '>' must be numbers");
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
 
@@ -445,7 +501,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             double da, db;
             if (!toNumberPair(a, b, da, db))
             {
-                runtimeError("Operands must be numbers");
+                runtimeError("Operands '>=' must be numbers");
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
             PUSH(Value::makeBool(da >= db));
@@ -459,7 +515,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             double da, db;
             if (!toNumberPair(a, b, da, db))
             {
-                runtimeError("Operands must be numbers");
+            
+                runtimeError("Operands '<' must be numbers");
+                printValueNl(a);
+                printValueNl(b);
+                
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
             PUSH(Value::makeBool(da < db));
@@ -472,7 +532,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             double da, db;
             if (!toNumberPair(a, b, da, db))
             {
-                runtimeError("Operands must be numbers");
+                runtimeError("Operands  '<=' must be numbers");
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
             PUSH(Value::makeBool(da <= db));
@@ -604,11 +664,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                 }
 
-               // Debug::dumpFunction(func);
+                // Debug::dumpFunction(func);
 
                 if (argCount != func->arity)
                 {
-                    runtimeError("Function %s expected %d arguments but got %d",func->name->chars(), func->arity, argCount);
+                    runtimeError("Function %s expected %d arguments but got %d", func->name->chars(), func->arity, argCount);
                     for (int i = 0; i < argCount; i++)
                     {
                         printValue(NPEEK(i));
@@ -626,7 +686,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 CallFrame *newFrame = &fiber->frames[fiber->frameCount++];
                 newFrame->func = func;
                 newFrame->ip = func->chunk->code;
-                newFrame->slots = fiber->stackTop - argCount -1; // Argumentos começam aqui
+                newFrame->slots = fiber->stackTop - argCount - 1; // Argumentos começam aqui
             }
             else if (callee.isNative())
             {
@@ -754,7 +814,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     instance->fields.push(Value::makeNil());
                 }
 
-             
                 // Substitui class por instance na stack
                 fiber->stackTop[-argCount - 1] = value;
 
@@ -865,7 +924,13 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
         case OP_RETURN:
         {
+
+            // printf("[DEBUG] OP_RETURN - frameCount: %d\n", fiber->frameCount);
+            // printf("[DEBUG] IP offset: %ld\n", (long)(ip - func->chunk->code));
+
             Value result = POP();
+
+            //printf("[DEBUG] Popped value type: %d\n", (int)result.type);
 
             fiber->frameCount--;
 
@@ -891,7 +956,8 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             //  Função nested - retorna para onde estava a chamada
             CallFrame *finished = &fiber->frames[fiber->frameCount];
-            
+            //printf("[DEBUG] finished->slots offset: %ld\n", finished->slots - fiber->stack);
+  
             //  printf("          ");
             //         for (Value *slot = fiber->stack; slot < fiber->stackTop; slot++)
             //         {
@@ -903,10 +969,15 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             fiber->stackTop = finished->slots;
             *fiber->stackTop++ = result;
-          //  fiber->stackTop[-1] = result;
-            //  fiber->stackTop[-1] = result;
 
+           //   printf("[DEBUG] Before LOAD_FRAME, frameCount: %d\n", fiber->frameCount);
+  
             LOAD_FRAME();
+
+    //            printf("[DEBUG] After LOAD_FRAME:\n");
+    // printf("  - func: %s\n", func->name ? func->name->chars() : "NULL");
+    // printf("  - ip offset: %ld\n", (long)(ip - func->chunk->code));
+    // printf("  - next opcode: %d\n", *ip);
             break;
         }
 
@@ -1379,7 +1450,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 }
                 char *base = (char *)inst->data;
                 char *ptr = base + field.offset;
-                switch(field.type)
+                switch (field.type)
                 {
                 case FieldType::INT:
                     if (!value.isInt())
@@ -1465,7 +1536,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             const char *name = nameValue.asStringChars();
             Value receiver = NPEEK(argCount);
- 
+
 #define ARGS_CLEANUP() fiber->stackTop -= (argCount + 1)
 
             // === STRING METHODS ===
@@ -1728,8 +1799,13 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     }
                     Value item = PEEK();
                     arr->values.push(item);
+     
+    
                     ARGS_CLEANUP();
-                    PUSH(Value::makeNil());
+
+    
+    
+                    PUSH(receiver);
                     break;
                 }
                 else if (strcmp(name, "pop") == 0)
@@ -1744,7 +1820,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     {
                         Warning("Cannot pop from empty array");
                         ARGS_CLEANUP();
-                        PUSH(Value::makeNil());
+                        PUSH(receiver);
                         break;
                     }
                     else
@@ -1768,7 +1844,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     {
                         Warning("Cannot pop from empty array");
                         ARGS_CLEANUP();
-                        PUSH(Value::makeNil());
+                        PUSH(receiver);
                         break;
                     }
                     else
@@ -1800,7 +1876,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     }
                     arr->values.clear();
                     ARGS_CLEANUP();
-                    PUSH(Value::makeNil());
+                    PUSH(receiver);
                     break;
                 }
                 else
@@ -1955,7 +2031,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     CallFrame *newFrame = &currentFiber->frames[currentFiber->frameCount];
                     newFrame->func = method;
                     newFrame->ip = method->chunk->code;
-                    newFrame->slots = currentFiber->stackTop - argCount -1;
+                    newFrame->slots = currentFiber->stackTop - argCount - 1;
 
                     currentFiber->frameCount++;
 
@@ -2000,73 +2076,81 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
 
-case OP_SUPER_INVOKE: {
-    uint8_t ownerClassId = READ_BYTE();
-    uint8_t nameIdx = READ_BYTE();
-    uint8_t argCount = READ_BYTE();
-    
-    Value nameValue = func->chunk->constants[nameIdx];
-    String *methodName = nameValue.asString();
-    Value self = NPEEK(argCount);
-    
-    if (!self.isClassInstance()) {
-        runtimeError("'super' requires an instance");
-        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-    }
-    
-    ClassInstance *instance = self.asClassInstance();
-    ClassDef* ownerClass = classes[ownerClassId];
-    
-    // printf("[RUNTIME] super.%s: ownerClassId=%d (%s), super=%s\n",
-    //        methodName->chars(), ownerClassId,
-    //        ownerClass->name->chars(),
-    //        ownerClass->superclass ? ownerClass->superclass->name->chars() : "NULL");
-    
+        case OP_SUPER_INVOKE:
+        {
+            uint8_t ownerClassId = READ_BYTE();
+            uint8_t nameIdx = READ_BYTE();
+            uint8_t argCount = READ_BYTE();
 
-    
-    if (!ownerClass->superclass) {  // ← USA ownerClass!
-        runtimeError("Class has no superclass");
-        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-    }
-    
-    Function *method;
-    
-    // ✅ Caso especial para init()
-    if (strcmp(methodName->chars(), "init") == 0) {
-        method = ownerClass->superclass->constructor;  // ← USA ownerClass!
-        if (!method) {
-            runtimeError("Superclass has no init()");
-            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            Value nameValue = func->chunk->constants[nameIdx];
+            String *methodName = nameValue.asString();
+            Value self = NPEEK(argCount);
+
+            if (!self.isClassInstance())
+            {
+                runtimeError("'super' requires an instance");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            ClassInstance *instance = self.asClassInstance();
+            ClassDef *ownerClass = classes[ownerClassId];
+
+            // printf("[RUNTIME] super.%s: ownerClassId=%d (%s), super=%s\n",
+            //        methodName->chars(), ownerClassId,
+            //        ownerClass->name->chars(),
+            //        ownerClass->superclass ? ownerClass->superclass->name->chars() : "NULL");
+
+            if (!ownerClass->superclass)
+            { // ← USA ownerClass!
+                runtimeError("Class has no superclass");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            Function *method;
+
+       
+            if (strcmp(methodName->chars(), "init") == 0)
+            {
+                method = ownerClass->superclass->constructor; // ← USA ownerClass!
+                if (!method)
+                {
+                    runtimeError("Superclass has no init()");
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+            }
+            else
+            {
+                // Métodos normais
+                if (!ownerClass->superclass->methods.get(methodName, &method))
+                {
+                    runtimeError("Undefined method '%s'", methodName->chars());
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+            }
+
+            if (argCount != method->arity)
+            {
+                runtimeError("Method expects %d arguments, got %d",
+                             method->arity, argCount);
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            if (fiber->frameCount >= FRAMES_MAX)
+            {
+                runtimeError("Stack overflow");
+                return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+            }
+
+            CallFrame *newFrame = &fiber->frames[fiber->frameCount];
+            newFrame->func = method;
+            newFrame->ip = method->chunk->code;
+            newFrame->slots = fiber->stackTop - argCount - 1;
+            fiber->frameCount++;
+
+            STORE_FRAME();
+            LOAD_FRAME();
+            break;
         }
-    } else {
-        // Métodos normais
-        if (!ownerClass->superclass->methods.get(methodName, &method)) {
-            runtimeError("Undefined method '%s'", methodName->chars());
-            return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-        }
-    }
-    
-    if (argCount != method->arity) {
-        runtimeError("Method expects %d arguments, got %d",
-                     method->arity, argCount);
-        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-    }
-    
-    if (fiber->frameCount >= FRAMES_MAX) {
-        runtimeError("Stack overflow");
-        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
-    }
-    
-    CallFrame *newFrame = &fiber->frames[fiber->frameCount];
-    newFrame->func = method;
-    newFrame->ip = method->chunk->code;
-    newFrame->slots = fiber->stackTop - argCount - 1;
-    fiber->frameCount++;
-    
-    STORE_FRAME();
-    LOAD_FRAME();
-    break;
-}
 
         case OP_GOSUB:
         {
@@ -2089,6 +2173,7 @@ case OP_SUPER_INVOKE: {
         }
         case OP_DEFINE_ARRAY:
         {
+            
             uint8_t count = READ_BYTE();
             Value array = Value::makeArray();
             ArrayInstance *instance = array.asArray();
@@ -2286,6 +2371,7 @@ case OP_SUPER_INVOKE: {
         }
         default:
         {
+            Debug::dumpFunction(func);
             runtimeError("Unknown opcode %d", instruction);
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }

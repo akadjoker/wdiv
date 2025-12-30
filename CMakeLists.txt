@@ -22,6 +22,7 @@ add_subdirectory(libwdiv)
 add_subdirectory(main)
 add_subdirectory(game)
 add_subdirectory(tests)
+add_subdirectory(flixel)
 
 add_subdirectory(testStructs)
 add_subdirectory(testStructsBidings)

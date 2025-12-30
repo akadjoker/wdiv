@@ -4,19 +4,23 @@
 #include "opcode.hpp"
 #include <cstdio>
 
-void Debug::disassembleChunk(const Code &chunk, const char *name) {
+void Debug::disassembleChunk(const Code &chunk, const char *name)
+{
   printf("== %s ==\n", name);
 
-  for (size_t offset = 0; offset < chunk.count;) {
+  for (size_t offset = 0; offset < chunk.count;)
+  {
     offset = disassembleInstruction(chunk, offset);
   }
 }
 
-static bool hasBytes(const Code &chunk, size_t offset, size_t n) {
+static bool hasBytes(const Code &chunk, size_t offset, size_t n)
+{
   return offset + n < chunk.count; // offset + n is last index read
 }
 
-size_t Debug::disassembleInstruction(const Code &chunk, size_t offset) {
+size_t Debug::disassembleInstruction(const Code &chunk, size_t offset)
+{
   printf("%04zu ", offset);
 
   if (offset > 0 && chunk.lines[offset] == chunk.lines[offset - 1])
@@ -24,22 +28,24 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset) {
   else
     printf("%4d ", chunk.lines[offset]);
 
-  if (offset >= chunk.count) {
+  if (offset >= chunk.count)
+  {
     printf("<<out of bounds>>\n");
     return offset + 1;
   }
 
   uint8 instruction = chunk.code[offset];
 
-  switch (instruction) {
-  // -------- Literals --------
+  switch (instruction)
+  {
+    // -------- Literals --------
   case OP_CONSTANT:
-   {
-    uint16 constant = (chunk.code[offset + 1] << 8) | chunk.code[offset + 2];
-    printf("%-16s %5d '", "OP_CONSTANT", constant);
+  {
+    uint8_t constant = chunk.code[offset + 1]; // ← uint8!
+    printf("%-16s %4d '", "OP_CONSTANT", constant);
     printValue(chunk.constants[constant]);
     printf("'\n");
-    return offset + 3;
+    return offset + 2; // ← 2 bytes total!
   }
   case OP_NIL:
     return simpleInstruction("OP_NIL", offset);
@@ -118,6 +124,7 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset) {
     return byteInstruction("OP_GET_LOCAL", chunk, offset);
   case OP_SET_LOCAL:
     return byteInstruction("OP_SET_LOCAL", chunk, offset);
+    
 
   // Globals: operand é índice para constants (normalmente String)
   case OP_GET_GLOBAL:
@@ -144,9 +151,11 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset) {
   case OP_CALL:
     return byteInstruction("OP_CALL", chunk, offset);
 
-  case OP_CALL_NATIVE: {
+  case OP_CALL_NATIVE:
+  {
     // operands: nameIdx (constant) + argCount
-    if (!hasBytes(chunk, offset, 2)) {
+    if (!hasBytes(chunk, offset, 2))
+    {
       printf("OP_CALL_NATIVE <truncated>\n");
       return chunk.count;
     }
@@ -161,8 +170,10 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset) {
 
     return offset + 3;
   }
-  case OP_INVOKE: {
-    if (!hasBytes(chunk, offset, 2)) {
+  case OP_INVOKE:
+  {
+    if (!hasBytes(chunk, offset, 2))
+    {
       printf("OP_INVOKE <truncated>\n");
       return chunk.count;
     }
@@ -179,6 +190,28 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset) {
     return offset + 3;
   }
 
+
+  case OP_DEFINE_ARRAY:
+    return byteInstruction("OP_DEFINE_ARRAY", chunk, offset);
+
+  case OP_DEFINE_MAP:
+    return simpleInstruction("OP_DEFINE_MAP", offset);
+
+  case OP_DEFINE_STRUCT:
+    return byteInstruction("OP_DEFINE_STRUCT", chunk, offset);
+
+  case OP_GET_INDEX:
+    return simpleInstruction("OP_GET_INDEX", offset);
+
+  case OP_SET_INDEX:
+    return simpleInstruction("OP_SET_INDEX", offset);
+
+  case OP_INHERIT:
+    return simpleInstruction("OP_INHERIT", offset);
+
+  case OP_GET_SUPER:
+    return constantInstruction("OP_GET_SUPER", chunk, offset);
+
   case OP_RETURN:
     return simpleInstruction("OP_RETURN", offset);
   case OP_RETURN_NIL:
@@ -194,8 +227,10 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset) {
   case OP_PRINT:
     return simpleInstruction("OP_PRINT", offset);
 
-  case OP_SUPER_INVOKE: {
-    if (!hasBytes(chunk, offset, 2)) {
+  case OP_SUPER_INVOKE:
+  {
+    if (!hasBytes(chunk, offset, 2))
+    {
       printf("OP_INVOKE <truncated>\n");
       return chunk.count;
     }
@@ -233,14 +268,17 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset) {
   }
 }
 
-size_t Debug::simpleInstruction(const char *name, size_t offset) {
+size_t Debug::simpleInstruction(const char *name, size_t offset)
+{
   printf("%s\n", name);
   return offset + 1;
 }
 
 size_t Debug::constantInstruction(const char *name, const Code &chunk,
-                                  size_t offset) {
-  if (offset + 1 >= chunk.count) {
+                                  size_t offset)
+{
+  if (offset + 1 >= chunk.count)
+  {
     printf("%s <truncated>\n", name);
     return chunk.count;
   }
@@ -254,8 +292,10 @@ size_t Debug::constantInstruction(const char *name, const Code &chunk,
 
 // Para globals: tenta imprimir o nome (string) além do índice.
 size_t Debug::constantNameInstruction(const char *name, const Code &chunk,
-                                      size_t offset) {
-  if (offset + 1 >= chunk.count) {
+                                      size_t offset)
+{
+  if (offset + 1 >= chunk.count)
+  {
     printf("%s <truncated>\n", name);
     return chunk.count;
   }
@@ -269,8 +309,10 @@ size_t Debug::constantNameInstruction(const char *name, const Code &chunk,
 }
 
 size_t Debug::byteInstruction(const char *name, const Code &chunk,
-                              size_t offset) {
-  if (offset + 1 >= chunk.count) {
+                              size_t offset)
+{
+  if (offset + 1 >= chunk.count)
+  {
     printf("%s <truncated>\n", name);
     return chunk.count;
   }
@@ -281,8 +323,10 @@ size_t Debug::byteInstruction(const char *name, const Code &chunk,
 }
 
 size_t Debug::jumpInstruction(const char *name, int sign, const Code &chunk,
-                              size_t offset) {
-  if (offset + 2 >= chunk.count) {
+                              size_t offset)
+{
+  if (offset + 2 >= chunk.count)
+  {
     printf("%s <truncated>\n", name);
     return chunk.count;
   }
@@ -295,7 +339,8 @@ size_t Debug::jumpInstruction(const char *name, int sign, const Code &chunk,
   return offset + 3;
 }
 
-void Debug::dumpFunction(const Function *func) {
+void Debug::dumpFunction(const Function *func)
+{
   const char *name = (func->name && func->name->length() > 0)
                          ? func->name->chars()
                          : "<script>";
@@ -308,7 +353,8 @@ void Debug::dumpFunction(const Function *func) {
 
   // ---- CONSTANTS ----
   printf("Constants (%zu):\n", func->chunk->constants.size());
-  for (size_t i = 0; i < func->chunk->constants.size(); i++) {
+  for (size_t i = 0; i < func->chunk->constants.size(); i++)
+  {
     printf("%4zu = ", i);
     printValue(func->chunk->constants[i]);
     printf("\n");

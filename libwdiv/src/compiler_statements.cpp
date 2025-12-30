@@ -3,6 +3,7 @@
 #include "value.hpp"
 #include "opcode.hpp"
 #include "pool.hpp"
+#include "debug.hpp"
 
 // ============================================
 // STATEMENTS
@@ -149,7 +150,7 @@ void Compiler::expressionStatement()
 // ============================================
 // VARIABLES
 // ============================================
-
+ 
 void Compiler::varDeclaration()
 {
     do
@@ -162,6 +163,11 @@ void Compiler::varDeclaration()
         if (scopeDepth > 0)
         {
             declareVariable();
+
+            if (currentClass != nullptr && loopDepth_ >  1 && scopeDepth >1) 
+            {
+                Warning("Variable '%s' is declared inside loops in class methods.",nameToken.lexeme.c_str());
+            }
         }
 
         //  Se tem '=' e NÃO tem vírgula depois
@@ -292,6 +298,38 @@ void Compiler::handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssi
         emitBytes(getOp, (uint8)arg);
     }
 }
+// void Compiler::namedVariable(Token &name, bool canAssign) {
+//     uint8 getOp, setOp;
+//     int arg;
+    
+//     // // ✅ DEBUG
+//      bool isSelf = (strcmp(name.lexeme.c_str(), "self") == 0);
+//     // if (isSelf) {
+//     //     printf("\n[namedVariable] Processing 'self'\n");
+//     //     printf("  localCount=%d, scopeDepth=%d\n", localCount_, scopeDepth);
+//     // }
+    
+//     // === 2. Tenta LOCAL ===
+//     arg = resolveLocal(name);
+//     if (arg != -1) {
+//         // if (isSelf) {
+//         //    // printf("  → 'self' resolved as LOCAL[%d]\n", arg);
+//         // }
+//         getOp = OP_GET_LOCAL;
+//         setOp = OP_SET_LOCAL;
+//         handle_assignment(getOp, setOp, arg, canAssign);
+//         return;
+//     }
+    
+//     // === 3. É GLOBAL ===
+//     if (isSelf) {
+//         printf("  → 'self' NOT FOUND, using GLOBAL! ❌\n");
+//     }
+//     arg = identifierConstant(name);
+//     getOp = OP_GET_GLOBAL;
+//     setOp = OP_SET_GLOBAL;
+//     handle_assignment(getOp, setOp, arg, canAssign);
+// }
 void Compiler::namedVariable(Token &name, bool canAssign)
 {
     uint8 getOp, setOp;
@@ -426,6 +464,8 @@ int Compiler::resolveLocal(Token &name)
 
     return -1;
 }
+
+ 
 
 void Compiler::endScope()
 {
@@ -1775,18 +1815,15 @@ void Compiler::method(ClassDef *classDef)
         emitByte(OP_RETURN);
         function->hasReturn = true;
     }
-    else if (!function->hasReturn)
+    else if (!function->hasReturn) // sempre retorna ??
     {
-        emitByte(OP_NIL);
-        emitByte(OP_RETURN);
-        // Método normal sem return - retorna self ??
-        // emitReturn();
+            emitBytes(OP_GET_LOCAL, 0); // self
+            emitByte(OP_RETURN);
 
-        // emitBytes(OP_GET_LOCAL, 0); // self
-        // emitByte(OP_RETURN);
-        function->hasReturn = true;
+         function->hasReturn = true;
     }
 
+ 
     // ===== RESTAURA ESTADO =====
     this->function = enclosing;
     this->currentChunk = enclosingChunk;
