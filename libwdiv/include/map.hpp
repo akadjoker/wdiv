@@ -1,14 +1,16 @@
 #pragma once
 #include "config.hpp"
+#include <cassert>
+#include <cstring>
 
 template <typename K, typename V, typename Hasher, typename Eq>
 struct HashMap
 {
   enum State : uint8
   {
-    EMPTY,
-    FILLED,
-    TOMBSTONE
+    EMPTY = 0, // Explícito! memset garante isso
+    FILLED = 1,
+    TOMBSTONE = 2
   };
 
   struct Entry
@@ -23,13 +25,10 @@ struct HashMap
   size_t capacity = 0;
   size_t count = 0;
   size_t tombstones = 0;
- 
 
   static constexpr float MAX_LOAD = 0.75f;
 
-  HashMap()  {}
-
- 
+  HashMap() {}
 
   ~HashMap() { destroy(); }
 
@@ -38,7 +37,7 @@ struct HashMap
 
   void destroy()
   {
-    if (!entries )
+    if (!entries)
       return;
     aFree(entries);
     entries = nullptr;
@@ -94,12 +93,14 @@ struct HashMap
 
   void adjustCapacity(size_t newCap)
   {
+    // Garantir power-of-two para mask() funcionar
+    assert((newCap & (newCap - 1)) == 0 && "Capacity must be power of 2");
+
     Entry *old = entries;
     size_t oldCap = capacity;
 
-    // Aloca da arena
     entries = (Entry *)aAlloc(newCap * sizeof(Entry));
-    std::memset(entries, 0, newCap * sizeof(Entry)); // Inicializa como EMPTY
+    std::memset(entries, 0, newCap * sizeof(Entry)); // State = EMPTY = 0
 
     capacity = newCap;
     count = 0;
@@ -113,8 +114,7 @@ struct HashMap
         if (e->state == FILLED)
         {
           Entry *dst = findSlot(e->key, e->hash);
-          *dst = *e;
-          dst->state = FILLED;
+          std::memcpy(dst, e, sizeof(Entry)); // POD copy, mais rápido
           count++;
         }
       }
@@ -151,7 +151,7 @@ struct HashMap
     return isNew;
   }
 
-  bool set_get(const K &key, const V &value, V* out )
+  bool set_move(const K &key, V &&value)
   {
     maybeGrow();
     size_t h = Hasher{}(key);
@@ -167,7 +167,27 @@ struct HashMap
       e->state = FILLED;
       count++;
     }
-    if(!isNew)
+    e->value = value;
+    return isNew;
+  }
+
+  bool set_get(const K &key, const V &value, V *out)
+  {
+    maybeGrow();
+    size_t h = Hasher{}(key);
+    Entry *e = findSlot(key, h);
+
+    bool isNew = (e->state != FILLED);
+    if (isNew)
+    {
+      if (e->state == TOMBSTONE)
+        tombstones--;
+      e->key = key;
+      e->hash = h;
+      e->state = FILLED;
+      count++;
+    }
+    else
     {
       *out = e->value;
     }
@@ -187,7 +207,37 @@ struct HashMap
     return true;
   }
 
-    bool exist(const K &key) const
+  V *getPtr(const K &key)
+  {
+    if (count == 0)
+      return nullptr;
+    size_t h = Hasher{}(key);
+    Entry *e = findFilled(key, h);
+    if (!e)
+      return nullptr;
+    return &e->value;
+  }
+
+  const V *getPtr(const K &key) const
+  {
+    if (count == 0)
+      return nullptr;
+    size_t h = Hasher{}(key);
+    Entry *e = findFilled(key, h);
+    if (!e)
+      return nullptr;
+    return &e->value;
+  }
+
+  bool contains(const K &key) const
+  {
+    if (count == 0)
+      return false;
+    size_t h = Hasher{}(key);
+    return findFilled(key, h) != nullptr;
+  }
+
+  bool erase(const K &key)
   {
     if (count == 0)
       return false;
@@ -196,7 +246,27 @@ struct HashMap
     if (!e)
       return false;
 
+    e->state = TOMBSTONE;
+    count--;
+    tombstones++;
     return true;
+  }
+
+  void clear()
+  {
+    if (entries)
+    {
+      std::memset(entries, 0, capacity * sizeof(Entry));
+      count = 0;
+      tombstones = 0;
+    }
+  }
+  bool exist(const K &key) const
+  {
+    if (count == 0)
+      return false;
+    size_t h = Hasher{}(key);
+    return findFilled(key, h) != nullptr;
   }
 
   template <typename Fn>
@@ -210,4 +280,128 @@ struct HashMap
       }
     }
   }
+
+  template <typename Fn>
+  void forEachWhile(Fn fn) const
+  {
+    for (size_t i = 0; i < capacity; i++)
+    {
+      if (entries[i].state == FILLED)
+      {
+        if (!fn(entries[i].key, entries[i].value))
+          break;
+      }
+    }
+  }
 };
+
+//******************************************************************************
+// Hasher/Eq para int
+
+// struct IntHasher {
+//     size_t operator()(int k) const { return static_cast<size_t>(k); }
+// };
+// struct IntEq {
+//     bool operator()(int a, int b) const { return a == b; }
+// };
+
+// void example_basic()
+// {
+//     HashMap<int, float, IntHasher, IntEq> scores;
+
+//     // Set valores
+//     scores.set(1, 100.0f);
+//     scores.set(2, 95.5f);
+//     scores.set(3, 87.3f);
+
+//     // Get valor
+//     float score;
+//     if (scores.get(2, &score)) {
+//         printf("Player 2 score: %.1f\n", score);
+//     }
+
+//     // Get pointer (sem cópia)
+//     float* ptr = scores.getPtr(1);
+//     if (ptr) {
+//         *ptr += 10.0f; // Modifica direto
+//     }
+
+//     // Iterar
+//     scores.forEach([](int id, float score) {
+//         printf("Player %d: %.1f\n", id, score);
+//     });
+
+//     scores.destroy();
+// }
+
+// void example_entity_components()
+// {
+//     struct Transform {
+//         float x, y, z;
+//         float rotX, rotY, rotZ;
+//     };
+
+//     struct EntityIDHasher {
+//         size_t operator()(uint64 id) const { return static_cast<size_t>(id); }
+//     };
+//     struct EntityIDEq {
+//         bool operator()(uint64 a, uint64 b) const { return a == b; }
+//     };
+
+//     HashMap<uint64, Transform, EntityIDHasher, EntityIDEq> transforms;
+
+//     // Adicionar componentes
+//     transforms.set(1001, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+//     transforms.set(1002, {10.0f, 5.0f, 3.0f, 0.0f, 90.0f, 0.0f});
+
+//     // Modificar direto via pointer
+//     Transform* t = transforms.getPtr(1001);
+//     if (t) {
+//         t->x += 1.0f;
+//         t->y += 0.5f;
+//     }
+
+//     // set_get - retorna valor antigo
+//     Transform oldTransform;
+//     bool existed = !transforms.set_get(1001, {5.0f, 5.0f, 5.0f, 0, 0, 0}, &oldTransform);
+//     if (existed) {
+//         printf("Old position: %.1f, %.1f, %.1f\n", oldTransform.x, oldTransform.y, oldTransform.z);
+//     }
+
+//     transforms.destroy();
+// }
+
+// void example_string_to_int()
+// {
+//     struct StrHasher {
+//         size_t operator()(const char* str) const {
+//             uint64 hash = 0xcbf29ce484222325ULL;
+//             while (*str) {
+//                 hash ^= static_cast<uint8>(*str++);
+//                 hash *= 0x100000001b3ULL;
+//             }
+//             return static_cast<size_t>(hash);
+//         }
+//     };
+//     struct StrEq {
+//         bool operator()(const char* a, const char* b) const {
+//             return strcmp(a, b) == 0;
+//         }
+//     };
+
+//     HashMap<const char*, int, StrHasher, StrEq> nameToID;
+
+//     nameToID.set("player", 1);
+//     nameToID.set("enemy", 2);
+//     nameToID.set("boss", 3);
+
+//     int id;
+//     if (nameToID.get("boss", &id)) {
+//         printf("Boss ID: %d\n", id);
+//     }
+
+//     // Remover
+//     nameToID.erase("enemy");
+
+//     nameToID.destroy();
+// }
