@@ -17,7 +17,19 @@ void Compiler::number(bool canAssign)
     (void)canAssign;
     if (previous.type == TOKEN_INT)
     {
-        int value = std::atoi(previous.lexeme.c_str());
+        int value;
+        const char *str = previous.lexeme.c_str();
+
+        // Verifica se é hex (0xFF, 0x1A)
+        if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
+        {
+            value = strtol(str, nullptr, 16); // Base 16!
+        }
+        else
+        {
+            value = std::atoi(str); // Base 10
+        }
+
         emitConstant(Value::makeInt(value));
     }
     else
@@ -26,7 +38,6 @@ void Compiler::number(bool canAssign)
         emitConstant(Value::makeDouble(value));
     }
 }
-
 void Compiler::string(bool canAssign)
 {
     (void)canAssign;
@@ -178,7 +189,7 @@ void Compiler::arrayLiteral(bool canAssign)
 
 void Compiler::mapLiteral(bool canAssign)
 {
-    (void) canAssign;
+    (void)canAssign;
     // var m = {name: "Luis", age: 30};
 
     int count = 0;

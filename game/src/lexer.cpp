@@ -18,8 +18,8 @@ Lexer::Lexer(const std::string &src)
 }
 
 Lexer::Lexer(const char *src, size_t len)
- : source(src, len), start(0), current(0), line(1),
-       column(1),
+    : source(src, len), start(0), current(0), line(1),
+      column(1),
       tokenColumn(1),
       hasPendingError(false),
       pendingErrorMessage(""),
@@ -28,7 +28,6 @@ Lexer::Lexer(const char *src, size_t len)
 {
     initKeywords();
 }
-
 
 void Lexer::setPendingError(const std::string &message)
 {
@@ -347,10 +346,10 @@ Token Lexer::identifier()
     }
 
     // if (peek() == ':')
-	// {
+    // {
     //     printf("label\n");
-	// 	return makeToken(TOKEN_LABEL,text);
-	// }
+    // 	return makeToken(TOKEN_LABEL,text);
+    // }
 
     return makeToken(TOKEN_IDENTIFIER, text);
 }
@@ -543,4 +542,17 @@ void Lexer::printTokens(const std::vector<Token> &toks) const
     {
         std::cout << token.toString() << std::endl;
     }
+}
+
+int Lexer::readHexDigit()
+{
+
+    char c = peek();
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
+    return -1; // Inválido
 }

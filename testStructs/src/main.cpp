@@ -34,11 +34,11 @@ static void valueToString(const Value &v, std::string &out)
         out += buffer;
         break;
     case ValueType::FLOAT:
-        snprintf(buffer, 256, "%.2f", v.as.real);
+        snprintf(buffer, 256, "%.4f", v.as.real);
         out += buffer;
         break;
     case ValueType::DOUBLE:
-        snprintf(buffer, 256, "%.2f", v.as.number);
+        snprintf(buffer, 256, "%.4f", v.as.number);
         out += buffer;
         break;
     case ValueType::STRING:

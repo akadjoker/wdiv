@@ -482,10 +482,10 @@ void printValue(const Value &value)
         printf("%u", value.as.unsignedInteger);
         break;
     case ValueType::FLOAT:
-        printf("%f", value.as.real);
+        printf("%f.4f", value.as.real);
         break;
     case ValueType::DOUBLE:
-        printf("%f", value.as.number);
+        printf("%f.4f", value.as.number);
         break;
     case ValueType::STRING:
         printf("%s", value.as.string->chars());

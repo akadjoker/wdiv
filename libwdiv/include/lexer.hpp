@@ -48,6 +48,7 @@ private:
     void setPendingError(const std::string &message);
     void skipWhitespace();
 
+    int readHexDigit();
     Token makeToken(TokenType type, const std::string &lexeme);
     Token errorToken(const std::string &message);
 
