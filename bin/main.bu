@@ -1,55 +1,65 @@
 
 
-class Bullet
-{
-    var x,y;
-    def inti()
-    {
-        self.x=0;
-        self.y=0;
-    }
-    def say()
-    {
+// class Bullet
+// {
+//     var x,y;
+//     def inti()
+//     {
+//         self.x=0;
+//         self.y=0;
+//     }
+//     def say()
+//     {
 
-    }
-}
+//     }
+// }
 
-class Player
-{
-    var list;
-    def init()
-    {
-        self.list=[];
-        for(var i=0;i<40;i++)
-        {
-            self.list.push(Bullet());
-        }
-    }
-    def update()
-    {
-        var count=0;
-        for(var j=0;j<self.list.length();j++)
-        {
-            var bulletA=self.list[j];
-            for(var i=j+1;i<self.list.length();i++)
-            {
-                var bulletB=self.list[j];
+// class Player
+// {
+//     var list;
+//     def init()
+//     {
+//         self.list=[];
+//         for(var i=0;i<40;i++)
+//         {
+//             self.list.push(Bullet());
+//         }
+//     }
+//     def update()
+//     {
+//         var _exit=false;
+//         var count=0;
+//         for(var j=0;j<self.list.length();j++)
+//         {
+//             var bulletA=self.list[j];
+//             for(var i=j+1;i<self.list.length();i++)
+//             {
+//                 var bulletB=self.list[j];
 
-                if(count>=5)
-                {
-                    break;
-                }
-               // print(bulletA);
-               // print(bulletB);
-               bulletA.say();
-               bulletB.say();
+//                 if(count>=5)
+//                 {
+//                     print("byby");
+//                     _exit=true;
+//                     break;
+//                 }
+//                // print(bulletA);
+//                // print(bulletB);
+//                bulletA.say();
+//                bulletB.say();
+//                print(i);
 
-                count++;
-            }
-        }
-    }
-}
+//                 count++;
+//             }
+//             print(j);
+//             if(_exit)
+//             {
+//                 print("exit");
+//                 break;
+//             }
+//         }
+//     }
+// }
 
 
-var player = Player();
-player.update();
+// var player = Player();
+// player.update();

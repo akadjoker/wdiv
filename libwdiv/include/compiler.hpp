@@ -166,8 +166,10 @@ private:
   void beginLoop(int loopStart);
   void endLoop();
   void emitBreak();
+  void pushScope();
+  void popScope();
   void emitContinue();
-
+  int discardLocals(int depth);
   void breakStatement();
   void continueStatement();
 

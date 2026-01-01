@@ -27,10 +27,10 @@ GLOBAL FUNCTIONS
     0002    | OP_DEFINE_GLOBAL    0 'Bullet'
     0004   17 OP_CONSTANT         3 '<class 1>'
     0006    | OP_DEFINE_GLOBAL    2 'Player'
-    0008   54 OP_GET_GLOBAL       5 'Player'
+    0008   64 OP_GET_GLOBAL       5 'Player'
     0010    | OP_CALL             0
     0012    | OP_DEFINE_GLOBAL    4 'player'
-    0014   55 OP_GET_GLOBAL       6 'player'
+    0014   65 OP_GET_GLOBAL       6 'player'
     0016    | OP_INVOKE           7 'update' (0 args)
     0019    | OP_POP
     0020    | OP_NIL
@@ -148,107 +148,129 @@ CLASSES
         Arity: 0
         Has return: yes
 
-      Constants (21):
-        [0] = "count"
-        [1] = 0
-        [2] = "j"
-        [3] = 0
-        [4] = "list"
-        [5] = "length"
-        [6] = 1
-        [7] = "bulletA"
-        [8] = "list"
-        [9] = "i"
-        [10] = 1
-        [11] = "list"
-        [12] = "length"
-        [13] = 1
-        [14] = "bulletB"
-        [15] = "list"
-        [16] = 5
-        [17] = "say"
-        [18] = "bulletB"
+      Constants (23):
+        [0] = "_exit"
+        [1] = "count"
+        [2] = 0
+        [3] = "j"
+        [4] = 0
+        [5] = "list"
+        [6] = "length"
+        [7] = 1
+        [8] = "bulletA"
+        [9] = "list"
+        [10] = "i"
+        [11] = 1
+        [12] = "list"
+        [13] = "length"
+        [14] = 1
+        [15] = "bulletB"
+        [16] = "list"
+        [17] = 5
+        [18] = "byby"
         [19] = "say"
-        [20] = 1
+        [20] = "say"
+        [21] = 1
+        [22] = "exit"
 
       Bytecode:
-        0000   30 OP_CONSTANT         1 '0'
-        0002   31 OP_CONSTANT         3 '0'
-        0004    | OP_GET_LOCAL        2
-        0006    | OP_GET_LOCAL        0
-        0008    | OP_GET_PROPERTY     4 'list'
-        0010    | OP_INVOKE           5 'length' (0 args)
-        0013    | OP_LESS
-        0014    | OP_JUMP_IF_FALSE   14 -> 135
-        0017    | OP_POP
-        0018    | OP_JUMP            18 -> 35
-        0021    | OP_GET_LOCAL        2
-        0023    | OP_GET_LOCAL        2
-        0025    | OP_CONSTANT         6 '1'
-        0027    | OP_ADD
-        0028    | OP_SET_LOCAL        2
-        0030    | OP_POP
+        0000   30 OP_FALSE
+        0001   31 OP_CONSTANT         2 '0'
+        0003   32 OP_CONSTANT         4 '0'
+        0005    | OP_GET_LOCAL        3
+        0007    | OP_GET_LOCAL        0
+        0009    | OP_GET_PROPERTY     5 'list'
+        0011    | OP_INVOKE           6 'length' (0 args)
+        0014    | OP_LESS
+        0015    | OP_JUMP_IF_FALSE   15 -> 167
+        0018    | OP_POP
+        0019    | OP_JUMP            19 -> 36
+        0022    | OP_GET_LOCAL        3
+        0024    | OP_GET_LOCAL        3
+        0026    | OP_CONSTANT         7 '1'
+        0028    | OP_ADD
+        0029    | OP_SET_LOCAL        3
         0031    | OP_POP
-        0032    | OP_LOOP            32 -> 4
-        0035   33 OP_GET_LOCAL        0
-        0037    | OP_GET_PROPERTY     8 'list'
-        0039    | OP_GET_LOCAL        2
-        0041    | OP_GET_INDEX
-        0042   34 OP_GET_LOCAL        2
-        0044    | OP_CONSTANT        10 '1'
-        0046    | OP_ADD
-        0047    | OP_GET_LOCAL        4
-        0049    | OP_GET_LOCAL        0
-        0051    | OP_GET_PROPERTY    11 'list'
-        0053    | OP_INVOKE          12 'length' (0 args)
-        0056    | OP_LESS
-        0057    | OP_JUMP_IF_FALSE   57 -> 129
-        0060    | OP_POP
-        0061    | OP_JUMP            61 -> 78
-        0064    | OP_GET_LOCAL        4
-        0066    | OP_GET_LOCAL        4
-        0068    | OP_CONSTANT        13 '1'
-        0070    | OP_ADD
-        0071    | OP_SET_LOCAL        4
-        0073    | OP_POP
+        0032    | OP_POP
+        0033    | OP_LOOP            33 -> 5
+        0036   34 OP_GET_LOCAL        0
+        0038    | OP_GET_PROPERTY     9 'list'
+        0040    | OP_GET_LOCAL        3
+        0042    | OP_GET_INDEX
+        0043   35 OP_GET_LOCAL        3
+        0045    | OP_CONSTANT        11 '1'
+        0047    | OP_ADD
+        0048    | OP_GET_LOCAL        5
+        0050    | OP_GET_LOCAL        0
+        0052    | OP_GET_PROPERTY    12 'list'
+        0054    | OP_INVOKE          13 'length' (0 args)
+        0057    | OP_LESS
+        0058    | OP_JUMP_IF_FALSE   58 -> 141
+        0061    | OP_POP
+        0062    | OP_JUMP            62 -> 79
+        0065    | OP_GET_LOCAL        5
+        0067    | OP_GET_LOCAL        5
+        0069    | OP_CONSTANT        14 '1'
+        0071    | OP_ADD
+        0072    | OP_SET_LOCAL        5
         0074    | OP_POP
-        0075    | OP_LOOP            75 -> 47
-        0078   36 OP_GET_LOCAL        0
-        0080    | OP_GET_PROPERTY    15 'list'
-        0082    | OP_GET_LOCAL        2
-        0084    | OP_GET_INDEX
-        0085   38 OP_GET_LOCAL        1
-        0087    | OP_CONSTANT        16 '5'
-        0089    | OP_LESS
-        0090    | OP_NOT
-        0091    | OP_JUMP_IF_FALSE   91 -> 102
-        0094    | OP_POP
-        0095   40 OP_POP
-        0096    | OP_JUMP            96 -> 130
-        0099   41 OP_JUMP            99 -> 103
+        0075    | OP_POP
+        0076    | OP_LOOP            76 -> 48
+        0079   37 OP_GET_LOCAL        0
+        0081    | OP_GET_PROPERTY    16 'list'
+        0083    | OP_GET_LOCAL        3
+        0085    | OP_GET_INDEX
+        0086   39 OP_GET_LOCAL        2
+        0088    | OP_CONSTANT        17 '5'
+        0090    | OP_LESS
+        0091    | OP_NOT
+        0092    | OP_JUMP_IF_FALSE   92 -> 110
+        0095    | OP_POP
+        0096   41 OP_CONSTANT        18 'byby'
+        0098    | OP_PRINT
+        0099   42 OP_TRUE
+        0100    | OP_SET_LOCAL        1
         0102    | OP_POP
-        0103   44 OP_GET_LOCAL        3
-        0105    | OP_INVOKE          17 'say' (0 args)
-        0108    | OP_POP
-        0109   45 OP_GET_GLOBAL      18 'bulletB'
-        0111    | OP_INVOKE          19 'say' (0 args)
-        0114    | OP_POP
-        0115   47 OP_GET_LOCAL        1
-        0117    | OP_GET_LOCAL        1
-        0119    | OP_CONSTANT        20 '1'
-        0121    | OP_ADD
-        0122    | OP_SET_LOCAL        1
-        0124    | OP_POP
-        0125    | OP_POP
-        0126   48 OP_LOOP           126 -> 64
-        0129    | OP_POP
-        0130    | OP_POP
-        0131   49 OP_POP
-        0132    | OP_LOOP           132 -> 21
+        0103   43 OP_POP
+        0104    | OP_JUMP           104 -> 142
+        0107   44 OP_JUMP           107 -> 111
+        0110    | OP_POP
+        0111   47 OP_GET_LOCAL        4
+        0113    | OP_INVOKE          19 'say' (0 args)
+        0116    | OP_POP
+        0117   48 OP_GET_LOCAL        6
+        0119    | OP_INVOKE          20 'say' (0 args)
+        0122    | OP_POP
+        0123   49 OP_GET_LOCAL        5
+        0125    | OP_PRINT
+        0126   51 OP_GET_LOCAL        2
+        0128    | OP_GET_LOCAL        2
+        0130    | OP_CONSTANT        21 '1'
+        0132    | OP_ADD
+        0133    | OP_SET_LOCAL        2
         0135    | OP_POP
         0136    | OP_POP
-        0137   50 OP_GET_LOCAL        0
-        0139    | OP_RETURN
+        0137   52 OP_POP
+        0138    | OP_LOOP           138 -> 65
+        0141    | OP_POP
+        0142    | OP_POP
+        0143   53 OP_GET_LOCAL        3
+        0145    | OP_PRINT
+        0146   54 OP_GET_LOCAL        1
+        0148    | OP_JUMP_IF_FALSE  148 -> 162
+        0151    | OP_POP
+        0152   56 OP_CONSTANT        22 'exit'
+        0154    | OP_PRINT
+        0155   57 OP_POP
+        0156    | OP_JUMP           156 -> 168
+        0159   58 OP_JUMP           159 -> 163
+        0162    | OP_POP
+        0163   59 OP_POP
+        0164    | OP_LOOP           164 -> 22
+        0167    | OP_POP
+        0168    | OP_POP
+        0169   60 OP_GET_LOCAL        0
+        0171    | OP_RETURN
 
 
 

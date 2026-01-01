@@ -444,6 +444,14 @@ void Compiler::beginScope()
     scopeDepth++;
 }
 
+void Compiler::endScope()
+{
+
+    int popped = discardLocals(scopeDepth);
+    localCount_ -= popped;  
+    scopeDepth--;
+}
+
 int Compiler::resolveLocal(Token &name)
 {
     for (int i = localCount_ - 1; i >= 0; i--)
@@ -465,24 +473,12 @@ int Compiler::resolveLocal(Token &name)
 
  
 
-void Compiler::endScope()
-{
-    scopeDepth--;
-
-    while (localCount_ > 0 && locals_[localCount_ - 1].depth > scopeDepth)
-    {
-        emitByte(OP_POP);
-        localCount_--;
-    }
-}
-
 void Compiler::block()
 {
     while (!check(TOKEN_RBRACE) && !check(TOKEN_EOF))
     {
         declaration();
     }
-
     consume(TOKEN_RBRACE, "Expect '}' after block");
 }
 
@@ -573,6 +569,22 @@ void Compiler::endLoop()
     }
 }
 
+ 
+
+int Compiler::discardLocals(int depth)
+{
+    int local = localCount_ - 1;
+    while (local >= 0 && locals_[local].depth >= depth)
+    {
+        emitByte(OP_POP);
+        local--;
+    }
+    return localCount_ - local - 1;   
+}
+
+
+ 
+
 void Compiler::emitBreak()
 {
     if (loopDepth_ == 0)
@@ -580,14 +592,11 @@ void Compiler::emitBreak()
         error("Cannot use 'break' outside of a loop");
         return;
     }
+   
     LoopContext &ctx = loopContexts_[loopDepth_ - 1];
-
-    while (localCount_ > 0 && locals_[localCount_ - 1].depth > ctx.scopeDepth)
-    {
-        emitByte(OP_POP);
-        localCount_--;
-    }
-
+    
+    discardLocals(ctx.scopeDepth + 1); 
+    
     if (!ctx.addBreak(emitJump(OP_JUMP)))
     {
         error("Too many breaks");
@@ -603,11 +612,7 @@ void Compiler::emitContinue()
     }
     LoopContext &ctx = loopContexts_[loopDepth_ - 1];
 
-    while (localCount_ > 0 && locals_[localCount_ - 1].depth > ctx.scopeDepth)
-    {
-      //  emitByte(OP_POP);
-        localCount_--;
-    }
+    discardLocals(ctx.scopeDepth + 1);
 
     emitLoop(ctx.loopStart);
 }
@@ -1668,17 +1673,7 @@ void Compiler::classDeclaration()
         }
         classDef->inherited = true;
         classDef->parent = classSuper->name;
-
-     //   Warning(" class %s herdar  class %s", className.lexeme.c_str(), name);
         classDef->superclass = classSuper;
-
-        // //  COPIA MÉTODOS DO PARENT!
-        // classSuper->methods.forEach([&](String* methodName, Function* method)
-        // {
-
-        //     classDef->methods.set(methodName, method);
-        // });
-
         // //  Copia fieldCount também ( herdar fields ??)
         classSuper->fieldNames.forEach([&](String *fieldName, uint8_t index)
                                        {
@@ -1724,7 +1719,7 @@ void Compiler::classDeclaration()
 
     consume(TOKEN_RBRACE, "Expect '}'");
 
-    // emitByte(OP_POP); // Pop class
+ 
 
 
 

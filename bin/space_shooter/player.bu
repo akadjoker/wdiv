@@ -152,32 +152,35 @@ def shootSpread() {
     {
         return self.bullets.length();
     }
-def checkBulletCollisions(enemies) {
-    for (var i = 0; i < self.bullets.length(); i++) {
-        for (var j = 0; j < enemies.length(); j++) {
-            if (enemies[j].checkCollisionWithBullet(self.bullets[i])) {
-                self.bullets[i].active = false;
-                enemies[j].hit();
-                break;  // 
+// def checkBulletCollisions(enemies) {
+//     for (var i = 0; i < self.bullets.length(); i++) {
+//         for (var j = 0; j < enemies.length(); j++) {
+//             if (enemies[j].checkCollisionWithBullet(self.bullets[i])) {
+//                 self.bullets[i].active = false;
+//                 enemies[j].hit();
+//                 break;  // 
+//             }
+//         }
+//     }
+// }
+    def checkBulletCollisions(enemies) 
+    {
+        for (var i = 0; i < self.bullets.length(); i++) 
+        {
+            var bullet = self.bullets[i];
+            
+            for (var j = 0; j < enemies.length(); j++) 
+            {
+                var enemy = enemies[j];
+                
+                if (enemy.checkCollisionWithBullet(bullet)) 
+                {
+                    bullet.active = false;
+                    enemy.hit();
+                    
+                    break;         
+                }
             }
         }
     }
-}
-    // def checkBulletCollisions(enemies) {
-    // for (var i = 0; i < self.bullets.length(); i++) {
-    //     var bullet = self.bullets[i];
-    //     var hit = false;  // ← Flag
-        
-    //     for (var j = 0; j < enemies.length(); j++) {
-    //         var enemy = enemies[j];
-            
-    //         if (!hit && enemies[j].checkCollisionWithBullet(bullet)) {
-    //             bullet.active = false;
-    //             enemies[j].hit();
-    //             hit = true; 
-    //             break;         
-    //         }
-    //     }
-    // }
-    //}
 }
