@@ -41,9 +41,7 @@ void Compiler::statement()
     {
         includeStatement();
     }
-    else
-
-        if (check(TOKEN_IDENTIFIER) && peek(0).type == TOKEN_COLON)
+    else if (check(TOKEN_IDENTIFIER) && peek(0).type == TOKEN_COLON)
     {
         labelStatement();
     }
@@ -607,7 +605,7 @@ void Compiler::emitContinue()
 
     while (localCount_ > 0 && locals_[localCount_ - 1].depth > ctx.scopeDepth)
     {
-        emitByte(OP_POP);
+      //  emitByte(OP_POP);
         localCount_--;
     }
 
@@ -1727,6 +1725,10 @@ void Compiler::classDeclaration()
     consume(TOKEN_RBRACE, "Expect '}'");
 
     // emitByte(OP_POP); // Pop class
+
+
+
+//    Debug::dumpFunction(classDef->constructor);
 }
 
 void Compiler::method(ClassDef *classDef)
