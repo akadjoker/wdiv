@@ -7,6 +7,9 @@
 #include <cmath>
 #include <algorithm>
 
+#define PAK_MAGIC "IMBU"
+#define PAK_VERSION 1
+
 enum LayerMode : uint8
 {
     LAYER_MODE_TILEX = 1,    // 0001
@@ -85,6 +88,32 @@ struct Graph
     Rectangle clip;     // clip da textura (x, y, width, height)
     int id;             // id do graph
     char name[MAXNAME]; // nome do graph
+};
+
+struct PakHeader
+{
+    char magic[4];
+    int version;
+    int textureCount; // Texturas únicas
+    int graphCount;   // Graphs (podem reutilizar texturas)
+};
+
+// Metadata de cada textura no .pak (guardada UMA VEZ)
+struct PakTextureHeader
+{
+    char name[MAXNAME];
+    int width;
+    int height;
+    int size; // tamanho em bytes dos pixels (width * height * 4)
+};
+
+// Metadata de cada graph no .pak (referencia texture_id + clip)
+struct PakGraphHeader
+{
+    char name[MAXNAME];
+    int texture; // qual textura usa
+    float clip_x, clip_y, clip_w, clip_h;
+    int point_count; // número de pontos (hotspots)
 };
 
 struct CollisionInfo
@@ -184,14 +213,178 @@ struct Entity
     Entity *place_meeting(double x, double y);
     bool move_and_slide(Vector2 &velocity, float delta, Vector2 up_direction = {0, -1});
     bool move_and_collide(double vel_x, double vel_y, CollisionInfo *result);
+    bool tiles_move_and_slide(Vector2 &velocity, float delta, Vector2 up_direction);
     void moveBy(double x, double y);
     bool snap_to_floor(float snap_len, Vector2 up_direction, Vector2 &velocity);
+    bool collide_with_tiles(const Rectangle &box);
+    void move_topdown(Vector2 velocity, float dt);
 
     void setRectangleShape(int x, int y, int w, int h);
     void setCircleShape(float radius);
     void setShape(Vector2 *points, int n);
 };
 
+// Enums
+enum EmitterType
+{
+    EMITTER_CONTINUOUS,
+    EMITTER_ONESHOT
+};
+
+ 
+
+// ============================================================================
+// Particle Structure
+// ============================================================================
+struct Particle
+{
+    Vector2 pos = {0, 0};
+    Vector2 vel = {0, 0};
+    Vector2 acc = {0, 0}; // Aceleração (ex: gravidade)
+
+    Color color = WHITE;
+    Color startColor = WHITE;
+    Color endColor = WHITE;
+
+    float life = 0.0f;
+    float maxLife = 1.0f;
+
+    float size = 1.0f;
+    float startSize = 1.0f;
+    float endSize = 0.0f;
+
+    float rotation = 0.0f;
+    float angularVel = 0.0f;
+
+    bool alive = false;
+};
+
+// ============================================================================
+// Emitter Class
+// ============================================================================
+class Emitter
+{
+public:
+    // Configuração básica
+    EmitterType type;
+    int graph;
+    int layer;
+
+    Vector2 pos;
+    Vector2 dir;
+
+    // Parâmetros de emissão
+    float spread; // Cone de dispersão (radians)
+    float rate;   // Partículas por segundo
+    float speedMin;
+    float speedMax;
+    float particleLife;
+    float lifetime; // Duração do emitter (oneshot)
+
+    // Aparência
+    Color colorStart;
+    Color colorEnd;
+    float sizeStart;
+    float sizeEnd;
+
+    // Física
+    Vector2 gravity; // Aceleração constante
+    float drag;      // Resistência do ar (0-1)
+
+    // Rotação
+    float rotationMin;
+    float rotationMax;
+    float angularVelMin;
+    float angularVelMax;
+     Rectangle spawnZone;
+
+    // Rendering
+    BlendMode blendMode;
+
+    // Estado
+    bool active;
+    bool finished;
+
+    // Partículas
+    std::vector<Particle> particles;
+
+
+    // Setters convenientes
+    void setPosition(float x, float y) { pos = {x, y}; }
+    void setDirection(float x, float y) { dir = {x, y}; }
+    void setEmissionRate(float r) { rate = r; }
+    void setLife(float life) { particleLife = life; }
+    void setSpeedRange(float min, float max) { speedMin = min; speedMax = max; }
+    void setSpread(float radians) { spread = radians; }
+    void setColorCurve(Color start, Color end) { colorStart = start; colorEnd = end; }
+    void setSizeCurve(float start, float end) { sizeStart = start; sizeEnd = end; }
+    void setSpawnZone(float x, float y, float w, float h) { spawnZone = {x, y, w, h}; }
+    void setLifeTime(float time) { lifetime = time; }
+    void setGravity(float x, float y) { gravity = {x, y}; }
+    void setDrag(float d) { drag = d; }
+    void setRotationRange(float min, float max) { rotationMin = min; rotationMax = max; }
+    void setAngularVelRange(float min, float max) { angularVelMin = min; angularVelMax = max; }
+    void setBlendMode(BlendMode mode) { blendMode = mode; }
+    void setLayer(int l) { layer = l; }
+    
+    // Getters
+    int getAliveCount() const { return aliveCount; }
+    int getMaxParticles() const { return (int)particles.size(); }
+    bool isFinished() const { return finished; }
+    Vector2 getPosition() const { return pos; }
+
+
+private:
+    float elapsed;
+    float accumulator;
+    int aliveCount;
+    int firstDead;
+
+    void emit();
+    void emitAt(int index);
+
+public:
+    Emitter(EmitterType t, int gr, int maxParticles);
+    ~Emitter() = default;
+
+    void update(float dt);
+    void draw();
+
+    void burst(int count);
+    void stop();
+    void restart();
+
+ 
+};
+
+// ============================================================================
+// Particle System Manager
+// ============================================================================
+class ParticleSystem
+{
+private:
+    std::vector<Emitter *> emitters;
+
+public:
+    ParticleSystem();
+    ~ParticleSystem();
+
+    // Criação de emitters
+    Emitter *spawn(EmitterType type, int graph, int maxParticles = 100);
+
+    // Presets comuns
+    Emitter *createExplosion(Vector2 pos, int graph, Color color);
+    Emitter *createSmoke(Vector2 pos, int graph);
+    Emitter *createFire(Vector2 pos, int graph);
+    Emitter *createSparks(Vector2 pos, int graph, Color color);
+
+    void update(float dt);
+    void draw();
+    void clear();
+
+    int getEmitterCount() const { return (int)emitters.size(); }
+    int getTotalParticles() const;
+};
 struct QuadtreeNode
 {
     Rectangle bounds;
@@ -238,36 +431,36 @@ public:
     void query(Rectangle area, std::vector<Entity *> &result);
     void rebuild(Scene *scene);
 };
- 
+
 struct Tile
 {
-    uint16 id; // 0 = empty
-    bool solid;
-    uint8 shape_type; // 0=none, 1=rect, 2=circle
-    Rectangle rect;
-    float radius;
+    uint16 id;    // 0 = vazio
+    uint8 shape;  // 0=none, 1=rect, 2=circle (se quiseres no futuro)
+    uint8 solid;  // 0=false, 1=true
+    float radius; // usado se shape=circle
 };
 
- 
 class Tilemap
 {
 public:
     enum GridType
     {
         ORTHO = 0,
-        HEXAGON = 1
+        HEXAGON = 1,
+        ISOMETRIC = 2
     };
 
-    // Constructor/Destructor [web:25]
     Tilemap();
     ~Tilemap();
 
-    // Setup [web:25]
-    void init(int w, int h, int size,int graph);
-    void clear();
- 
+    void init(int w, int h, int tile_width, int tile_height, int graphId);
 
-    // Tile access (inline getters) [web:25]
+    // Configuração do tileset (Tiled: tilewidth, tileheight, spacing, margin, columns)
+    void setTilesetInfo(int tileWidth, int tileHeight,
+                        int spacing, int margin, int columns);
+
+    void clear();
+
     inline Tile *getTile(int gx, int gy)
     {
         if (gx < 0 || gx >= width || gy < 0 || gy >= height)
@@ -277,74 +470,60 @@ public:
 
     void setTile(int gx, int gy, const Tile &t);
 
-    // Coordinate conversion [web:26]
+    // Conversão de coordenadas
     Vector2 gridToWorld(int gx, int gy);
     void worldToGrid(Vector2 pos, int &gx, int &gy);
+    Rectangle GetTileRect(float x, float y);
 
-    // Paint operations [web:26]
+    // Pintura
     void paintRect(int cx, int cy, int radius, uint16 id);
     void paintCircle(int cx, int cy, float radius, uint16 id);
     void erase(int cx, int cy, int radius);
     void eraseCircle(int cx, int cy, float radius);
     void fill(int gx, int gy, uint16 id);
 
-    // Collision (grid-based broadphase) [web:20][web:23]
+    // Colisão
     void getCollidingTiles(Rectangle bounds, std::vector<Rectangle> &out);
     void getCollidingSolids(Rectangle bounds, std::vector<Rectangle> &out);
+
     inline bool isSolid(int gx, int gy)
     {
         Tile *t = getTile(gx, gy);
         return t && t->solid;
     }
 
-    // Render [web:26]
-    void render(Vector2 scroll);
-    void renderWithTexture(Vector2 scroll);
-    void renderGrid(Vector2 scroll);
+    // Render
+    void render();
+    void debug();
+    void renderGrid();
 
- 
+    // Save/Load
     bool save(const char *filename);
     bool load(const char *filename);
 
- 
-    int width, height;
-    int tile_size;
-    int tileset_id;
-    int spacing, margin;
-    int tileset_cols;
-    int graph;
-    GridType grid_type;
-
- 
-    int brush_id;
-    float brush_radius;
+    // Dados públicos (simples, estilo engine)
+    int width = 0;
+    int height = 0;
+    int tilewidth = 32; // tilewidth/tileheight (assumimos quadrado)
+    int tileheight = 32;
+    int tileset_id = 0; // id no GraphLib (se usares)
+    int spacing = 0;    // Tiled: spacing
+    int margin = 0;     // Tiled: margin
+    int columns = 1;    // Tiled: columns
+    int graph = -1;     // índice do Graph/atlas
+    float iso_compression = 0.5f;
+    GridType grid_type = ORTHO;
 
 private:
- 
-    Tile *tiles;
- 
- 
-};
-
-class TilemapEditor
-{
-public:
-    Tilemap *tilemap;
-    Vector2 scroll;
-
-    TilemapEditor();
-
-    void setTilemap(Tilemap *tm);
-    void update(Vector2 mouse_pos);
-    void handleInput();
-    void render();
+    Tile *tiles = nullptr;
 };
 
 struct Layer
 {
     std::vector<Entity *> nodes;
-    int front;  // -1 se não tem
-    int back;   // -1 se não tem
+    int front{-1}; // -1 se não tem
+    int back{-1};  // -1 se não tem
+    Tilemap *tilemap{nullptr};
     uint8 mode; // tilex, tiley, stretch x, stretch y
     Rectangle size;
     // Parallax/scroll
@@ -355,28 +534,6 @@ struct Layer
     void destroy();
     void render();
     void render_parelax(Graph *g);
-};
-
-struct MainCamera
-{
-    double x, y;               // Posição atual da camera
-    double target_x, target_y; // Alvo (normalmente o player)
-    double smoothness;         // 0.0 = instantâneo, 0.9 = muito suave
-    Rectangle bounds;          // Limites do mundo
-    bool use_bounds;
-
-    MainCamera()
-    {
-        x = y = 0;
-        target_x = target_y = 0;
-        smoothness = 0.1;
-        bounds = {0, 0, 0, 0};
-        use_bounds = false;
-    }
-
-    void setTarget(double tx, double ty);
-    void update(double deltaTime);
-    void setBounds(double minX, double minY, double maxX, double maxY);
 };
 
 struct Scene
@@ -410,13 +567,23 @@ struct Scene
 struct GraphLib
 {
     std::vector<Graph> graphs;
-    std::vector<Texture2D> textures; // grafico fica com o index da textura carregada
+    std::vector<Texture2D> textures;
     Texture2D defaultTexture;
 
+    // Carrega individual
     int load(const char *name, const char *texturePath);
     int loadAtlas(const char *name, const char *texturePath, int count_x, int count_y);
-    int addSubGraph(int id, const char *name, int x, int iy, int iw, int ih);
+    int addSubGraph(int parentId, const char *name, int x, int y, int w, int h);
+
+    bool savePak(const char *pakFile);
+    bool loadPak(const char *pakFile);
+
     Graph *getGraph(int id);
+    Texture2D *getTexture(int id);
+
+    int getGraphCount() const { return graphs.size(); }
+    int getTextureCount() const { return textures.size(); }
+
     void create();
     void destroy();
 };
@@ -435,43 +602,90 @@ enum PathAlgorithm
     PATH_DIJKSTRA
 };
 
+enum NodeState
+{
+    NS_UNVISITED = 0,
+    NS_OPEN,
+    NS_CLOSED
+};
+
 struct GridNode
 {
-    int walkable;
-    float f, g, h;
-    int opened; // 0=closed, 1=open, 2=closed
-    int parent_idx;
-    GridNode *next;
-    GridNode *prev;
+    float f = 0.0f;
+    float g = 0.0f;
+    float h = 0.0f;
+    int parent_idx = -1;
+    NodeState state = NS_UNVISITED;
+    int walkable = 1;
+};
+
+// Binary heap para open list (min-heap por f; tie-break por h)
+class OpenListHeap
+{
+private:
+    std::vector<int> heap; // indices de nós
+    std::vector<int> pos;  // pos[nodeIndex] = posição no heap, -1 se não está
+    GridNode *nodes = nullptr;
+
+    bool better(int a, int b) const;
+    void swapAt(int a, int b);
+    void bubbleUp(int idx);
+    void bubbleDown(int idx);
+
+public:
+    OpenListHeap(int size = 0);
+
+    void resize(int size);
+    void setNodes(GridNode *g);
+
+    bool empty() const;
+    void clear();
+
+    void push(int idx);
+    int pop();
+    void update(int idx);
+    bool contains(int idx) const;
 };
 
 class Mask
 {
 private:
-    GridNode *grid;
-    int width, height;
+    GridNode *grid = nullptr;
+    int width = 0;
+    int height = 0;
+    int resolution = 1;
+    OpenListHeap openList;
 
-    float manhattan(int dx, int dy);
-    float euclidean(int dx, int dy);
-    float octile(int dx, int dy);
-    float chebyshev(int dx, int dy);
+    static const int dx[8];
+    static const int dy[8];
 
-    float calcHeuristic(int dx, int dy, PathHeuristic heur, int diag);
+    float manhattan(int dx, int dy) const;
+    float euclidean(int dx, int dy) const;
+    float octile(int dx, int dy) const;
+    float chebyshev(int dx, int dy) const;
 
-    GridNode *node_add(GridNode *list, GridNode *node);
-    GridNode *node_remove(GridNode *list, GridNode *node);
+    float calcHeuristic(int dx, int dy, PathHeuristic heur, int diag) const;
+    bool isValidDiagonal(int cx, int cy, int nx, int ny) const;
 
 public:
-    Mask(int w, int h);
+    Mask(int w, int h, int res = 1);
     ~Mask();
 
     void setOccupied(int x, int y);
     void setFree(int x, int y);
-    bool isOccupied(int x, int y) const;
+    void clearAll();
+
+    bool isOccupied(int x, int y) const; // out-of-bounds = true
     bool isWalkable(int x, int y) const;
 
     int getWidth() const { return width; }
     int getHeight() const { return height; }
+    int getResolution() const { return resolution; }
+
+    // world ↔ grid
+    Vector2 worldToGrid(Vector2 pos) const;
+    Vector2 gridToWorld(Vector2 pos) const;
+    Vector2 gridToWorldFloat(float gx, float gy) const;
 
     void loadFromImage(const char *imagePath, int threshold = 128);
 
@@ -480,12 +694,52 @@ public:
                                   PathAlgorithm algo = PATH_ASTAR,
                                   PathHeuristic heur = PF_MANHATTAN);
 };
+
+struct SoundData
+{
+    Sound sound;
+    int id;
+    char name[MAXNAME];
+};
+
+struct SoundLib
+{
+
+    std::vector<SoundData> sounds;
+
+    int load(const char *name, const char *soundPath);
+
+    Sound *getSound(int id);
+    SoundData *getSoundData(int id);
+
+    // Play direto pelo ID
+    void play(int id, float volume = 1.0f, float pitch = 1.0f);
+    void stop(int id);
+    void pause(int id);
+    void resume(int id);
+
+    // Info
+    bool isSoundPlaying(int id);
+    int getSoundCount() const { return sounds.size(); }
+
+    // Cleanup
+    void destroy();
+};
+
 void InitScene();
 void DestroyScene();
 void RenderScene();
 void InitCollision(int x, int y, int width, int height, CollisionCallback onCollision);
 void UpdateCollision();
 void CheckCollisions();
+
+void InitSound();
+void DestroySound();
+void PlaySound(int id, float volume = 1.0f, float pitch = 1.0f);
+void StopSound(int id);
+void PauseSound(int id);
+void ResumeSound(int id);
+bool IsSoundPlaying(int id);
 
 Entity *CreateEntity(int graphId, int layer, double x, double y);
 void RemoveEntity(Entity *node);
@@ -497,8 +751,20 @@ void SetLayerScrollFactor(int layer, double x, double y);
 void SetLayerSize(int layer, int x, int y, int width, int height);
 void SetLayerBackGraph(int layer, int graph);
 void SetLayerFrontGraph(int layer, int graph);
+
+void SetTileMap(int layer, int map_width, int map_height, int tile_width, int tile_height, int columns, int graph);
+void SetTileMapSpacing(int layer, double spacing);
+void SetTileMapMargin(int layer, double margin);
+void SetTileMapMode(int layer, int mode);
+void SetTileMapIsoCompression(int layer, double compression);
+
+void SetTileMapTile(int layer, int x, int y, int tile, int solid = 1);
+int GetTileMapTile(int layer, int x, int y);
+
 void SetScroll(double x, double y);
 
 int LoadGraph(const char *name, const char *texturePath);
 int LoadAtlas(const char *name, const char *texturePath, int count_x, int count_y);
 int LoadSubGraph(int id, const char *name, int x, int iy, int iw, int ih);
+bool SaveGraphics(const char *name);
+bool LoadGraphics(const char *name);

@@ -2,88 +2,168 @@
 #include <cstdio>
 #include <algorithm>
 #include <cmath>
+ 
 
+ 
 extern GraphLib gGraphLib;
 extern Scene gScene;
 
+// ===================== Tilemap =====================
+
 Tilemap::Tilemap()
-    : tiles(nullptr), width(0), height(0), tile_size(32),
-      tileset_id(0), spacing(0), margin(0), tileset_cols(16),
-      grid_type(ORTHO), brush_id(1), brush_radius(1.0f),graph(-1)
- 
 {
-}
+    
+    
+};
 
 Tilemap::~Tilemap()
 {
-    if (tiles)
-        delete[] tiles;
-
-    
+   
+    delete[] tiles;
 }
 
-// Setup [web:26]
-void Tilemap::init(int w, int h, int size, int graph)
+void Tilemap::init(int w, int h, int tile_width, int tile_height, int graphId)
 {
-    if (tiles)
-        delete[] tiles;
+    delete[] tiles;
 
     width = w;
     height = h;
-    tile_size = size;
-    tiles = new Tile[w * h]{};
-    this->graph = graph;
+    tilewidth = tile_width;
+    tileheight= tile_height;
+    graph = graphId;
+    
+    tiles = new Tile[width * height]{};
+}
+
+ 
+
+
+void Tilemap::setTilesetInfo(int tileWidth, int tileHeight,
+                             int spacing_, int margin_, int columns)
+{
+ 
+   this->tilewidth = tileWidth;
+    this->tileheight = tileHeight;
+    spacing      = spacing_;
+    margin       = margin_;
+    columns = columns;
 }
 
 void Tilemap::clear()
 {
-    if (!tiles)
-        return;
-
+    if (!tiles) return;
     for (int i = 0; i < width * height; i++)
-        tiles[i] = {0, false, 0, {}, 0};
-}
- 
-void Tilemap::setTile(int gx, int gy, const Tile &t)
-{
-    if (gx >= 0 && gx < width && gy >= 0 && gy < height)
-        tiles[gy * width + gx] = t;
+        tiles[i] = Tile{0, 0, 0, 0.0f};
 }
 
+void Tilemap::setTile(int gx, int gy, const Tile& t)
+{
+    if (gx < 0 || gx >= width || gy < 0 || gy >= height)
+        return;
+    tiles[gy * width + gx] = t;
+}
+
+Rectangle Tilemap::GetTileRect(float x, float y)
+{
+    Rectangle r;
+    
+    x = fmaxf(0, fminf(x, width * tilewidth));
+    y = fmaxf(0, fminf(y, height * tileheight));
+
+    int px = x / tilewidth;
+    int py = y / tileheight;
+
  
+
+    float tileX = px  * tilewidth;
+    float tileY = py  * tileheight;
+    r.x = tileX;
+    r.y = tileY;
+    r.width  = tilewidth;
+    r.height = tileheight;
+    return r;
+ 
+}
+
 Vector2 Tilemap::gridToWorld(int gx, int gy)
 {
-    if (grid_type == ORTHO)
+    switch (grid_type)
     {
-        return {(float)gx * tile_size, (float)gy * tile_size};
+        case ORTHO:
+            return {
+                (float)gx * tilewidth,
+                (float)gy * tileheight
+            };
+
+        case HEXAGON: // point-top hex
+        {
+            float offset = (gy % 2) * (tilewidth * 0.5f);
+            return {
+                (float)gx * tilewidth + offset,
+                (float)gy * (tileheight * 0.75f)
+            };
+        }
+
+        case ISOMETRIC:
+        {
+             
+            float halfW = tilewidth * 0.5f;
+            float halfH = tileheight * 0.5f;
+
+            float x = (gx - gy) * halfW;
+            float y = (gx + gy) * halfH * iso_compression; // compressão vertical
+
+            return { x, y };
+        }
     }
-    else // HEXAGON
+
+    return {0,0};
+}
+
+
+void Tilemap::worldToGrid(Vector2 pos, int& gx, int& gy)
+{
+    switch (grid_type)
     {
-        float offset = (gy % 2) * (tile_size / 2.0f);
-        return {(float)gx * tile_size + offset, (float)gy * tile_size * 0.75f};
+        case ORTHO:
+            gx = (int)(pos.x / tilewidth);
+            gy = (int)(pos.y / tileheight);
+            return;
+
+        case HEXAGON: // point-top hex
+        {
+            gy = (int)(pos.y / (tileheight * 0.75f));
+            float offset = (gy % 2) * (tilewidth * 0.5f);
+            gx = (int)((pos.x - offset) / tilewidth);
+            return;
+        }
+
+        case ISOMETRIC:
+        {
+            float halfW = tilewidth * 0.5f;
+            float halfH = tileheight * 0.5f;
+
+            float gx_f = (pos.x / halfW + pos.y / (halfH * 0.5f)) * 0.5f;
+            float gy_f = (pos.y / (halfH * 0.5f) - pos.x / halfW) * 0.5f;
+
+            gx = (int)floor(gx_f);
+            gy = (int)floor(gy_f);
+            return;
+        }
     }
 }
 
-void Tilemap::worldToGrid(Vector2 pos, int &gx, int &gy)
-{
-    if (grid_type == ORTHO)
-    {
-        gx = (int)(pos.x / tile_size);
-        gy = (int)(pos.y / tile_size);
-    }
-    else // HEXAGON
-    {
-        gy = (int)(pos.y / (tile_size * 0.75f));
-        float offset = (gy % 2) * (tile_size / 2.0f);
-        gx = (int)((pos.x - offset) / tile_size);
-    }
-}
 
 void Tilemap::paintRect(int cx, int cy, int radius, uint16 id)
 {
     for (int dy = -radius; dy <= radius; dy++)
+    {
         for (int dx = -radius; dx <= radius; dx++)
-            setTile(cx + dx, cy + dy, {id, true, 0, {}, 0});
+        {
+            Tile t{ id, 1, 1, 0.0f }; // shape=rect, solid=1
+            setTile(cx + dx, cy + dy, t);
+        }
+    }
 }
 
 void Tilemap::paintCircle(int cx, int cy, float radius, uint16 id)
@@ -93,8 +173,11 @@ void Tilemap::paintCircle(int cx, int cy, float radius, uint16 id)
     {
         for (int dx = -r; dx <= r; dx++)
         {
-            if (dx * dx + dy * dy <= radius * radius)
-                setTile(cx + dx, cy + dy, {id, true, 0, {}, 0});
+            if (dx*dx + dy*dy <= radius*radius)
+            {
+                Tile t{ id, 2, 1, radius }; // shape=circle, solid=1
+                setTile(cx + dx, cy + dy, t);
+            }
         }
     }
 }
@@ -102,8 +185,12 @@ void Tilemap::paintCircle(int cx, int cy, float radius, uint16 id)
 void Tilemap::erase(int cx, int cy, int radius)
 {
     for (int dy = -radius; dy <= radius; dy++)
+    {
         for (int dx = -radius; dx <= radius; dx++)
-            setTile(cx + dx, cy + dy, {0, false, 0, {}, 0});
+        {
+            setTile(cx + dx, cy + dy, Tile{0, 0, 0, 0.0f});
+        }
+    }
 }
 
 void Tilemap::eraseCircle(int cx, int cy, float radius)
@@ -113,41 +200,34 @@ void Tilemap::eraseCircle(int cx, int cy, float radius)
     {
         for (int dx = -r; dx <= r; dx++)
         {
-            if (dx * dx + dy * dy <= radius * radius)
-                setTile(cx + dx, cy + dy, {0, false, 0, {}, 0});
+            if (dx*dx + dy*dy <= radius*radius)
+                setTile(cx + dx, cy + dy, Tile{0, 0, 0, 0.0f});
         }
     }
 }
 
 void Tilemap::fill(int gx, int gy, uint16 id)
 {
-    Tile *start = getTile(gx, gy);
-    if (!start)
-        return;
+    Tile* start = getTile(gx, gy);
+    if (!start) return;
 
     uint16 old_id = start->id;
-    if (old_id == id)
-        return;
+    if (old_id == id) return;
 
-    struct Coord
-    {
-        int x, y;
-    };
-
+    struct Coord { int x, y; };
     std::vector<Coord> stack;
     stack.reserve(256);
     stack.push_back({gx, gy});
 
     while (!stack.empty())
     {
-        Coord c = stack.back();  
+        Coord c = stack.back();
         stack.pop_back();
 
-        Tile *t = getTile(c.x, c.y);
-        if (!t || t->id != old_id)
-            continue;
+        Tile* t = getTile(c.x, c.y);
+        if (!t || t->id != old_id) continue;
 
-        setTile(c.x, c.y, {id, true, 0, {}, 0});
+        setTile(c.x, c.y, Tile{id, 1, 1, 0.0f});
 
         stack.push_back({c.x + 1, c.y});
         stack.push_back({c.x - 1, c.y});
@@ -156,317 +236,240 @@ void Tilemap::fill(int gx, int gy, uint16 id)
     }
 }
 
-void Tilemap::getCollidingTiles(Rectangle bounds, std::vector<Rectangle> &out)
+
+
+void Tilemap::render()
 {
-    int gx0, gy0, gx1, gy1;
-
-    worldToGrid({bounds.x, bounds.y}, gx0, gy0);
-    worldToGrid({bounds.x + bounds.width, bounds.y + bounds.height}, gx1, gy1);
-
-    // Clamp + margin [web:20]
-    gx0 = std::max(0, gx0 - 1);
-    gy0 = std::max(0, gy0 - 1);
-    gx1 = std::min(width - 1, gx1 + 1);
-    gy1 = std::min(height - 1, gy1 + 1);
-
-    for (int gy = gy0; gy <= gy1; gy++)
+    if (graph == -1)
     {
-        for (int gx = gx0; gx <= gx1; gx++)
-        {
-            Tile *t = getTile(gx, gy);
-            if (!t || t->id == 0)
-                continue;
-
-            Vector2 world = gridToWorld(gx, gy);
-            Rectangle tile_rect = {
-                world.x, world.y,
-                (float)tile_size, (float)tile_size};
-
-            if (CheckCollisionRecs(bounds, tile_rect))
-                out.push_back(tile_rect);
-        }
+        debug();
+        return;
     }
-}
 
-void Tilemap::getCollidingSolids(Rectangle bounds, std::vector<Rectangle> &out)
-{
-    int gx0, gy0, gx1, gy1;
-
-    worldToGrid({bounds.x, bounds.y}, gx0, gy0);
-    worldToGrid({bounds.x + bounds.width, bounds.y + bounds.height}, gx1, gy1);
-
-    gx0 = std::max(0, gx0 - 1);
-    gy0 = std::max(0, gy0 - 1);
-    gx1 = std::min(width - 1, gx1 + 1);
-    gy1 = std::min(height - 1, gy1 + 1);
-
-    for (int gy = gy0; gy <= gy1; gy++)
+    Graph* g = gGraphLib.getGraph(graph);
+    if (!g) 
     {
-        for (int gx = gx0; gx <= gx1; gx++)
-        {
-            Tile *t = getTile(gx, gy);
-            if (!t || t->id == 0 || !t->solid)
-                continue;
-
-            Vector2 world = gridToWorld(gx, gy);
-            Rectangle tile_rect = {
-                world.x, world.y,
-                (float)tile_size, (float)tile_size};
-
-            if (CheckCollisionRecs(bounds, tile_rect))
-                out.push_back(tile_rect);
-        }
+        printf("Graph not found: %d\n", graph);
+        debug();
+        return;
     }
-}
 
-void Tilemap::render(Vector2 scroll)
-{
-    int start_x = (int)(scroll.x / tile_size) - 1;
-    int start_y = (int)(scroll.y / tile_size) - 1;
-    int end_x = start_x + (GetScreenWidth() / tile_size) + 3;
-    int end_y = start_y + (GetScreenHeight() / tile_size) + 3;
+    Layer& l = gScene.layers[0];
+    float scroll_x = l.scroll_x;
+    float scroll_y = l.scroll_y;
+
+    int start_x = (int)(scroll_x / tilewidth) - 1;
+    int start_y = (int)(scroll_y / tileheight) - 1;
+    int end_x = start_x + (gScene.width / tilewidth) + 3;
+    int end_y = start_y + (gScene.height / tileheight) + 3;
+
+    // int start_x = 0;
+    // int start_y = 0;
+    // int end_x = width;
+    // int end_y = height;
+
+    Texture2D atlas = gGraphLib.textures[g->texture];
 
     for (int gy = start_y; gy < end_y; gy++)
     {
         for (int gx = start_x; gx < end_x; gx++)
         {
-            Tile *t = getTile(gx, gy);
-            if (!t || t->id == 0)
-                continue;
+            Tile* t = getTile(gx, gy);
+            if (!t || t->id == 0) continue;
 
             Vector2 world = gridToWorld(gx, gy);
-            float screen_x = world.x - scroll.x;
-            float screen_y = world.y - scroll.y;
+            float screen_x = (world.x - scroll_x);
+            float screen_y = (world.y - scroll_y);
+
+            int tile_id = t->id - 1;
+
+            // Tiled: tilewidth/tileheight/spacing/margin/columns
+            int atlas_x = margin + (tile_id % columns) * (tilewidth + spacing);
+            int atlas_y = margin + (tile_id / columns) * (tileheight + spacing);
+
+            Rectangle clip = {
+                (float)atlas_x,
+                (float)atlas_y,
+                (float)tilewidth,
+                (float)tileheight
+            };
+
+            RenderClipSize(
+                atlas,
+                screen_x, screen_y,
+                (float)tilewidth, (float)tileheight,
+                clip,
+                false, false,
+                WHITE,
+                0
+            );
+
+           
+        }
+    }
+    debug();
+}
+
+void Tilemap::debug()
+{
+    Layer& l = gScene.layers[0];
+    float scroll_x = l.scroll_x;
+    float scroll_y = l.scroll_y;
+
+    int start_x = (int)(scroll_x / tilewidth) - 1;
+    int start_y = (int)(scroll_y / tileheight) - 1;
+    int end_x = start_x + (gScene.width / tilewidth) + 3;
+    int end_y = start_y + (gScene.height / tileheight) + 3;
+
+    for (int gy = start_y; gy < end_y; gy++)
+    {
+        for (int gx = start_x; gx < end_x; gx++)
+        {
+            Tile* t = getTile(gx, gy);
+            if (!t || t->id == 0) continue;
+
+            Vector2 world = gridToWorld(gx, gy);
+            float screen_x = world.x - scroll_x;
+            float screen_y = world.y - scroll_y;
 
             DrawRectangleLines((int)screen_x, (int)screen_y,
-                               tile_size, tile_size, GRAY);
+                               tilewidth, tileheight, GRAY);
             DrawText(TextFormat("%d", t->id),
                      (int)screen_x + 4, (int)screen_y + 4, 10, WHITE);
         }
     }
 }
 
-void Tilemap::renderWithTexture(Vector2 scroll)
+void Tilemap::renderGrid()
 {
-    if (graph==-1)
-    {
-        render(scroll);
-        return;
-    }
+    int screen_w = gScene.width;
+    int screen_h = gScene.height;
 
-    Graph *g = gGraphLib.getGraph(graph);
-    if (!g)
-        return;
-    
-      
+    for (int x = 0; x < screen_w; x += tilewidth)
+        DrawLine(x, 0, x, screen_h, {50, 50, 50, 200});
 
-    int start_x = (int)(scroll.x / tile_size) - 1;
-    int start_y = (int)(scroll.y / tile_size) - 1;
-    int end_x = start_x + (GetScreenWidth() / tile_size) + 3;
-    int end_y = start_y + (GetScreenHeight() / tile_size) + 3;
-
-   for (int gy = start_y; gy < end_y; gy++)
-    {
-        for (int gx = start_x; gx < end_x; gx++)
-        {
-            Tile* t = getTile(gx, gy);
-            if (!t || t->id == 0) continue;
-            
-            // Posição mundo -> screen
-            Vector2 world = gridToWorld(gx, gy);
-            float screen_x = world.x - scroll.x;
-            float screen_y = world.y - scroll.y;
-            
-            // Calcula clip do tile no atlas
-            int tile_id = t->id - 1;
-            int atlas_x = (tile_id % tileset_cols) * (tile_size + spacing) + margin;
-            int atlas_y = (tile_id / tileset_cols) * (tile_size + spacing) + margin;
-            
-            Rectangle clip = {
-                (float)atlas_x,
-                (float)atlas_y,
-                (float)tile_size,
-                (float)tile_size
-            };
-            
- 
-            RenderClipSize(
-                atlas,
-                screen_x, screen_y,
-                (float)tile_size, (float)tile_size,
-                clip,
-                false, false,  // flip (podes adicionar por tile depois)
-                WHITE,
-                0  // blend mode
-            );
-        }
-    }
+    for (int y = 0; y < screen_h; y += tileheight)
+        DrawLine(0, y, screen_w, y, {50, 50, 50, 200});
 }
 
-void Tilemap::renderGrid(Vector2 scroll)
+bool Tilemap::save(const char* filename)
 {
-    int screen_w = GetScreenWidth();
-    int screen_h = GetScreenHeight();
-
-    for (int x = 0; x < screen_w; x += tile_size)
-        DrawLine(x, 0, x, screen_h, {50, 50, 50, 100});
-
-    for (int y = 0; y < screen_h; y += tile_size)
-        DrawLine(0, y, screen_w, y, {50, 50, 50, 100});
-}
-
-// Save/Load [web:26]
-bool Tilemap::save(const char *filename)
-{
-    FILE *f = fopen(filename, "wb");
-    if (!f)
-        return false;
+    FILE* f = fopen(filename, "wb");
+    if (!f) return false;
 
     fwrite(&width, sizeof(int), 1, f);
     fwrite(&height, sizeof(int), 1, f);
-    fwrite(&tile_size, sizeof(int), 1, f);
+    fwrite(&tilewidth, sizeof(int), 1, f);
+    fwrite(&tileheight, sizeof(int), 1, f);
     fwrite(&grid_type, sizeof(int), 1, f);
     fwrite(&graph, sizeof(int), 1, f);
+    fwrite(&spacing, sizeof(int), 1, f);
+    fwrite(&margin, sizeof(int), 1, f);
+    fwrite(&iso_compression, sizeof(float), 1, f);
+    fwrite(&columns, sizeof(int), 1, f);
     fwrite(tiles, sizeof(Tile), width * height, f);
 
     fclose(f);
-    printf("Tilemap saved: %s\n", filename);
     return true;
 }
 
-bool Tilemap::load(const char *filename)
+bool Tilemap::load(const char* filename)
 {
-    FILE *f = fopen(filename, "rb");
-    if (!f)
-        return false;
+    FILE* f = fopen(filename, "rb");
+    if (!f) return false;
 
-    int w, h, size, gt,graph;
+    int w, h, tile_w,tile_h, gt, graphId, spacing_, margin_, cols_;
+    float iso_compression_;
     fread(&w, sizeof(int), 1, f);
     fread(&h, sizeof(int), 1, f);
-    fread(&size, sizeof(int), 1, f);
+    fread(&tile_w, sizeof(int), 1, f);
+    fread(&tile_h, sizeof(int), 1, f);
     fread(&gt, sizeof(int), 1, f);
-    fread(&graph, sizeof(int), 1, f);
+    fread(&graphId, sizeof(int), 1, f);
+    fread(&spacing_, sizeof(int), 1, f);
+    fread(&margin_, sizeof(int), 1, f);
+    fread(&iso_compression_, sizeof(float), 1, f);
+    fread(&cols_, sizeof(int), 1, f);
 
-    init(w, h, size, graph);
+    init(w, h, tile_w, tile_h, graphId);
     grid_type = (GridType)gt;
+    spacing = spacing_;
+    margin = margin_;
+    columns = cols_;
+    iso_compression = iso_compression_;
+
     fread(tiles, sizeof(Tile), w * h, f);
 
     fclose(f);
-    printf("Tilemap loaded: %s\n", filename);
     return true;
 }
 
-// ============================================
-// TILEMAP EDITOR IMPLEMENTATION
-// ============================================
 
-TilemapEditor::TilemapEditor()
-    : tilemap(nullptr), scroll({0, 0})
+
+void SetTileMap(int layer, int map_width, int map_height, int tile_width, int tile_height, int columns, int graph)
 {
+    if (layer < 0 || layer >= MAX_LAYERS) return;
+    if (gScene.layers[layer].tilemap) delete gScene.layers[layer].tilemap;
+    gScene.layers[layer].tilemap = new Tilemap();
+    gScene.layers[layer].tilemap->init(map_width, map_height, tile_width, tile_height, graph);
+    gScene.layers[layer].tilemap->columns = columns;
+    gScene.layers[layer].tilemap->grid_type = Tilemap::GridType::ORTHO;
+    gScene.layers[layer].tilemap->spacing = 0;
+    gScene.layers[layer].tilemap->margin = 0;
+
 }
 
-void TilemapEditor::setTilemap(Tilemap *tm)
+void SetTileMapSpacing(int layer, double spacing)
 {
-    tilemap = tm;
+    if (layer < 0 || layer >= MAX_LAYERS) return;
+    if (!gScene.layers[layer].tilemap) return;
+    gScene.layers[layer].tilemap->spacing = spacing;
 }
 
-void TilemapEditor::update(Vector2 mouse_pos)
+void SetTileMapMargin(int layer, double margin)
 {
-    if (!tilemap)
-        return;
-
-    int gx, gy;
-    tilemap->worldToGrid({mouse_pos.x + scroll.x, mouse_pos.y + scroll.y}, gx, gy);
-
-    // PAINT RECT (LEFT)
-    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-    {
-        tilemap->paintRect(gx, gy, (int)tilemap->brush_radius, tilemap->brush_id);
-    }
-
-    // PAINT CIRCLE (MIDDLE)
-    if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE))
-    {
-        tilemap->paintCircle(gx, gy, tilemap->brush_radius, tilemap->brush_id);
-    }
-
-    // ERASE (RIGHT)
-    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
-    {
-        tilemap->eraseCircle(gx, gy, tilemap->brush_radius);
-    }
-
-    // FILL (F)
-    if (IsMouseButtonPressed(KEY_F))
-    {
-        tilemap->fill(gx, gy, tilemap->brush_id);
-    }
-
-    // SCROLL (BACK BUTTON)
-    if (IsMouseButtonDown(MOUSE_BUTTON_BACK))
-    {
-        scroll.x += GetMouseDelta().x;
-        scroll.y += GetMouseDelta().y;
-    }
+    if (layer < 0 || layer >= MAX_LAYERS) return;
+    if (!gScene.layers[layer].tilemap) return;
+    gScene.layers[layer].tilemap->margin = margin;
 }
 
-void TilemapEditor::handleInput()
+void SetTileMapMode(int layer, int mode)
 {
-    if (!tilemap)
-        return;
-
-    // Select ID (1-9)
-    for (int i = 1; i <= 9; i++)
-    {
-        if (IsKeyPressed(KEY_ZERO + i))
-            tilemap->brush_id = i;
-    }
-
-    // Brush size
-    if (IsKeyPressed(KEY_EQUAL))
-        tilemap->brush_radius += 0.5f;
-    if (IsKeyPressed(KEY_MINUS) && tilemap->brush_radius > 0.5f)
-        tilemap->brush_radius -= 0.5f;
-
-    // Toggle grid type
-    if (IsKeyPressed(KEY_G))
-    {
-        tilemap->grid_type = (Tilemap::GridType)(1 - tilemap->grid_type);
-    }
-
-    // Save
-    if (IsKeyPressed(KEY_S))
-    {
-        tilemap->save("tilemap.tm");
-    }
-
-    // Load
-    if (IsKeyPressed(KEY_L))
-    {
-        tilemap->load("tilemap.tm");
-    }
-
-    // Clear
-    if (IsKeyPressed(KEY_C) && IsKeyDown(KEY_LEFT_CONTROL))
-    {
-        tilemap->clear();
-    }
+    if (layer < 0 || layer >= MAX_LAYERS) return;
+    if (!gScene.layers[layer].tilemap) return;
+    gScene.layers[layer].tilemap->grid_type = (Tilemap::GridType)mode;
 }
 
-void TilemapEditor::render()
+void SetTileMapIsoCompression(int layer, double compression)
 {
-    if (!tilemap)
-        return;
+    if (layer < 0 || layer >= MAX_LAYERS) return;
+    if (!gScene.layers[layer].tilemap) return;
+    gScene.layers[layer].tilemap->iso_compression = compression;
+}
 
-    tilemap->render(scroll);
-    tilemap->renderGrid(scroll);
+void SetTileMapTile(int layer, int x, int y, int tile,int solid)
+{
+    if (layer < 0 || layer >= MAX_LAYERS) return;
+    if (!gScene.layers[layer].tilemap) return;
+    Tile* t = gScene.layers[layer].tilemap->getTile(x, y);
+    t->id = tile;
+    t->solid = solid;
+    gScene.layers[layer].tilemap->setTile(x, y, *t);
+}
 
-    // UI
-    DrawText(TextFormat("ID: %d (1-9)", tilemap->brush_id), 10, 10, 20, WHITE);
-    DrawText(TextFormat("Brush: %.1f (+-)", tilemap->brush_radius), 10, 35, 20, WHITE);
-    DrawText(TextFormat("Grid: %s (G)",
-                        tilemap->grid_type == Tilemap::ORTHO ? "ORTHO" : "HEX"),
-             10, 60, 20, WHITE);
-    DrawText("LEFT=Rect | MID=Circle | RIGHT=Erase | F=Fill", 10, 85, 16, GRAY);
-    DrawText("S=Save | L=Load | C+Ctrl=Clear", 10, 105, 16, GRAY);
+int GetTileMapTile(int layer, int x, int y)
+{
+    if (layer < 0 || layer >= MAX_LAYERS) return 0;
+    if (!gScene.layers[layer].tilemap) return 0;
+    Tile* t = gScene.layers[layer].tilemap->getTile(x, y);
+    if (!t) return 0;
+    return t->id;
+    return 0;
+}
+
+void SetTileMapColumns(int layer, int columns)
+{
+    if (layer < 0 || layer >= MAX_LAYERS) return;
+    if (!gScene.layers[layer].tilemap) return;
+    gScene.layers[layer].tilemap->columns = columns;
 }

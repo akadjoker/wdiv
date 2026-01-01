@@ -277,19 +277,19 @@ inline void RenderQuadUV(float x, float y, float w, float h,
     rlNormal3f(0.0f, 0.0f, 1.0f);
 
     // Top-right
-    rlTexCoord2f(uv_x2, uv_y1); // ← MUDOU: uv_y2
+    rlTexCoord2f(uv_x2, uv_y1);  
     rlVertex3f(x + w, y, 0.0f);
 
     // Top-left
-    rlTexCoord2f(uv_x1, uv_y1); // ← MUDOU: uv_y2
+    rlTexCoord2f(uv_x1, uv_y1);  
     rlVertex3f(x, y, 0.0f);
 
     // Bottom-left
-    rlTexCoord2f(uv_x1, uv_y2); // ← MUDOU: uv_y1
+    rlTexCoord2f(uv_x1, uv_y2);  
     rlVertex3f(x, y + h, 0.0f);
 
     // Bottom-right
-    rlTexCoord2f(uv_x2, uv_y2); // ← MUDOU: uv_y1
+    rlTexCoord2f(uv_x2, uv_y2); 
     rlVertex3f(x + w, y + h, 0.0f);
 
     rlEnd();

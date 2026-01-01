@@ -45,6 +45,8 @@ inline T Max(T a, T b)
 #define DEBUG_BREAK_IF(_CONDITION_)
 #endif
 
+
+
 inline size_t CalculateCapacityGrow(size_t capacity, size_t minCapacity)
 {
     if (capacity < minCapacity)

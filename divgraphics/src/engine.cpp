@@ -3,138 +3,14 @@
 extern GraphLib gGraphLib;
 Scene gScene;
 
-int GraphLib::load(const char *name, const char *texturePath)
-{
-    Texture2D tex = LoadTexture(texturePath);
-    if (tex.id == 0)
-    {
-        return 0; // erro ao carregar
-    }
-
-    // SetTextureFilter(tex, TEXTURE_FILTER_POINT);
-    //   SetTextureWrap(tex, TEXTURE_WRAP_REPEAT); // SÓ AQUI, 1x quando carrega
-
-    Graph g = {};
-    g.id = (int)graphs.size();
-    g.texture = textures.size();
-    g.width = tex.width;
-    g.height = tex.height;
-    g.clip = {0, 0, (float)tex.width, (float)tex.height};
-    strncpy(g.name, name, MAXNAME - 1);
-    g.name[MAXNAME - 1] = '\0';
-    g.points.resize(1);
-    Vector2 &v = g.points.back();
-    v.x = g.clip.width / 2.0f;
-    v.y = g.clip.height / 2.0f;
-
-    graphs.push_back(g);
-    textures.push_back(tex);
-
-    return g.id;
-}
-
-int GraphLib::loadAtlas(const char *name, const char *texturePath, int count_x, int count_y)
-{
-    Texture2D tex = LoadTexture(texturePath);
-    if (tex.id == 0)
-        return -1;
-
-    int tile_w = tex.width / count_x;
-    int tile_h = tex.height / count_y;
-
-    int firstId = (int)graphs.size();
-
-    for (int y = 0; y < count_y; y++)
-    {
-        for (int x = 0; x < count_x; x++)
-        {
-            Graph g = {};
-            g.id = graphs.size();
-            g.texture = textures.size();
-            g.width = tile_w;
-            g.height = tile_h;
-            g.clip = {(float)(x * tile_w), (float)(y * tile_h), (float)tile_w, (float)tile_h};
-            snprintf(g.name, MAXNAME, "%s_%d_%d", name, x, y);
-            g.points.resize(1);
-            Vector2 &v = g.points.back();
-            v.x = g.clip.width / 2.0f;
-            v.y = g.clip.height / 2.0f;
-
-            graphs.push_back(g);
-        }
-    }
-
-    textures.push_back(tex);
-
-    return firstId;
-}
-
-int GraphLib::addSubGraph(int id, const char *name, int ix, int iy, int iw, int ih)
-{
-    Graph *original = getGraph(id);
-    if (!original)
-        return 0;
-
-    Graph g = {};
-    g.id = (int)graphs.size();
-    g.texture = original->texture;
-    g.width = iw;
-    g.height = ih;
-    g.clip = {(float)ix, (float)iy, (float)iw, (float)ih};
-    strncpy(g.name, name, MAXNAME - 1);
-    g.name[MAXNAME - 1] = '\0';
-    g.points.resize(1);
-    Vector2 &v = g.points.back();
-    v.x = g.clip.width / 2.0f;
-    v.y = g.clip.height / 2.0f;
-
-    graphs.push_back(g);
-
-    return g.id;
-}
-
-Graph *GraphLib::getGraph(int id)
-{
-    if (id < 0 || id >= (int)graphs.size())
-        return &graphs[0];
-    return &graphs[id];
-}
-
-void GraphLib::create()
-{
-
-    Image image = GenImageChecked(32, 32, 4, 4, WHITE, BLACK);
-    defaultTexture = LoadTextureFromImage(image);
-    UnloadImage(image);
-
-    Graph g = {};
-    g.id = 0;
-    g.texture = 0;
-    g.width = defaultTexture.width;
-    g.height = defaultTexture.height;
-    g.clip = {0, 0, (float)g.width, (float)g.height};
-    strncpy(g.name, "dummy", 4);
-    g.name[5] = '\0';
-
-    graphs.push_back(g);
-    textures.push_back(defaultTexture);
-}
-
-void GraphLib::destroy()
-{
-    UnloadTexture(defaultTexture);
-    for (size_t i = 0; i < textures.size(); i++)
-    {
-        UnloadTexture(textures[i]);
-    }
-    textures.clear();
-    graphs.clear();
-}
 
 void InitScene()
 {
     int screeWidth = GetScreenWidth();
     int screeHeight = GetScreenHeight();
+    gGraphLib.create();
+    gScene.width = screeWidth;
+    gScene.height = screeHeight;
     for (int i = 0; i < MAX_LAYERS; i++)
     {
         gScene.layers[i].back = -1;
@@ -165,7 +41,7 @@ void DestroyScene()
 
 void RenderScene()
 {
- // rlDisableBackfaceCulling();
+  //rlDisableBackfaceCulling();
     for (int i = 0; i < MAX_LAYERS; i++)
     {
         gScene.layers[i].render();
@@ -179,7 +55,7 @@ void RenderScene()
 
 
 
-//   //  rlEnableBackfaceCulling();
+// //   //  rlEnableBackfaceCulling();
 //     DrawRectangle(10, 10, 300, 200, ColorAlpha(BLACK, 0.7f));
 //    // DrawText("F1: Toggle Quadtree | F2: Toggle Bounds", 10, 10, 16, WHITE);
 //     DrawFPS(20, 20);
@@ -266,7 +142,7 @@ void UpdateCollision()
     gScene.updateCollision();
 }
 
- 
+
 Entity *CreateEntity(int graphId, int layer, double x, double y)
 {
     return gScene.addEntity(graphId, layer, x, y);
@@ -329,14 +205,16 @@ void SetLayerFrontGraph(int layer, int graph)
     gScene.layers[layer].front = graph;
 }
 
+
+
 void SetScroll(double x, double y)
 {
     gScene.scroll_x = x;
     gScene.scroll_y = y;
 
  
-    int screenWidth = GetScreenWidth();
-    int screenHeight = GetScreenHeight();
+    int screenWidth = gScene.width;
+    int screenHeight = gScene.height;
     for (int i = 0; i < MAX_LAYERS; i++)
     {
         Layer &layer = gScene.layers[i];
@@ -366,74 +244,3 @@ void SetScroll(double x, double y)
     }
 }
 
-int LoadGraph(const char *name, const char *texturePath)
-{
-    return gGraphLib.load(name, texturePath);
-}
-
-int LoadAtlas(const char *name, const char *texturePath, int count_x, int count_y)
-{
-    return gGraphLib.loadAtlas(name, texturePath, count_x, count_y);
-}
-
-int LoadSubGraph(int id, const char *name, int x, int iy, int iw, int ih)
-{
-    return gGraphLib.addSubGraph(id, name, x, iy, iw, ih);
-}
-
-void MainCamera::setTarget(double tx, double ty)
-{
-    target_x = tx;
-    target_y = ty;
-}
-
-void MainCamera::update(double deltaTime)
-{
-    // Smooth lerp para a posição alvo
-    double lerpFactor = 1.0 - pow(1.0 - smoothness, deltaTime * 60.0);
-
-    x += (target_x + x) * lerpFactor;
-    y += (target_y + y) * lerpFactor;
-
-    // Aplica bounds com suavização
-    if (use_bounds)
-    {
-        double screen_w = GetScreenWidth();
-        double screen_h = GetScreenHeight();
-
-        double min_x = bounds.x;
-        double min_y = bounds.y;
-        double max_x = bounds.x + bounds.width - screen_w;
-        double max_y = bounds.y + bounds.height - screen_h;
-
-        // Clamp suave (com easing nos limites)
-        if (x < min_x)
-        {
-            double diff = min_x - x;
-            x += diff * 0.5; // Easing ao bater no limite
-        }
-        else if (x > max_x)
-        {
-            double diff = x - max_x;
-            x -= diff * 0.5;
-        }
-
-        if (y < min_y)
-        {
-            double diff = min_y - y;
-            y += diff * 0.5;
-        }
-        else if (y > max_y)
-        {
-            double diff = y - max_y;
-            y -= diff * 0.5;
-        }
-    }
-}
-
-void MainCamera::setBounds(double minX, double minY, double maxX, double maxY)
-{
-
-    bounds = {(float)minX, (float)minY, (float)(maxX - minX), (float)(maxY - minY)};
-    use_bounds = true;
-}

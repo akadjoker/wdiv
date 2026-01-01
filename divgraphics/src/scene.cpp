@@ -1,6 +1,8 @@
 #include "engine.hpp"
 #include "render.hpp"
+
 GraphLib gGraphLib;
+extern Scene gScene;
 
 Entity *Scene::addEntity(int graphId, int layer, double x, double y)
 {
@@ -74,7 +76,7 @@ void Scene::destroy()
         delete staticTree;
         staticTree = nullptr;
     }
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < MAX_LAYERS; i++)
         layers[i].destroy();
 }
 
@@ -86,6 +88,7 @@ void Scene::setCollisionCallback(CollisionCallback callback, void *userdata)
 }
 Scene::Scene()
 {
+
     width = GetScreenWidth();
     height = GetScreenHeight();
 
@@ -94,11 +97,12 @@ Scene::Scene()
     {
         layers[i].back = -1;
         layers[i].front = -1;
+        layers[i].tilemap=nullptr;
 
         layers[i].mode = LAYER_MODE_TILEX | LAYER_MODE_TILEY;
 
-        layers[i].size.width =  width;
-        layers[i].size.height =  height;
+        layers[i].size.width = width;
+        layers[i].size.height = height;
         layers[i].size.x = 0;
         layers[i].size.y = 0;
 
@@ -107,7 +111,6 @@ Scene::Scene()
         layers[i].scroll_factor_x = 1;
         layers[i].scroll_factor_y = 1;
     }
-        
 }
 
 Scene::~Scene()
@@ -122,6 +125,12 @@ void Layer::destroy()
         delete nodes[i];
     }
     nodes.clear();
+
+    if (tilemap)
+    {
+        delete tilemap;
+        tilemap = nullptr;
+    }
 }
 
 void Layer::render_parelax(Graph *g)
@@ -131,8 +140,8 @@ void Layer::render_parelax(Graph *g)
 
     Texture2D bg_texture = gGraphLib.textures[g->texture];
 
-    float screen_w = GetScreenWidth();
-    float screen_h = GetScreenHeight();
+    float screen_w = gScene.width;
+    float screen_h = gScene.height;
     float tex_w = (float)bg_texture.width;
     float tex_h = (float)bg_texture.height;
 
@@ -140,10 +149,31 @@ void Layer::render_parelax(Graph *g)
     float effective_scroll_x = (float)scroll_x * scroll_factor_x;
     float effective_scroll_y = (float)scroll_y * scroll_factor_y;
 
- 
+    //   printf("w %d %d\n",gScene.width,gScene.height);
 
     float uv_x1 = 0.0f, uv_y1 = 0.0f;
     float uv_x2 = 1.0f, uv_y2 = 1.0f;
+
+
+//     // --- WRAP AUTOMÁTICO (repeat) ---
+// if (mode & LAYER_MODE_TILEX)
+// {
+//     float span = uv_x2 - uv_x1;
+
+//     // Garante pelo menos 1 repetição horizontal
+//     if (span < 1.0f)
+//         uv_x2 = uv_x1 + 1.0f;
+// }
+
+// if (mode & LAYER_MODE_TILEY)
+// {
+//     float span = uv_y2 - uv_y1;
+
+//     // Garante pelo menos 1 repetição vertical
+//     if (span < 1.0f)
+//         uv_y2 = uv_y1 + 1.0f;
+// }
+
 
     if (mode & LAYER_MODE_TILEX)
     {
@@ -182,10 +212,29 @@ void Layer::render_parelax(Graph *g)
     if (mode & LAYER_MODE_FLIPY)
         std::swap(uv_y1, uv_y2);
 
-    //  SetTextureWrap(bg_texture, TEXTURE_WRAP_REPEAT);
+    Rectangle src = {
+        uv_x1 * tex_w,
+        uv_y1 * tex_h,
+        (uv_x2 - uv_x1) * tex_w,
+        (uv_y2 - uv_y1) * tex_h};
 
-    RenderQuadUV(0, 0, screen_w, screen_h,
-                 uv_x1, uv_y1, uv_x2, uv_y2, bg_texture);
+    Rectangle dst = {
+        0,
+        0,
+        screen_w,
+        screen_h};
+
+    // Desenhar
+    DrawTexturePro(
+        bg_texture,
+        src,
+        dst,
+        {0, 0},
+        0.0f,
+        WHITE);
+
+    // RenderQuadUV(0, 0, screen_w, screen_h,
+    //              uv_x1, uv_y1, uv_x2, uv_y2, bg_texture);
 
     // DrawTexture(bg_texture, 0, 0, WHITE);
 }
@@ -197,15 +246,14 @@ void Layer::render()
     {
 
         Graph *g = gGraphLib.getGraph(back);
-
-        if (!g)
-        {
-            // printf("Graph not found: %d\n", back);
-            return;
-        }
-
         render_parelax(g);
         // DrawRectangleLines(size.x, size.y, size.width, size.height, WHITE);
+    }
+
+
+    if(tilemap)
+    {
+        tilemap->render();
     }
 
     for (int i = 0; i < nodes.size(); i++)
@@ -220,10 +268,6 @@ void Layer::render()
     if (front != -1)
     {
         Graph *g = gGraphLib.getGraph(front);
-
-        if (!g)
-            return;
-
         render_parelax(g);
     }
 

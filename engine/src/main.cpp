@@ -16,6 +16,7 @@ int main()
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Physics2D - Features Demo");
     SetTargetFPS(30);
 
+    InitScene();
     GraphManager manager;
 
     // Simula texturas (100x80 para nave, 30x15 para arma)

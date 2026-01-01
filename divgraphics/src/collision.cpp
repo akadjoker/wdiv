@@ -42,6 +42,43 @@ static inline void ProjectPoly(const Vector2 *pts, int n, Vector2 axis, float &o
     }
 }
 
+static inline bool getAABBCollisionInfo(const Rectangle &a, const Rectangle &b,
+                                        Vector2 &normal, double &depth)
+{
+    // Centros
+    float ax = a.x + a.width * 0.5f;
+    float ay = a.y + a.height * 0.5f;
+    float bx = b.x + b.width * 0.5f;
+    float by = b.y + b.height * 0.5f;
+
+    // Distância entre centros
+    float dx = ax - bx;
+    float dy = ay - by;
+
+    // Overlap permitido
+    float px = (a.width + b.width) * 0.5f - fabsf(dx);
+    if (px <= 0)
+        return false;
+
+    float py = (a.height + b.height) * 0.5f - fabsf(dy);
+    if (py <= 0)
+        return false;
+
+    // Escolher o eixo de menor penetração (MTV)
+    if (px < py)
+    {
+        depth = px;
+        normal = {dx < 0 ? -1.0f : 1.0f, 0.0f};
+    }
+    else
+    {
+        depth = py;
+        normal = {0.0f, dy < 0 ? -1.0f : 1.0f};
+    }
+
+    return true;
+}
+
 static inline bool TestAxesFromPoly(const Vector2 *polyPts, int nPoly,
                                     const Vector2 *a, int na,
                                     const Vector2 *b, int nb,
@@ -661,359 +698,339 @@ bool Shape::collide(Shape *other, double x1, double y1, double a1, bool fx1, boo
 
     return checkCollision(this, x1, y1, a1, fx1, fy1, other, x2, y2, a2, fx2, fy2);
 }
-
-bool Entity::place_free(double x, double y)
+ 
+bool Entity::collide_with_tiles(const Rectangle& box)
 {
-    if (!shape)
-        return true;
-    if (!(flags & B_COLLISION))
-        return true;
-
-    // Salva posição original
-
-    // Move para a nova posicao
-    double old_x = this->x, old_y = this->y;
-    this->x = x;
-    this->y = y;
-    updateBounds();
-
-    // Query na quadtree
-    std::vector<Entity *> nearby;
-
-    gScene.staticTree->query(getBounds(), nearby);
-
-    // Adiciona dinâmicas também
-    for (Entity *dyn : gScene.dynamicEntities)
+    for (size_t layer = 0; layer < MAX_LAYERS; layer++)
     {
-        if (dyn != this)
-            nearby.push_back(dyn);
-    }
+        Tilemap* tm = gScene.layers[layer].tilemap;
+        if (!tm) continue;
 
-    bool free = true;
+        int gx0, gy0, gx1, gy1;
+        tm->worldToGrid({box.x, box.y}, gx0, gy0);
+        tm->worldToGrid({box.x + box.width, box.y + box.height}, gx1, gy1);
 
-    // Testa colisão com cada uma
-    for (Entity *other : nearby)
-    {
-        if (other == this)
-            continue;
-        if (!other->shape)
-            continue;
-        if (!(other->flags & B_COLLISION))
-            continue;
-        if (other->flags & B_DEAD)
-            continue;
+         gx0 = std::max(0, gx0 - 1);
+        gy0 = std::max(0, gy0 - 1);
+        gx1 = std::min(tm->width - 1, gx1 + 1);    
+        gy1 = std::min(tm->height - 1, gy1 + 1);  
+        
+        for (int gy = gy0; gy <= gy1; gy++) 
+            for (int gx = gx0; gx <= gx1; gx++)
+         {
+            Tile* t = tm->getTile(gx, gy);
+            if (!t || !t->solid) continue;
 
-        if (!this->canCollideWith(other))
-            continue;
+            Vector2 wp = tm->gridToWorld(gx, gy);
 
-        if (collide(other))
-        {
-            free = false;
-            break;
+            Rectangle tileRect = {
+                wp.x,
+                wp.y,
+                (float)tm->tilewidth,
+                (float)tm->tileheight
+            };
+
+           //  DrawRectangleLinesEx(tileRect, 1, RED);
+
+            if (CheckCollisionRecs(box, tileRect))
+                return true;
         }
     }
 
-    // Restaura posição
-    this->x = old_x;
-    this->y = old_y;
-    this->bounds_dirty = true;
-
-    return free;
-}
-
-Entity *Entity::place_meeting(double x, double y)
-{
-    if (!this->shape)
-        return nullptr;
-    if (!(this->flags & B_COLLISION))
-        return nullptr;
-
-    double old_x = this->x, old_y = this->y;
-    this->x = x;
-    this->y = y;
-    this->updateBounds();
-
-    std::vector<Entity *> nearby;
-    gScene.staticTree->query(this->getBounds(), nearby);
-
-    for (Entity *dyn : gScene.dynamicEntities)
-    {
-        if (dyn != this)
-            nearby.push_back(dyn);
-    }
-
-    Entity *hit = nullptr;
-
-    for (Entity *other : nearby)
-    {
-        if (other == this)
-            continue;
-        if (!other->shape)
-            continue;
-        if (!(other->flags & B_COLLISION))
-            continue;
-        if (other->flags & B_DEAD)
-            continue;
-
-        if (this->collide(other))
-        {
-            hit = other;
-            break;
-        }
-    }
-
-    this->x = old_x;
-    this->y = old_y;
-    this->bounds_dirty = true;
-
-    return hit;
-}
-bool Entity::move_and_collide(double vel_x, double vel_y, CollisionInfo *result)
-{
-    if (!shape || !(flags & B_COLLISION))
-    {
-        x += vel_x;
-        y += vel_y;
-        bounds_dirty = true;
-        return false;
-    }
-
-    const float SKIN = 0.05f;
-
-    // bounds antes do move (para broadphase)
-    updateBounds();
-    Rectangle startBounds = bounds;
-
-    // sweep AABB
-    Rectangle moveBounds = startBounds;
-    if (vel_x < 0)
-        moveBounds.x += (float)vel_x;
-    if (vel_y < 0)
-        moveBounds.y += (float)vel_y;
-    moveBounds.width += (float)fabs(vel_x);
-    moveBounds.height += (float)fabs(vel_y);
-
-    moveBounds.x -= 2;
-    moveBounds.y -= 2;
-    moveBounds.width += 4;
-    moveBounds.height += 4;
-
-    // candidatos 1x
-    std::vector<Entity *> nearby;
-    nearby.reserve(64);
-    gScene.staticTree->query(moveBounds, nearby);
-
-    for (Entity *dyn : gScene.dynamicEntities)
-    {
-        if (!dyn || dyn == this)
-            continue;
-        if (!dyn->shape || !(dyn->flags & B_COLLISION))
-            continue;
-        if (dyn->flags & B_DEAD)
-            continue;
-
-        if (dyn->bounds_dirty)
-            dyn->updateBounds();
-        if (CheckCollisionRecs(moveBounds, dyn->bounds))
-            nearby.push_back(dyn);
-    }
-
-    // move primeiro (como queres)
-    x += vel_x;
-    y += vel_y;
-    updateBounds();
-
-    auto CenterOf = [](const Rectangle &r) -> Vector2
-    {
-        return {r.x + r.width * 0.5f, r.y + r.height * 0.5f};
-    };
-
-    // escolhe melhor colisão (MTV = menor overlap)
-    bool hit = false;
-    double bestDepth = DBL_MAX;
-    Vector2 bestNormal = {0, 0};
-    Entity *bestOther = nullptr;
-
-    for (Entity *other : nearby)
-    {
-        if (!other || other == this)
-            continue;
-        if (!other->shape || !(other->flags & B_COLLISION))
-            continue;
-        if (other->flags & B_DEAD)
-            continue;
-        if (!canCollideWith(other))
-            continue;
-
-        Vector2 n = {0, 0};
-        double d = 0.0;
-
-        if (getSATCollisionInfo(shape, x, y, angle, flags & B_HMIRROR, flags & B_VMIRROR,
-                                other->shape, other->x, other->y, other->angle,
-                                other->flags & B_HMIRROR, other->flags & B_VMIRROR,
-                                n, d))
-        {
-            if (d <= 0.0)
-                continue;
-
-            if (!hit || d < bestDepth)
-            {
-                hit = true;
-                bestDepth = d;
-                bestNormal = n;
-                bestOther = other;
-            }
-        }
-    }
-
-    if (!hit)
-    {
-        bounds_dirty = true;
-        return false;
-    }
-
-    // orienta normal por centros dos bounds
-    Vector2 cThis = CenterOf(bounds);
-    if (bestOther->bounds_dirty)
-        bestOther->updateBounds();
-    Vector2 cOther = CenterOf(bestOther->bounds);
-
-    Vector2 dir = {cThis.x - cOther.x, cThis.y - cOther.y};
-    if (dir.x * bestNormal.x + dir.y * bestNormal.y < 0.0f)
-        bestNormal = {-bestNormal.x, -bestNormal.y};
-
-    // push out + skin
-    x += bestNormal.x * (bestDepth + SKIN);
-    y += bestNormal.y * (bestDepth + SKIN);
-    updateBounds();
-
-    if (result)
-    {
-        result->collider = bestOther;
-        result->normal = bestNormal;
-        result->depth = bestDepth;
-    }
-
-    return true;
-}
-bool Entity::snap_to_floor(float snap_len, Vector2 up_direction, Vector2& velocity)
-{
-    // Não snap se estás a saltar (movimento contra gravidade)
-    float vel_dot_up = velocity.x * up_direction.x + velocity.y * up_direction.y;
-    if (vel_dot_up < 0.0f) return false;  // subindo (contra up)
-
-    // Guarda posição (caso não seja chão)
-    double old_x = x, old_y = y;
-
-    CollisionInfo col;
-    // Tenta snap na direção da gravidade (oposto de up)
-    float snap_x = -up_direction.x * snap_len;
-    float snap_y = -up_direction.y * snap_len;
-    
-    if (move_and_collide(snap_x, snap_y, &col))
-    {
-        float dotUp = col.normal.x * up_direction.x + col.normal.y * up_direction.y;
-
-        // Só aceita se for "chão" (ângulo < ~45°)
-        if (dotUp > 0.7f)
-        {
-            on_floor = true;
-            on_wall = false;
-            on_ceiling = false;
-
-            // Zera componente que vai na direção da gravidade
-            if (vel_dot_up > 0.0f)
-            {
-                velocity.x -= up_direction.x * vel_dot_up;
-                velocity.y -= up_direction.y * vel_dot_up;
-            }
-
-            return true;
-        }
-    }
-
-    // Não era chão -> reverte
-    x = old_x;
-    y = old_y;
-    bounds_dirty = true;
     return false;
 }
 
-bool Entity::move_and_slide(Vector2 &velocity, float delta, Vector2 up_direction)
-{
-    on_floor = on_wall = on_ceiling = false;
+// bool Entity::collide_with_tiles(const Rectangle &box)
+// {
 
-    // Sem colisão/shape: move livre
-    if (!shape || !(flags & B_COLLISION))
+//     Rectangle points[9];
+
+//     for (size_t layer = 0; layer < MAX_LAYERS; layer++)
+//     {
+//         Tilemap *tm = gScene.layers[layer].tilemap;
+//         if (!tm)
+//             continue;
+
+//         Layer &l = gScene.layers[layer];
+//         float scroll_x = l.scroll_x;
+//         float scroll_y = l.scroll_y;
+
+//         // ===== GET CENTER GRID =====
+//         int center_grid_x = (int)(box.x / tm->tilewidth);
+//         int center_grid_y = (int)(box.y / tm->tileheight);
+
+//         // ===== GENERATE 9 TILES =====
+//         int idx = 0;
+//         for (int dy = -1; dy <= 1; dy++)
+//         {
+//             for (int dx = -1; dx <= 1; dx++)
+//             {
+//                 int grid_x = center_grid_x + dx;
+//                 int grid_y = center_grid_y + dy;
+
+//                 // Convert to world coords
+//                 float world_x = grid_x * tm->tilewidth;
+//                 float world_y = grid_y * tm->tileheight;
+
+//                 // Convert to screen coords
+//                 float screen_x = world_x - scroll_x;
+//                 float screen_y = world_y - scroll_y;
+
+//                 // Store rectangle
+//                 points[idx] =
+//                     {
+//                         screen_x,
+//                         screen_y,
+//                         (float)tm->tilewidth,
+//                         (float)tm->tileheight};
+
+//                 // Draw
+//                 DrawRectangleLinesEx(points[idx], 1, RED);
+              
+
+//                 idx++;
+//             }
+//         }
+//         for (int i = 0; i < 9; i++)
+//         {
+//             Tile *t = tm->getTile(center_grid_x + (i % 3) - 1, center_grid_y + (i / 3) - 1);
+
+//             if (t && t->solid)
+//             {
+//                 // Colidiu com tile [i]
+//                 if (CheckCollisionRecs(box, points[i]))
+//                 {
+//                     return true;
+//                 }
+//             }
+//         }
+
+        
+//     }
+
+//     return false;
+// }
+
+    void Entity::move_topdown(Vector2 velocity, float dt)
     {
-        x += velocity.x * delta;
-        y += velocity.y * delta;
+        // converte velocidade (px/s) para deslocamento (px/frame)
+        float dx = velocity.x * dt;
+        float dy = velocity.y * dt;
+
+        int stepsX = (int)fabs(dx);
+        int stepsY = (int)fabs(dy);
+
+        int sx = (dx > 0) - (dx < 0);
+        int sy = (dy > 0) - (dy < 0);
+
+        // mover no eixo X, pixel a pixel
+        for (int i = 0; i < stepsX; i++)
+        {
+            if (place_free(x + sx, y))
+                x += sx;
+            else
+                break;
+        }
+
+        // mover no eixo Y, pixel a pixel
+        for (int i = 0; i < stepsY; i++)
+        {
+            if (place_free(x, y + sy))
+                y += sy;
+            else
+                break;
+        }
+
         bounds_dirty = true;
-        return false;
     }
 
-    const int MAX_SLIDES = 4;
-    const float SKIN = 0.05f; // ajusta: 0.05~0.1 em mundo "pixel"
-
-    // Motion do frame
-    Vector2 motion = {velocity.x * delta, velocity.y * delta};
-
-    // Atualiza bounds da entidade
-    updateBounds();
-
-    // Sweep AABB (broadphase)
-    Rectangle moveBounds = bounds;
-    if (motion.x < 0)
-        moveBounds.x += motion.x;
-    if (motion.y < 0)
-        moveBounds.y += motion.y;
-    moveBounds.width += (float)fabs(motion.x);
-    moveBounds.height += (float)fabs(motion.y);
-
-    // margem por precisão/skin
-    moveBounds.x -= 2;
-    moveBounds.y -= 2;
-    moveBounds.width += 4;
-    moveBounds.height += 4;
-
-    // Pega candidatos 1x
-    std::vector<Entity *> nearby;
-    nearby.reserve(64);
-    gScene.staticTree->query(moveBounds, nearby);
-
-    for (Entity *dyn : gScene.dynamicEntities)
+    bool Entity::place_free(double x, double y)
     {
-        if (!dyn || dyn == this)
-            continue;
-        if (!dyn->shape || !(dyn->flags & B_COLLISION))
-            continue;
-        if (dyn->flags & B_DEAD)
-            continue;
+        if (!shape || !gScene.staticTree)
+            return true;
+        if (!(flags & B_COLLISION))
+            return true;
 
-        if (dyn->bounds_dirty)
-            dyn->updateBounds();
-        if (CheckCollisionRecs(moveBounds, dyn->bounds))
-            nearby.push_back(dyn);
-    }
+        // Salva posição original
 
-    auto CenterOf = [](const Rectangle &r) -> Vector2
-    {
-        return {r.x + r.width * 0.5f, r.y + r.height * 0.5f};
-    };
-
-    // Resolve até MAX_SLIDES
-    for (int slide = 0; slide < MAX_SLIDES; slide++)
-    {
-        if (motion.x * motion.x + motion.y * motion.y < 1e-10f)
-            break;
-
-        // tenta mover tudo
-        double old_x = x, old_y = y;
-        x += motion.x;
-        y += motion.y;
+        // Move para a nova posicao
+        double old_x = this->x, old_y = this->y;
+        this->x = x;
+        this->y = y;
         updateBounds();
 
-        // encontra melhor colisão (MTV = menor overlap)
+        // 1) Testar colisão com tiles
+        if (collide_with_tiles(bounds))
+        {
+            this->x = old_x;
+            this->y = old_y;
+            bounds_dirty = true;
+            return false;
+        }
+
+        // 2) Testar colisão com entidades
+
+        // Query na quadtree
+        std::vector<Entity *> nearby;
+
+        gScene.staticTree->query(getBounds(), nearby);
+
+        // Adiciona dinâmicas também
+        for (Entity *dyn : gScene.dynamicEntities)
+        {
+            if (dyn != this)
+                nearby.push_back(dyn);
+        }
+
+        bool free = true;
+
+        // Testa colisão com cada uma
+        for (Entity *other : nearby)
+        {
+            if (other == this)
+                continue;
+            if (!other->shape)
+                continue;
+            if (!(other->flags & B_COLLISION))
+                continue;
+            if (other->flags & B_DEAD)
+                continue;
+
+            if (!this->canCollideWith(other))
+                continue;
+
+            if (collide(other))
+            {
+                free = false;
+                break;
+            }
+        }
+
+        // Restaura posição
+        this->x = old_x;
+        this->y = old_y;
+        this->bounds_dirty = true;
+
+        return free;
+    }
+
+    Entity *Entity::place_meeting(double x, double y)
+    {
+        if (!this->shape || !gScene.staticTree)
+            return nullptr;
+        if (!(this->flags & B_COLLISION))
+            return nullptr;
+
+        double old_x = this->x, old_y = this->y;
+        this->x = x;
+        this->y = y;
+        this->updateBounds();
+        Entity *hit = nullptr;
+
+        // 1) Testar colisão com tiles
+        if (collide_with_tiles(bounds))
+        {
+            this->x = old_x;
+            this->y = old_y;
+            bounds_dirty = true;
+            return hit;
+        }
+
+        // 2) Testar colisão com entidades
+
+        std::vector<Entity *> nearby;
+        gScene.staticTree->query(this->getBounds(), nearby);
+        for (Entity *dyn : gScene.dynamicEntities)
+        {
+            if (dyn != this)
+                nearby.push_back(dyn);
+        }
+
+        for (Entity *other : nearby)
+        {
+            if (other == this)
+                continue;
+            if (!other->shape)
+                continue;
+            if (!(other->flags & B_COLLISION))
+                continue;
+            if (other->flags & B_DEAD)
+                continue;
+
+            if (this->collide(other))
+            {
+                hit = other;
+                break;
+            }
+        }
+
+        this->x = old_x;
+        this->y = old_y;
+        this->bounds_dirty = true;
+
+        return hit;
+    }
+    bool Entity::move_and_collide(double vel_x, double vel_y, CollisionInfo *result)
+    {
+        if (!shape || !(flags & B_COLLISION) || !gScene.staticTree)
+        {
+            x += vel_x;
+            y += vel_y;
+            bounds_dirty = true;
+            return false;
+        }
+
+        const float SKIN = 0.05f;
+
+        // bounds antes do move (para broadphase)
+        updateBounds();
+        Rectangle startBounds = bounds;
+
+        // sweep AABB
+        Rectangle moveBounds = startBounds;
+        if (vel_x < 0)
+            moveBounds.x += (float)vel_x;
+        if (vel_y < 0)
+            moveBounds.y += (float)vel_y;
+        moveBounds.width += (float)fabs(vel_x);
+        moveBounds.height += (float)fabs(vel_y);
+
+        moveBounds.x -= 2;
+        moveBounds.y -= 2;
+        moveBounds.width += 4;
+        moveBounds.height += 4;
+
+        // candidatos 1x
+        std::vector<Entity *> nearby;
+        nearby.reserve(64);
+        gScene.staticTree->query(moveBounds, nearby);
+
+        for (Entity *dyn : gScene.dynamicEntities)
+        {
+            if (!dyn || dyn == this)
+                continue;
+            if (!dyn->shape || !(dyn->flags & B_COLLISION))
+                continue;
+            if (dyn->flags & B_DEAD)
+                continue;
+
+            if (dyn->bounds_dirty)
+                dyn->updateBounds();
+            if (CheckCollisionRecs(moveBounds, dyn->bounds))
+                nearby.push_back(dyn);
+        }
+
+        // move primeiro (como queres)
+        x += vel_x;
+        y += vel_y;
+        updateBounds();
+
+        auto CenterOf = [](const Rectangle &r) -> Vector2
+        {
+            return {r.x + r.width * 0.5f, r.y + r.height * 0.5f};
+        };
+
+        // escolhe melhor colisão (MTV = menor overlap)
         bool hit = false;
         double bestDepth = DBL_MAX;
         Vector2 bestNormal = {0, 0};
@@ -1040,6 +1057,7 @@ bool Entity::move_and_slide(Vector2 &velocity, float delta, Vector2 up_direction
             {
                 if (d <= 0.0)
                     continue;
+
                 if (!hit || d < bestDepth)
                 {
                     hit = true;
@@ -1051,168 +1069,355 @@ bool Entity::move_and_slide(Vector2 &velocity, float delta, Vector2 up_direction
         }
 
         if (!hit)
-            break;
+        {
+            bounds_dirty = true;
+            return false;
+        }
 
-        // orienta normal usando centros dos bounds (robusto)
+        // orienta normal por centros dos bounds
         Vector2 cThis = CenterOf(bounds);
         if (bestOther->bounds_dirty)
             bestOther->updateBounds();
         Vector2 cOther = CenterOf(bestOther->bounds);
 
         Vector2 dir = {cThis.x - cOther.x, cThis.y - cOther.y};
-        float dotDir = dir.x * bestNormal.x + dir.y * bestNormal.y;
-        if (dotDir < 0.0f)
-        {
-            bestNormal.x = -bestNormal.x;
-            bestNormal.y = -bestNormal.y;
-        }
+        if (dir.x * bestNormal.x + dir.y * bestNormal.y < 0.0f)
+            bestNormal = {-bestNormal.x, -bestNormal.y};
 
         // push out + skin
         x += bestNormal.x * (bestDepth + SKIN);
         y += bestNormal.y * (bestDepth + SKIN);
         updateBounds();
 
-        // flags por dot com up
-        float dotUp = bestNormal.x * up_direction.x + bestNormal.y * up_direction.y;
-        if (dotUp > 0.7f)
-            on_floor = true;
-        else if (dotUp < -0.7f)
-            on_ceiling = true;
-        else
-            on_wall = true;
+        if (result)
+        {
+            result->collider = bestOther;
+            result->normal = bestNormal;
+            result->depth = bestDepth;
+        }
 
-        // travel + remainder
-        Vector2 travel = {(float)(x - old_x), (float)(y - old_y)};
-        Vector2 remainder = {motion.x - travel.x, motion.y - travel.y};
+        return true;
+    }
+    bool Entity::snap_to_floor(float snap_len, Vector2 up_direction, Vector2 &velocity)
+    {
+        // Não snap se estás a saltar (movimento contra gravidade)
+        float vel_dot_up = velocity.x * up_direction.x + velocity.y * up_direction.y;
+        if (vel_dot_up < 0.0f)
+            return false; // subindo (contra up)
 
-        // slide remainder (remove componente na normal)
-        float dotR = remainder.x * bestNormal.x + remainder.y * bestNormal.y;
-        motion.x = remainder.x - bestNormal.x * dotR;
-        motion.y = remainder.y - bestNormal.y * dotR;
+        // Guarda posição (caso não seja chão)
+        double old_x = x, old_y = y;
 
-        // slide velocity (px/s)
-        float dotV = velocity.x * bestNormal.x + velocity.y * bestNormal.y;
-        velocity.x = velocity.x - bestNormal.x * dotV;
-        velocity.y = velocity.y - bestNormal.y * dotV;
+        CollisionInfo col;
+        // Tenta snap na direção da gravidade (oposto de up)
+        float snap_x = -up_direction.x * snap_len;
+        float snap_y = -up_direction.y * snap_len;
+
+        if (move_and_collide(snap_x, snap_y, &col))
+        {
+            float dotUp = col.normal.x * up_direction.x + col.normal.y * up_direction.y;
+
+            // Só aceita se for "chão" (ângulo < ~45°)
+            if (dotUp > 0.7f)
+            {
+                on_floor = true;
+                on_wall = false;
+                on_ceiling = false;
+
+                // Zera componente que vai na direção da gravidade
+                if (vel_dot_up > 0.0f)
+                {
+                    velocity.x -= up_direction.x * vel_dot_up;
+                    velocity.y -= up_direction.y * vel_dot_up;
+                }
+
+                return true;
+            }
+        }
+
+        // Não era chão -> reverte
+        x = old_x;
+        y = old_y;
+        bounds_dirty = true;
+        return false;
     }
 
-    bounds_dirty = true;
-    return (on_floor || on_wall || on_ceiling);
-}
-
-void Scene::initCollision(Rectangle worldBounds)
-{
-    staticTree = new Quadtree(worldBounds);
-    updateCollision();
-}
-
-void Scene::updateCollision()
-{
-    if (!onCollision)
-        return;
-
-    staticTree->clear();
-    staticEntities.clear();
-    dynamicEntities.clear();
-
-    for (int l = 0; l < MAX_LAYERS; l++)
+    bool Entity::move_and_slide(Vector2 & velocity, float delta, Vector2 up_direction)
     {
-        Layer &layer = layers[l];
-        for (size_t i = 0; i < layer.nodes.size(); i++)
+        on_floor = on_wall = on_ceiling = false;
+
+        // Sem colisão/shape: move livre
+        if (!shape || !(flags & B_COLLISION))
         {
-            Entity *e = layer.nodes[i];
-            if (!e->shape)
+            x += velocity.x * delta;
+            y += velocity.y * delta;
+            bounds_dirty = true;
+            return false;
+        }
+
+        const int MAX_SLIDES = 4;
+        const float SKIN = 0.05f; // ajusta: 0.05~0.1 em mundo "pixel"
+
+        // Motion do frame
+        Vector2 motion = {velocity.x * delta, velocity.y * delta};
+
+        // Atualiza bounds da entidade
+        updateBounds();
+
+        // Sweep AABB (broadphase)
+        Rectangle moveBounds = bounds;
+        if (motion.x < 0)
+            moveBounds.x += motion.x;
+        if (motion.y < 0)
+            moveBounds.y += motion.y;
+        moveBounds.width += (float)fabs(motion.x);
+        moveBounds.height += (float)fabs(motion.y);
+
+        // margem por precisão/skin
+        moveBounds.x -= 2;
+        moveBounds.y -= 2;
+        moveBounds.width += 4;
+        moveBounds.height += 4;
+
+        std::vector<Entity *> nearby;
+        nearby.reserve(64);
+        gScene.staticTree->query(moveBounds, nearby);
+
+        for (Entity *dyn : gScene.dynamicEntities)
+        {
+            if (!dyn || dyn == this)
                 continue;
-            // Ignora entities mortas, congeladas ou sem collision
-            if (e->flags & B_DEAD)
-            {
-                removeEntity(e);
+            if (!dyn->shape || !(dyn->flags & B_COLLISION))
                 continue;
-            }
-            if (!(e->flags & B_COLLISION))
-                continue;
-            if (e->flags & B_FROZEN)
+            if (dyn->flags & B_DEAD)
                 continue;
 
-            e->updateBounds();
-            if (e->flags & B_STATIC)
+            if (dyn->bounds_dirty)
+                dyn->updateBounds();
+            if (CheckCollisionRecs(moveBounds, dyn->bounds))
+
+                nearby.push_back(dyn);
+        }
+
+        auto CenterOf = [](const Rectangle &r) -> Vector2
+        {
+            return {r.x + r.width * 0.5f, r.y + r.height * 0.5f};
+        };
+
+        // Resolve até MAX_SLIDES
+        for (int slide = 0; slide < MAX_SLIDES; slide++)
+        {
+            if (motion.x * motion.x + motion.y * motion.y < 1e-10f)
+                break;
+
+            // tenta mover tudo
+            double old_x = x, old_y = y;
+            x += motion.x;
+            y += motion.y;
+            updateBounds();
+
+            // encontra melhor colisão (MTV = menor overlap)
+            bool hit = false;
+            double bestDepth = DBL_MAX;
+            Vector2 bestNormal = {0, 0};
+            Entity *bestOther = nullptr;
+
+            for (Entity *other : nearby)
             {
-                staticTree->insert(e);
-                staticEntities.push_back(e);
+                if (!other || other == this)
+                    continue;
+                if (!other->shape || !(other->flags & B_COLLISION))
+                    continue;
+                if (other->flags & B_DEAD)
+                    continue;
+                if (!canCollideWith(other))
+                    continue;
+
+                Vector2 n = {0, 0};
+                double d = 0.0;
+
+                if (getSATCollisionInfo(shape, x, y, angle, flags & B_HMIRROR, flags & B_VMIRROR,
+                                        other->shape, other->x, other->y, other->angle,
+                                        other->flags & B_HMIRROR, other->flags & B_VMIRROR,
+                                        n, d))
+                {
+                    if (d <= 0.0)
+                        continue;
+                    if (!hit || d < bestDepth)
+                    {
+                        hit = true;
+                        bestDepth = d;
+                        bestNormal = n;
+                        bestOther = other;
+                    }
+                }
             }
+
+            if (!hit)
+                break;
+
+            // orienta normal usando centros dos bounds (robusto)
+
+            Vector2 cThis = CenterOf(bounds);
+            if (bestOther->bounds_dirty)
+                bestOther->updateBounds();
+            Vector2 cOther = CenterOf(bestOther->bounds);
+
+            Vector2 dir = {cThis.x - cOther.x, cThis.y - cOther.y};
+            float dotDir = dir.x * bestNormal.x + dir.y * bestNormal.y;
+            if (dotDir < 0.0f)
+            {
+                bestNormal.x = -bestNormal.x;
+                bestNormal.y = -bestNormal.y;
+            }
+
+            // push out + skin
+            x += bestNormal.x * (bestDepth + SKIN);
+            y += bestNormal.y * (bestDepth + SKIN);
+            updateBounds();
+
+            // flags por dot com up
+            float dotUp = bestNormal.x * up_direction.x + bestNormal.y * up_direction.y;
+            if (dotUp > 0.7f)
+                on_floor = true;
+            else if (dotUp < -0.7f)
+                on_ceiling = true;
             else
-            {
-                dynamicEntities.push_back(e);
-            }
+                on_wall = true;
+
+            // travel + remainder
+            Vector2 travel = {(float)(x - old_x), (float)(y - old_y)};
+            Vector2 remainder = {motion.x - travel.x, motion.y - travel.y};
+
+            // slide remainder (remove componente na normal)
+            float dotR = remainder.x * bestNormal.x + remainder.y * bestNormal.y;
+            motion.x = remainder.x - bestNormal.x * dotR;
+            motion.y = remainder.y - bestNormal.y * dotR;
+
+            // slide velocity (px/s)
+            float dotV = velocity.x * bestNormal.x + velocity.y * bestNormal.y;
+            velocity.x = velocity.x - bestNormal.x * dotV;
+            velocity.y = velocity.y - bestNormal.y * dotV;
         }
+
+        bounds_dirty = true;
+        return (on_floor || on_wall || on_ceiling);
     }
-    // checkCollisions();
-}
 
-void Scene::checkCollisions()
-{
-    if (!onCollision)
-        return;
-
-    for (size_t i = 0; i < dynamicEntities.size(); i++)
+    void Scene::initCollision(Rectangle worldBounds)
     {
-        Entity *dynamic = dynamicEntities[i];
-        if (!dynamic || !dynamic->shape)
-            continue;
-
-        dynamic->updateBounds();
-
-        std::vector<Entity *> candidates;
-        staticTree->query(dynamic->bounds, candidates);
-
-        // Layer &l = layers[dynamic->layer];
-        // int screenX = dynamic->bounds.x;
-        // int screenY = dynamic->bounds.y;
-        // screenX -= l.scroll_x;
-        // screenY -= l.scroll_y;
-
-        // DrawRectangleLines(screenX, screenY  , dynamic->bounds.width, dynamic->bounds.height, MAGENTA);
-
-        for (size_t j = 0; j < candidates.size(); j++)
-        {
-
-            Entity *other = candidates[j];
-
-            if (!other || !other->shape)
-                continue;
-
-            if (dynamic == other)
-                continue;
-
-            if (!dynamic->canCollideWith(other) && !other->canCollideWith(dynamic))
-                continue;
-
-            if (dynamic->collide(other))
-            {
-                onCollision(dynamic, other, collisionUserData);
-            }
-        }
+        staticTree = new Quadtree(worldBounds);
+        updateCollision();
     }
 
-    // Dinâmicas vs Dinâmicas (brute force)
-    for (size_t i = 0; i < dynamicEntities.size(); i++)
+    void Scene::updateCollision()
     {
-        Entity *a = dynamicEntities[i];
-        for (size_t j = i + 1; j < dynamicEntities.size(); j++)
+
+        staticTree->clear();
+        staticEntities.clear();
+        dynamicEntities.clear();
+
+        for (int l = 0; l < MAX_LAYERS; l++)
         {
-            Entity *b = dynamicEntities[j];
-
-            if (!a || !b || !a->shape || !b->shape)
-                continue;
-
-            // Verifica se podem colidir (bidirecional)
-            if (!a->canCollideWith(b) && !b->canCollideWith(a))
-                continue;
-
-            if (a->collide(b))
+            Layer &layer = layers[l];
+            for (size_t i = 0; i < layer.nodes.size(); i++)
             {
-                onCollision(a, b, collisionUserData);
+                Entity *e = layer.nodes[i];
+                if (!e->shape)
+                    continue;
+                // Ignora entities mortas, congeladas ou sem collision
+                if (e->flags & B_DEAD)
+                {
+                    removeEntity(e);
+                    continue;
+                }
+                if (!(e->flags & B_COLLISION))
+                    continue;
+                if (e->flags & B_FROZEN)
+                    continue;
+
+                e->updateBounds();
+                if (e->flags & B_STATIC)
+                {
+                    staticTree->insert(e);
+                    staticEntities.push_back(e);
+                }
+                else
+                {
+                    dynamicEntities.push_back(e);
+                }
+            }
+        }
+        if (!onCollision)
+            return;
+
+        checkCollisions();
+    }
+
+    void Scene::checkCollisions()
+    {
+        if (!onCollision)
+            return;
+
+        for (size_t i = 0; i < dynamicEntities.size(); i++)
+        {
+            Entity *dynamic = dynamicEntities[i];
+            if (!dynamic || !dynamic->shape)
+                continue;
+
+            dynamic->updateBounds();
+
+            std::vector<Entity *> candidates;
+            staticTree->query(dynamic->bounds, candidates);
+
+            // Layer &l = layers[dynamic->layer];
+            // int screenX = dynamic->bounds.x;
+            // int screenY = dynamic->bounds.y;
+            // screenX -= l.scroll_x;
+            // screenY -= l.scroll_y;
+
+            // DrawRectangleLines(screenX, screenY  , dynamic->bounds.width, dynamic->bounds.height, MAGENTA);
+
+            for (size_t j = 0; j < candidates.size(); j++)
+            {
+
+                Entity *other = candidates[j];
+
+                if (!other || !other->shape)
+                    continue;
+
+                if (dynamic == other)
+                    continue;
+
+                if (!dynamic->canCollideWith(other) && !other->canCollideWith(dynamic))
+                    continue;
+
+                if (dynamic->collide(other))
+                {
+                    onCollision(dynamic, other, collisionUserData);
+                }
+            }
+        }
+
+        // Dinâmicas vs Dinâmicas (brute force)
+        for (size_t i = 0; i < dynamicEntities.size(); i++)
+        {
+            Entity *a = dynamicEntities[i];
+            for (size_t j = i + 1; j < dynamicEntities.size(); j++)
+            {
+                Entity *b = dynamicEntities[j];
+
+                if (!a || !b || !a->shape || !b->shape)
+                    continue;
+
+                // Verifica se podem colidir (bidirecional)
+                if (!a->canCollideWith(b) && !b->canCollideWith(a))
+                    continue;
+
+                if (a->collide(b))
+                {
+                    onCollision(a, b, collisionUserData);
+                }
             }
         }
     }
-}
