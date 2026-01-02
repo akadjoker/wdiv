@@ -174,9 +174,10 @@
 class Point
 {
     var x,y;
-    def new(_x,_y)
+    def init(x,y)
     {
-        
+        self.x=x;
+        self.y=y;
         print(self);
     
      

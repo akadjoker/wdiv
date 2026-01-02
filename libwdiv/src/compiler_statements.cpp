@@ -1688,7 +1688,11 @@ void Compiler::classDeclaration()
 
     consume(TOKEN_RBRACE, "Expect '}'");
 
- 
+ if (classDef->constructor == nullptr)
+    {
+        Warning("Class '%s' has no init() method - fields will be uninitialized (nil)", 
+                className.lexeme.c_str());
+    }
 
 
 
@@ -1742,10 +1746,7 @@ void Compiler::method(ClassDef *classDef)
     selfToken.lexeme = "self";
     selfToken.type = TOKEN_IDENTIFIER;
 
-    // std::memcpy(locals_[0].name, selfToken.lexeme.c_str(), selfToken.lexeme.length());
-    // locals_[0].name[selfToken.lexeme.length()] = '\0';
-    // locals_[0].length = selfToken.lexeme.length();
-    // locals_[0].depth = -1;
+ 
     
     addLocal(selfToken);
     markInitialized();
@@ -1795,7 +1796,7 @@ void Compiler::method(ClassDef *classDef)
          function->hasReturn = true;
     }
 
-    //endScope();
+    endScope();
  
     // ===== RESTAURA ESTADO =====
     this->function = enclosing;
