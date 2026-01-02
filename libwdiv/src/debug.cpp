@@ -41,11 +41,11 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset)
     // -------- Literals --------
   case OP_CONSTANT:
   {
-    uint8_t constant = chunk.code[offset + 1]; // ← uint8!
+    uint8_t constant = chunk.code[offset + 1];  
     printf("%-16s %4d '", "OP_CONSTANT", constant);
     printValue(chunk.constants[constant]);
     printf("'\n");
-    return offset + 2; // ← 2 bytes total!
+    return offset + 2; 
   }
   case OP_NIL:
     return simpleInstruction("OP_NIL", offset);

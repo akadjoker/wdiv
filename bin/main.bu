@@ -1,98 +1,193 @@
 
 
-// class Bullet
+// def get(n) 
 // {
-//     var x,y;
-//     def inti()
-//     {
-//         self.x=0;
-//         self.y=0;
-//     }
-//     def say()
-//     {
-
-//     }
+//     if (n < 2) return n;
+//     return get(n - 1) + get(n - 2);
 // }
 
-// class Player
+// var start = clock();
+// for(var i=1;i<5;i=i+1)
 // {
-//     var list;
-//     def init()
-//     {
-//         self.list=[];
-//         for(var i=0;i<40;i++)
-//         {
-//             self.list.push(Bullet());
-//         }
-//     }
-//     def update()
-//     {
-//         var _exit=false;
-//         var count=0;
-//         for(var j=0;j<self.list.length();j++)
-//         {
-//             var bulletA=self.list[j];
-//             for(var i=j+1;i<self.list.length();i++)
-//             {
-//                 var bulletB=self.list[j];
+//     print(get(28));
+// }
 
-//                 if(count>=5)
-//                 {
-//                     print("byby");
-//                     _exit=true;
-//                     break;
-//                 }
-//                // print(bulletA);
-//                // print(bulletB);
-//                bulletA.say();
-//                bulletB.say();
-//                print(i);
+// write("elapsed: ({}} - start)\n",clock());
 
-//                 count++;
-//             }
-//             print(j);
-//             if(_exit)
-//             {
-//                 print("exit");
-//                 break;
-//             }
-//         }
-//     }
+// // Hex numbers
+// var hex1 = 0xFF;
+// var hex2 = 0x1A;
+// var hex3 = 0x00;
+
+// // Unicode escapes na string
+// var str1 = "Hello\u263A";           // Emoji ☺️
+// var str2 = "Rocket\U0001F680";      // Emoji 🚀
+// var str3 = "Tab\there";             // Tab normal
+// var str4 = "Hex\x41";               // \x41 = 'A'
+
+// print(hex1);
+// print(hex2);
+// print(hex3);
+// print(str1);
+// print(str2);
+// print(str4);
+
+
+// def zort(a,b)
+// {
+//     return a<b;
 // }
 
 
-// var player = Player();
-// player.update();
+// def sorte_array(a, fun)
+// {
+//     var result = [];
+    
+//     // copiar array original
+//     for (var i = 0; i < a.length(); i = i + 1)
+//     {
+//         result.push(a[i]);
+//     }
+
+//     // bubble sort usando a função fun
+//     for (var i = 0; i < result.length(); i = i + 1)
+//     {
+//         for (var j = i + 1; j < result.length(); j = j + 1)
+//         {
+//             if (!fun(result[i], result[j]))
+//             {
+//                 var temp = result[i];
+//                 result[i] = result[j];
+//                 result[j] = temp;
+//             }
+//         }
+//     }
+
+//     return result;
+// }
 
 
-def get(n) 
+
+// var list = [0,4,2,5,6,23];
+
+
+// var b =sorte_array(list,zort);
+// print(b);
+
+
+// // Sort with custom comparator
+
+// def asc(a, b)
+// {
+//     return a < b;
+// }
+
+// def desc(a, b)
+// {
+//     return a > b;
+// }
+
+// def sort_array(a, cmp)
+// {
+//     var r = [];
+
+//     for (var i = 0; i < a.length(); i = i + 1)
+//         r.push(a[i]);
+
+//     for (var i = 0; i < r.length(); i = i + 1)
+//     {
+//         for (var j = i + 1; j < r.length(); j = j + 1)
+//         {
+//             if (!cmp(r[i], r[j]))
+//             {
+//                 var t = r[i];
+//                 r[i] = r[j];
+//                 r[j] = t;
+//             }
+//         }
+//     }
+
+//     return r;
+// }
+
+// var list = [5, 1, 4, 2, 8];
+
+// print(sort_array(list, asc));
+// print(sort_array(list, desc));
+
+
+// // for_each example
+
+// def for_each(a, fn)
+// {
+//     for (var i = 0; i < a.length(); i = i + 1)
+//         fn(a[i]);
+// }
+
+// def show(x)
+// {
+//     write("value = {}\n", x);
+// }
+
+// var nums = [10, 20, 30];
+// for_each(nums, show);
+
+// // Filter example
+
+// def filter(a, pred)
+// {
+//     var r = [];
+//     for (var i = 0; i < a.length(); i = i + 1)
+//     {
+//         if (pred(a[i]))
+//             r.push(a[i]);
+//     }
+//     return r;
+// }
+
+// def is_even(n)
+// {
+//     return n % 2 == 0;
+// }
+
+// print(filter([1,2,3,4,5,6], is_even));
+
+
+// // Map example
+
+// def map(a, fn)
+// {
+//     var r = [];
+//     for (var i = 0; i < a.length(); i = i + 1)
+//         r.push(fn(a[i]));
+//     return r;
+// }
+
+// def square(x)
+// {
+//     return x * x;
+// }
+
+// print(map([1,2,3,4], square));
+
+
+class Point
 {
-    if (n < 2) return n;
-    return get(n - 1) + get(n - 2);
+    var x,y;
+    def new(_x,_y)
+    {
+        
+        print(self);
+    
+     
+    }
+
+    def show()
+    {
+        print(self);
+        write("Point({}, {})\n", self.x, 2);
+    }
 }
 
-var start = clock();
-for(var i=1;i<5;i=i+1)
-{
-    print(get(28));
-}
-
-write("elapsed: ({}} - start)\n",clock());
-
-// Hex numbers
-var hex1 = 0xFF;
-var hex2 = 0x1A;
-var hex3 = 0x00;
-
-// Unicode escapes na string
-var str1 = "Hello\u263A";           // Emoji ☺️
-var str2 = "Rocket\U0001F680";      // Emoji 🚀
-var str3 = "Tab\there";             // Tab normal
-var str4 = "Hex\x41";               // \x41 = 'A'
-
-print(hex1);
-print(hex2);
-print(hex3);
-print(str1);
-print(str2);
-print(str4);
+p = Point(10,20);
+p.show();

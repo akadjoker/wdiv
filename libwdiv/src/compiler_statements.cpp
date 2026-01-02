@@ -296,38 +296,7 @@ void Compiler::handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssi
         emitBytes(getOp, (uint8)arg);
     }
 }
-// void Compiler::namedVariable(Token &name, bool canAssign) {
-//     uint8 getOp, setOp;
-//     int arg;
-    
-//     // // ✅ DEBUG
-//      bool isSelf = (strcmp(name.lexeme.c_str(), "self") == 0);
-//     // if (isSelf) {
-//     //     printf("\n[namedVariable] Processing 'self'\n");
-//     //     printf("  localCount=%d, scopeDepth=%d\n", localCount_, scopeDepth);
-//     // }
-    
-//     // === 2. Tenta LOCAL ===
-//     arg = resolveLocal(name);
-//     if (arg != -1) {
-//         // if (isSelf) {
-//         //    // printf("  → 'self' resolved as LOCAL[%d]\n", arg);
-//         // }
-//         getOp = OP_GET_LOCAL;
-//         setOp = OP_SET_LOCAL;
-//         handle_assignment(getOp, setOp, arg, canAssign);
-//         return;
-//     }
-    
-//     // === 3. É GLOBAL ===
-//     if (isSelf) {
-//         printf("  → 'self' NOT FOUND, using GLOBAL! ❌\n");
-//     }
-//     arg = identifierConstant(name);
-//     getOp = OP_GET_GLOBAL;
-//     setOp = OP_SET_GLOBAL;
-//     handle_assignment(getOp, setOp, arg, canAssign);
-// }
+ 
 void Compiler::namedVariable(Token &name, bool canAssign)
 {
     uint8 getOp, setOp;
@@ -1772,6 +1741,12 @@ void Compiler::method(ClassDef *classDef)
     Token selfToken;
     selfToken.lexeme = "self";
     selfToken.type = TOKEN_IDENTIFIER;
+
+    // std::memcpy(locals_[0].name, selfToken.lexeme.c_str(), selfToken.lexeme.length());
+    // locals_[0].name[selfToken.lexeme.length()] = '\0';
+    // locals_[0].length = selfToken.lexeme.length();
+    // locals_[0].depth = -1;
+    
     addLocal(selfToken);
     markInitialized();
 
@@ -1820,6 +1795,7 @@ void Compiler::method(ClassDef *classDef)
          function->hasReturn = true;
     }
 
+    //endScope();
  
     // ===== RESTAURA ESTADO =====
     this->function = enclosing;

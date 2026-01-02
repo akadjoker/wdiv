@@ -351,7 +351,7 @@ int main()
     ctx.pathCount = 3;
     vm.setFileLoader(multiPathFileLoader, &ctx);
 
-    std::ifstream file("main.cc");
+    std::ifstream file("bunny.bu");
     std::string code((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
 

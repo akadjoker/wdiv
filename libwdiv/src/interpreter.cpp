@@ -769,6 +769,10 @@ NativeClassDef::~NativeClassDef()
 
 void Interpreter::dumpToFile(const char *filename)
 {
+
+
+  #ifdef __linux__
+
   FILE *f = fopen(filename, "w");
   if (!f)
   {
@@ -792,10 +796,13 @@ void Interpreter::dumpToFile(const char *filename)
 
   fclose(f);
   printf("Bytecode dumped to: %s\n", filename);
+
+  #endif
 }
 
 void Interpreter::dumpAllFunctions(FILE *f)
 {
+  #ifdef __linux__
   fprintf(f, "========================================\n");
   fprintf(f, "GLOBAL FUNCTIONS\n");
   fprintf(f, "========================================\n\n");
@@ -843,10 +850,12 @@ void Interpreter::dumpAllFunctions(FILE *f)
         }
         
         fprintf(f, "\n"); });
+  #endif
 }
 
 void Interpreter::dumpAllClasses(FILE *f)
 {
+  #ifdef __linux__
   fprintf(f, "\n========================================\n");
   fprintf(f, "CLASSES\n");
   fprintf(f, "========================================\n\n");
@@ -945,4 +954,5 @@ void Interpreter::dumpAllClasses(FILE *f)
         });
         
         fprintf(f, "\n"); });
+  #endif
 }

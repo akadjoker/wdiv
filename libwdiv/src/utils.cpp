@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <time.h>
 #include <stdarg.h>
+#include "platform.hpp"
 
 void *aAlloc(size_t size)
 {
@@ -85,7 +86,7 @@ static void Log(int severity, const char *fmt, va_list args)
 
 	char consoleMessage[4096];
 	vsnprintf(consoleMessage, sizeof(consoleMessage), consoleFormat, args);
-	printf("%s", consoleMessage);
+	OsPrintf("%s", consoleMessage);
 
 	va_end(argsCopy);
 }

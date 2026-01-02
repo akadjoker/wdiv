@@ -2,6 +2,8 @@
 #include "interpreter.hpp"
 #include "pool.hpp"
 #include "instances.hpp"
+#include "platform.hpp"
+#include <stdarg.h>
 
 Value::Value() : type(ValueType::NIL)
 {
@@ -206,28 +208,33 @@ bool Value::isNumber() const
     return ((type == ValueType::INT) || (type == ValueType::DOUBLE) || (type == ValueType::BYTE) || (type == ValueType::FLOAT));
 }
 
-bool Value::asBool() const 
-{ 
+bool Value::asBool() const
+{
     if (type == ValueType::NIL)
     {
         return false;
-    } else if (type == ValueType::BOOL)
+    }
+    else if (type == ValueType::BOOL)
     {
         return as.boolean;
-    } else if (type == ValueType::INT)
+    }
+    else if (type == ValueType::INT)
     {
         return as.integer != 0;
-    } else if (type == ValueType::BYTE)
+    }
+    else if (type == ValueType::BYTE)
     {
         return as.byte != 0;
-    } else if (type == ValueType::DOUBLE)
+    }
+    else if (type == ValueType::DOUBLE)
     {
         return as.number != 0.0;
-    } else if (type == ValueType::FLOAT)
+    }
+    else if (type == ValueType::FLOAT)
     {
         return as.real != 0.0f;
     }
-    return as.boolean; 
+    return as.boolean;
 }
 int Value::asInt() const
 {
@@ -261,10 +268,12 @@ double Value::asDouble() const
     else if (type == ValueType::FLOAT)
     {
         return static_cast<double>(as.real);
-    } else if (type == ValueType::UINT)
+    }
+    else if (type == ValueType::UINT)
     {
         return static_cast<double>(as.unsignedInteger);
-    } else if (type == ValueType::BOOL)
+    }
+    else if (type == ValueType::BOOL)
     {
         return static_cast<double>(as.boolean);
     }
@@ -289,10 +298,12 @@ float Value::asFloat() const
     else if (type == ValueType::FLOAT)
     {
         return as.real;
-    } else if (type == ValueType::UINT)
+    }
+    else if (type == ValueType::UINT)
     {
         return static_cast<float>(as.unsignedInteger);
-    } else if (type == ValueType::BOOL)
+    }
+    else if (type == ValueType::BOOL)
     {
         return static_cast<float>(as.boolean);
     }
@@ -319,40 +330,39 @@ double Value::asNumber() const
     return 0;
 }
 
-
 bool valuesEqual(const Value &a, const Value &b)
 {
-     
-    if ((a.isInt() || a.isDouble()) && (b.isInt() || b.isDouble())) 
+
+    if ((a.isInt() || a.isDouble()) && (b.isInt() || b.isDouble()))
     {
         double da = a.isInt() ? a.asInt() : a.asDouble();
         double db = b.isInt() ? b.asInt() : b.asDouble();
         return da == db;
     }
-    
+
     // Resto precisa tipos iguais
     if (a.type != b.type)
         return false;
-        
-    switch (a.type) {
-        case ValueType::BOOL:
-            return a.asBool() == b.asBool();
-        case ValueType::NIL:
-            return true;
-        case ValueType::STRING:
-            return a.asString() == b.asString();
-        case ValueType::STRUCT:
-        case ValueType::MAP:
-        case ValueType::ARRAY:
-        case ValueType::FUNCTION:
-        case ValueType::PROCESS:
-        case ValueType::CLASS:
-            return a.type == b.type;  // Já comparou antes
-        default:
-            return false;
+
+    switch (a.type)
+    {
+    case ValueType::BOOL:
+        return a.asBool() == b.asBool();
+    case ValueType::NIL:
+        return true;
+    case ValueType::STRING:
+        return a.asString() == b.asString();
+    case ValueType::STRUCT:
+    case ValueType::MAP:
+    case ValueType::ARRAY:
+    case ValueType::FUNCTION:
+    case ValueType::PROCESS:
+    case ValueType::CLASS:
+        return a.type == b.type; // Já comparou antes
+    default:
+        return false;
     }
 }
- 
 
 const char *Value::asStringChars() const { return as.string->chars(); }
 String *Value::asString() const { return as.string; }
@@ -416,7 +426,6 @@ NativeStructInstance *Value::asNativeStructInstance() const
     return as.sNativeStruct;
 }
 
-
 const char *typeToString(ValueType type)
 {
     switch (type)
@@ -462,88 +471,115 @@ const char *typeToString(ValueType type)
     }
 }
 
+#ifdef __linux__
+
+
+// void OsPrintf(const char *fmt, ...)
+// {
+// 	va_list args;
+// 	va_start(args, fmt);
+//     vprintf(fmt, args);
+// 	va_end(args);
+// }
+
+#endif
+
 void printValue(const Value &value)
 {
     switch (value.type)
     {
     case ValueType::NIL:
-        printf("nil");
+        OsPrintf("nil");
         break;
     case ValueType::BOOL:
-        printf("%s", value.as.boolean ? "true" : "false");
+        OsPrintf("%s", value.as.boolean ? "true" : "false");
         break;
     case ValueType::BYTE:
-        printf("%d", value.as.byte);
+        OsPrintf("%d", value.as.byte);
         break;
     case ValueType::INT:
-        printf("%d", value.as.integer);
+        OsPrintf("%d", value.as.integer);
         break;
     case ValueType::UINT:
-        printf("%u", value.as.unsignedInteger);
+        OsPrintf("%u", value.as.unsignedInteger);
         break;
     case ValueType::FLOAT:
-        printf("%f.4f", value.as.real);
+        OsPrintf("%f.4f", value.as.real);
         break;
     case ValueType::DOUBLE:
-        printf("%f.4f", value.as.number);
+        OsPrintf("%f.4f", value.as.number);
         break;
     case ValueType::STRING:
-        printf("%s", value.as.string->chars());
+    {
+        String *str = value.as.string;
+        const char *chars = str->chars();
+        size_t len = str->length();
+
+        // Se termina com '\n', imprime sem ele
+        if (len > 0 && chars[len - 1] == '\n')
+        {
+            OsPrintf("%.*s", (int)(len - 1), chars); // Imprime len-1 chars
+        }
+        else
+        {
+            OsPrintf("%s", chars); // Imprime normal
+        }
         break;
+    }
     case ValueType::FUNCTION:
     {
         int Id = value.asFunctionId();
-        printf("<function %d>", Id);
+        OsPrintf("<function %d>", Id);
         break;
     }
     case ValueType::NATIVE:
-        printf("<native>");
+        OsPrintf("<native>");
         break;
     case ValueType::PROCESS:
-        printf("<process>");
+        OsPrintf("<process>");
         break;
 
     case ValueType::ARRAY:
     {
         ArrayInstance *arr = value.asArray();
-        printf("[");
+        OsPrintf("[");
         for (int i = 0; i < (int)arr->values.size(); i++)
         {
             printValue(arr->values[i]);
             if (i < (int)arr->values.size() - 1)
-                printf(", ");
+                OsPrintf(", ");
         }
-        printf("]");
+        OsPrintf("]");
         break;
     }
     case ValueType::MAP:
     {
 
         MapInstance *map = value.asMap();
-        printf("{");
+        OsPrintf("{");
 
         int i = 0;
         map->table.forEach([&](String *key, Value val)
                            {
-        if (i > 0) printf(", ");
-        printf("%s: ", key->chars());
+        if (i > 0) OsPrintf(", ");
+        OsPrintf("%s: ", key->chars());
         printValue(val);
         i++; });
 
-        printf("}");
+        OsPrintf("}");
         break;
     }
 
     case ValueType::STRUCT:
     {
         int Id = value.asStructId();
-        printf("<struct %d>", Id);
+        OsPrintf("<struct %d>", Id);
         break;
     }
     case ValueType::STRUCTINSTANCE:
     {
         StructInstance *instance = value.as.sInstance;
-        printf("struct '%s' [", instance->def->name->chars());
+        OsPrintf("struct '%s' [", instance->def->name->chars());
 
         bool first = true;
 
@@ -551,49 +587,49 @@ void printValue(const Value &value)
                                      {
              if (!first) 
             {
-                printf(", ");
+                OsPrintf(", ");
             }
             first = false;
 
-            printf("%s = ", key->chars());
+            OsPrintf("%s = ", key->chars());
             printValue(instance->values[fieldIndex]); });
 
-        printf("]\n");
+        OsPrintf("]\n");
         break;
     }
     case ValueType::CLASS:
     {
         int classId = value.asClassId();
-        printf("<class %d>", classId);
+        OsPrintf("<class %d>", classId);
         break;
     }
     case ValueType::CLASSINSTANCE:
     {
         ClassInstance *inst = value.asClassInstance();
-        printf("<instance %s>", inst->klass->name->chars());
+        OsPrintf("<instance %s>", inst->klass->name->chars());
         break;
     }
     case ValueType::NATIVECLASSINSTANCE:
     {
         NativeInstance *inst = value.as.sClassInstance;
-        printf("<native_instance %s>", inst->klass->name->chars());
+        OsPrintf("<native_instance %s>", inst->klass->name->chars());
         break;
     }
     case ValueType::NATIVESTRUCTINSTANCE:
     {
         NativeStructInstance *inst = value.as.sNativeStruct;
-        printf("<native_struct_instance %s>", inst->def->name->chars());
+        OsPrintf("<native_struct_instance %s>", inst->def->name->chars());
         break;
     }
     case ValueType::POINTER:
     {
 
-        printf("<pointer %p>", value.as.pointer);
+        OsPrintf("<pointer %p>", value.as.pointer);
         break;
     }
 
     default:
-        printf("<?%ld?>",(int)(value.type));
+        OsPrintf("<?%ld?>", (int)(value.type));
         break;
     }
 }
@@ -601,5 +637,5 @@ void printValue(const Value &value)
 void printValueNl(const Value &value)
 {
     printValue(value);
-    printf("\n");
+    OsPrintf("\n");
 }
