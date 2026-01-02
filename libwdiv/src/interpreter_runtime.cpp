@@ -95,19 +95,17 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         Debug::disassembleInstruction(func->chunk, offset);
 #endif
 
-//    printf("[EXEC] opcode: %d at offset %ld\n", *ip, (long)(ip - func->chunk->code));
-   
+        //    printf("[EXEC] opcode: %d at offset %ld\n", *ip, (long)(ip - func->chunk->code));
+
         uint8 instruction = READ_BYTE();
 
- 
-
-        // if (instruction > 57) 
+        // if (instruction > 57)
         // {  // Opcode inválido
         //     printf("[ERROR] Invalid opcode %d!\n", instruction);
         //     printf("  func: %s\n", func->name->chars());
         //     printf("  ip offset: %ld\n", (long)(ip - func->chunk->code - 1));
         //     printf("  chunk size: %d\n", func->chunk->count);
-            
+
         //     // Printa últimos 10 opcodes
         //     printf("  Last 10 opcodes:\n");
         //     for (int i = -10; i < 0; i++) {
@@ -115,7 +113,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         //             printf("    [%d]: %d\n", i, ip[i]);
         //         }
         //     }
-            
+
         //     runtimeError("Unknown opcode %d", instruction);
         //     return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         // }
@@ -162,7 +160,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         case OP_GET_LOCAL:
         {
             uint8 slot = READ_BYTE();
-            
+
             PUSH(stackStart[slot]);
             break;
         }
@@ -264,7 +262,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             }
             if (a.isInt() && b.isDouble())
             {
-                PUSH(Value::makeDouble(a.asInt() + b.asDouble())); // ← FIX!
+                PUSH(Value::makeDouble(a.asInt() + b.asDouble())); 
                 break;
             }
             if (a.isDouble() && b.isInt())
@@ -278,7 +276,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 break;
             }
 
-            runtimeError("Operands must be numbers or strings");
+            runtimeError("Operands '+' must be numbers or strings");
             return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
         }
 
@@ -515,11 +513,11 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             double da, db;
             if (!toNumberPair(a, b, da, db))
             {
-            
+
                 runtimeError("Operands '<' must be numbers");
                 printValueNl(a);
                 printValueNl(b);
-                
+
                 return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
             }
             PUSH(Value::makeBool(da < db));
@@ -930,7 +928,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             Value result = POP();
 
-            //printf("[DEBUG] Popped value type: %d\n", (int)result.type);
+            // printf("[DEBUG] Popped value type: %d\n", (int)result.type);
 
             fiber->frameCount--;
 
@@ -956,8 +954,8 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             //  Função nested - retorna para onde estava a chamada
             CallFrame *finished = &fiber->frames[fiber->frameCount];
-            //printf("[DEBUG] finished->slots offset: %ld\n", finished->slots - fiber->stack);
-  
+            // printf("[DEBUG] finished->slots offset: %ld\n", finished->slots - fiber->stack);
+
             //  printf("          ");
             //         for (Value *slot = fiber->stack; slot < fiber->stackTop; slot++)
             //         {
@@ -970,14 +968,14 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             fiber->stackTop = finished->slots;
             *fiber->stackTop++ = result;
 
-           //   printf("[DEBUG] Before LOAD_FRAME, frameCount: %d\n", fiber->frameCount);
-  
+            //   printf("[DEBUG] Before LOAD_FRAME, frameCount: %d\n", fiber->frameCount);
+
             LOAD_FRAME();
 
-    //            printf("[DEBUG] After LOAD_FRAME:\n");
-    // printf("  - func: %s\n", func->name ? func->name->chars() : "NULL");
-    // printf("  - ip offset: %ld\n", (long)(ip - func->chunk->code));
-    // printf("  - next opcode: %d\n", *ip);
+            //            printf("[DEBUG] After LOAD_FRAME:\n");
+            // printf("  - func: %s\n", func->name ? func->name->chars() : "NULL");
+            // printf("  - ip offset: %ld\n", (long)(ip - func->chunk->code));
+            // printf("  - next opcode: %d\n", *ip);
             break;
         }
 
@@ -1239,6 +1237,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             {
 
                 NativeStructInstance *inst = object.asNativeStructInstance();
+
                 NativeStructDef *def = inst->def;
 
                 NativeFieldDef field;
@@ -1256,11 +1255,22 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 Value result;
                 switch (field.type)
                 {
+                case FieldType::BYTE:
+                {
+                    result = Value::makeByte(*(uint8 *)ptr);
+                    break;
+                }
                 case FieldType::INT:
                     result = Value::makeInt(*(int *)ptr);
                     break;
 
+                case FieldType::UINT:
+                    result = Value::makeUInt(*(uint32 *)ptr);
+                    break;
+
                 case FieldType::FLOAT:
+                    result = Value::makeFloat(*(float *)ptr);
+                    break;
                 case FieldType::DOUBLE:
                     result = Value::makeDouble(*(double *)ptr);
                     break;
@@ -1428,7 +1438,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 }
             }
 
-            if (object.isNativeStructInstance())
+                        if (object.isNativeStructInstance())
             {
                 NativeStructInstance *inst = object.asNativeStructInstance();
                 NativeStructDef *def = inst->def;
@@ -1452,6 +1462,18 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 char *ptr = base + field.offset;
                 switch (field.type)
                 {
+                case FieldType::BYTE:
+                {
+                    if (!value.isByte())
+                    {
+                        runtimeError("Field expects byte");
+                        DROP();
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+                    *(uint8 *)ptr = (uint8)value.asByte();
+                    break;
+                }
+
                 case FieldType::INT:
                     if (!value.isInt())
                     {
@@ -1461,16 +1483,34 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     }
                     *(int *)ptr = value.asInt();
                     break;
-
-                case FieldType::FLOAT:
-                case FieldType::DOUBLE:
-                    if (!value.isDouble() && !value.isInt())
+                case FieldType::UINT:
+                    if (!value.isUInt())
                     {
-                        runtimeError("Field expects number");
+                        runtimeError("Field expects uint");
                         DROP();
                         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                     }
-                    *(double *)ptr = value.isDouble() ? value.asDouble() : (double)value.asInt();
+                    *(uint32 *)ptr = value.asUInt();
+                    break;
+                case FieldType::FLOAT:
+                {
+                    if (!value.isFloat())
+                    {
+                        runtimeError("Field expects float");
+                        DROP();
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+                    *(float *)ptr = value.asFloat();
+                    break;
+                }
+                case FieldType::DOUBLE:
+                    if (!value.isDouble())
+                    {
+                        runtimeError("Field expects double");
+                        DROP();
+                        return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                    }
+                    *(double *)ptr = value.asDouble();
                     break;
 
                 case FieldType::BOOL:
@@ -1484,25 +1524,25 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     break;
 
                 case FieldType::POINTER:
-                    if (!value.isPointer() && !value.isNil())
+                    if (!value.isPointer())
                     {
                         runtimeError("Field expects pointer");
                         DROP();
                         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                     }
-                    *(void **)ptr = value.isPointer() ? value.asPointer() : nullptr;
+                    *(void **)ptr = value.asPointer();
                     break;
 
                 case FieldType::STRING:
                 {
-                    if (!value.isString() && !value.isNil())
+                    if (!value.isString())
                     {
                         runtimeError("Field expects string");
                         DROP();
                         return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
                     }
                     String **fieldPtr = (String **)ptr;
-                    *fieldPtr = value.isString() ? value.asString() : nullptr;
+                    *fieldPtr = value.asString();
                     break;
                 }
                 }
@@ -1799,12 +1839,9 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                     }
                     Value item = PEEK();
                     arr->values.push(item);
-     
-    
+
                     ARGS_CLEANUP();
 
-    
-    
                     PUSH(receiver);
                     break;
                 }
@@ -2108,7 +2145,6 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             Function *method;
 
-       
             if (strcmp(methodName->chars(), "init") == 0)
             {
                 method = ownerClass->superclass->constructor; // ← USA ownerClass!
@@ -2173,7 +2209,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
         }
         case OP_DEFINE_ARRAY:
         {
-            
+
             uint8_t count = READ_BYTE();
             Value array = Value::makeArray();
             ArrayInstance *instance = array.asArray();

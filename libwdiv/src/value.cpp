@@ -471,18 +471,7 @@ const char *typeToString(ValueType type)
     }
 }
 
-#ifdef __linux__
-
-
-// void OsPrintf(const char *fmt, ...)
-// {
-// 	va_list args;
-// 	va_start(args, fmt);
-//     vprintf(fmt, args);
-// 	va_end(args);
-// }
-
-#endif
+ 
 
 void printValue(const Value &value)
 {

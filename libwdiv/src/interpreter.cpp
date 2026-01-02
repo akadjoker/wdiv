@@ -2,6 +2,7 @@
 #include "compiler.hpp"
 #include "debug.hpp"
 #include "instances.hpp"
+#include "platform.hpp"
 #include <stdarg.h>
 
 Interpreter::Interpreter()
@@ -386,16 +387,25 @@ Fiber *Interpreter::get_ready_fiber(Process *proc)
 
 float Interpreter::getCurrentTime() const { return currentTime; }
 
+
+static void OsVPrintf(const char *fmt, va_list args)
+{
+    char buffer[1024];
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    OsPrintf("%s", buffer);
+}
+
+
 void Interpreter::runtimeError(const char *format, ...)
 {
   hasFatalError_ = true;
 
-  fprintf(stderr, "Runtime Error: ");
+  OsPrintf("Runtime Error: ");
   va_list args;
   va_start(args, format);
-  vfprintf(stderr, format, args);
+  OsVPrintf(format, args);
   va_end(args);
-  fputs("\n", stderr);
+  OsPrintf("\n");
 
 #ifdef WDIV_DEBUG
   if (currentFiber->frameCount > 0)

@@ -112,7 +112,7 @@ def sort_array(a, cmp)
 
 var list = [5, 1, 4, 2, 8];
 
-print(sort_array(list, asc));
+print(sort_array(list, asc)+"\n");
 print(sort_array(list, desc));
 
 
@@ -192,3 +192,5 @@ class Point
 
 p = Point(10,20);
 p.show();
+
+

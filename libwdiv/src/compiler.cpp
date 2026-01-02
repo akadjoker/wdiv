@@ -1,6 +1,7 @@
 #include "compiler.hpp"
 #include "code.hpp"
 #include "interpreter.hpp"
+#include "platform.hpp"
 #include "opcode.hpp"
 #include "pool.hpp"
 #include "value.hpp"
@@ -11,7 +12,8 @@
 // ============================================
 // PARSE RULE TABLE - DEFINIÇÃO
 // ============================================
-constexpr ParseRule makeRule(ParseFn prefix, ParseFn infix, Precedence prec) {
+constexpr ParseRule makeRule(ParseFn prefix, ParseFn infix, Precedence prec)
+{
   return {prefix, infix, prec};
 }
 
@@ -25,7 +27,8 @@ Compiler::Compiler(Interpreter *vm)
     : vm_(vm), lexer(nullptr), function(nullptr), currentChunk(nullptr),
       currentFiber(nullptr), currentProcess(nullptr), hadError(false),
       panicMode(false), scopeDepth(0), localCount_(0), loopDepth_(0),
-      isProcess_(false) {
+      isProcess_(false)
+{
 
   initRules();
   cursor = 0;
@@ -36,9 +39,11 @@ Compiler::~Compiler() { delete lexer; }
 // INICIALIZAÇÃO DA TABELA
 // ============================================
 
-void Compiler::initRules() {
+void Compiler::initRules()
+{
 
-  for (int i = 0; i < TOKEN_COUNT; i++) {
+  for (int i = 0; i < TOKEN_COUNT; i++)
+  {
     rules[i] = {nullptr, nullptr, PREC_NONE};
   }
 
@@ -112,29 +117,33 @@ void Compiler::initRules() {
 // MAIN ENTRY POINT
 // ============================================
 
-void Compiler::setFileLoader(FileLoaderCallback loader, void *userdata) {
+void Compiler::setFileLoader(FileLoaderCallback loader, void *userdata)
+{
   fileLoader = loader;
   fileLoaderUserdata = userdata;
 }
 
-ProcessDef *Compiler::compile(const std::string &source) {
- 
+ProcessDef *Compiler::compile(const std::string &source)
+{
 
   lexer = new Lexer(source);
   tokens = lexer->scanAll();
-  if (!tokens.size()) {
+  if (!tokens.size())
+  {
 
     error("Empty source");
     return nullptr;
   }
 
   function = vm_->addFunction("__main__", 0);
-  if (!function) {
+  if (!function)
+  {
     error("Fail to create main function");
     return nullptr;
   }
   currentProcess = vm_->addProcess("__main_process__", function);
-  if (!currentProcess) {
+  if (!currentProcess)
+  {
     error("Fail to create main process");
     return nullptr;
   }
@@ -145,13 +154,15 @@ ProcessDef *Compiler::compile(const std::string &source) {
 
   advance();
 
-  while (!match(TOKEN_EOF) && !hadError) {
+  while (!match(TOKEN_EOF) && !hadError)
+  {
     declaration();
   }
 
   emitReturn();
 
-  if (hadError) {
+  if (hadError)
+  {
     return nullptr;
   }
 
@@ -160,8 +171,8 @@ ProcessDef *Compiler::compile(const std::string &source) {
   return currentProcess;
 }
 
-ProcessDef *Compiler::compileExpression(const std::string &source) {
- 
+ProcessDef *Compiler::compileExpression(const std::string &source)
+{
 
   lexer = new Lexer(source);
 
@@ -176,7 +187,8 @@ ProcessDef *Compiler::compileExpression(const std::string &source) {
 
   advance();
 
-  if (check(TOKEN_EOF)) {
+  if (check(TOKEN_EOF))
+  {
     error("Empty expression");
     function = nullptr;
     return nullptr;
@@ -187,7 +199,8 @@ ProcessDef *Compiler::compileExpression(const std::string &source) {
 
   emitByte(OP_RETURN);
 
-  if (hadError) {
+  if (hadError)
+  {
     return nullptr;
   }
   currentProcess->finalize();
@@ -195,7 +208,8 @@ ProcessDef *Compiler::compileExpression(const std::string &source) {
   return currentProcess;
 }
 
-void Compiler::clear() {
+void Compiler::clear()
+{
   delete lexer;
   tokens.clear();
 
@@ -218,10 +232,12 @@ void Compiler::clear() {
 // TOKEN MANAGEMENT
 // ============================================
 
-void Compiler::advance() {
+void Compiler::advance()
+{
 
   previous = current;
-  if (cursor >= (int)tokens.size()) {
+  if (cursor >= (int)tokens.size())
+  {
     current.type = TOKEN_EOF;
     return;
   }
@@ -229,9 +245,11 @@ void Compiler::advance() {
   current = tokens[cursor++];
 }
 
-Token Compiler::peek(int offset) {
+Token Compiler::peek(int offset)
+{
   size_t index = cursor + offset;
-  if (index >= tokens.size()) {
+  if (index >= tokens.size())
+  {
     return tokens.back(); // EOF
   }
   return tokens[index];
@@ -241,15 +259,18 @@ bool Compiler::checkNext(TokenType t) { return peek(0).type == t; }
 
 bool Compiler::check(TokenType type) { return current.type == type; }
 
-bool Compiler::match(TokenType type) {
+bool Compiler::match(TokenType type)
+{
   if (!check(type))
     return false;
   advance();
   return true;
 }
 
-void Compiler::consume(TokenType type, const char *message) {
-  if (current.type == type) {
+void Compiler::consume(TokenType type, const char *message)
+{
+  if (current.type == type)
+  {
     advance();
     return;
   }
@@ -261,7 +282,8 @@ void Compiler::consume(TokenType type, const char *message) {
 // ERROR HANDLING
 // ============================================
 
-void Compiler::fail(const char *fmt, ...) {
+void Compiler::fail(const char *fmt, ...)
+{
   char buffer[1024];
   va_list args;
   va_start(args, fmt);
@@ -273,37 +295,47 @@ void Compiler::fail(const char *fmt, ...) {
 
 void Compiler::error(const char *message) { errorAt(previous, message); }
 
-void Compiler::errorAt(Token &token, const char *message) {
+void Compiler::errorAt(Token &token, const char *message)
+{
   if (panicMode)
     return;
   panicMode = true;
 
-  fprintf(stderr, "[line %d] Error", token.line);
+  OsPrintf("[line %d] Error", token.line);
 
-  if (token.type == TOKEN_EOF) {
-    fprintf(stderr, " at end");
-  } else if (token.type == TOKEN_ERROR) {
+  if (token.type == TOKEN_EOF)
+  {
+    OsPrintf(" at end");
+  }
+  else if (token.type == TOKEN_ERROR)
+  {
     // Nothing
-  } else {
-    fprintf(stderr, " at '%s'", token.lexeme.c_str());
+  }
+  else
+  {
+    OsPrintf(" at '%s'", token.lexeme.c_str());
   }
 
-  fprintf(stderr, ": %s\n", message);
+  OsPrintf(": %s\n", message);
   hadError = true;
 }
 
-void Compiler::errorAtCurrent(const char *message) {
+void Compiler::errorAtCurrent(const char *message)
+{
   errorAt(current, message);
 }
 
-void Compiler::synchronize() {
+void Compiler::synchronize()
+{
   panicMode = false;
 
-  while (current.type != TOKEN_EOF) {
+  while (current.type != TOKEN_EOF)
+  {
     if (previous.type == TOKEN_SEMICOLON)
       return;
 
-    switch (current.type) {
+    switch (current.type)
+    {
     case TOKEN_DEF:
     case TOKEN_VAR:
     case TOKEN_FOR:
@@ -324,31 +356,33 @@ void Compiler::synchronize() {
 // BYTECODE EMISSION
 // ============================================
 
-void Compiler::emitByte(uint8 byte) {
+void Compiler::emitByte(uint8 byte)
+{
   currentChunk->write(byte, previous.line);
 }
 
-void Compiler::emitBytes(uint8 byte1, uint8 byte2) {
+void Compiler::emitBytes(uint8 byte1, uint8 byte2)
+{
   emitByte(byte1);
   emitByte(byte2);
 }
 
-void Compiler::emitReturn() {
+void Compiler::emitReturn()
+{
   emitByte(OP_NIL);
   emitByte(OP_RETURN);
 }
 
-void Compiler::emitConstant(Value value) 
+void Compiler::emitConstant(Value value)
 {
   emitBytes(OP_CONSTANT, makeConstant(value));
 }
 
-uint8 Compiler::makeConstant(Value value) 
+uint8 Compiler::makeConstant(Value value)
 {
 
-
   int constant = currentChunk->addConstant(value);
-  if (constant > UINT8_MAX) 
+  if (constant > UINT8_MAX)
   {
     error("Too many constants in one chunk");
     return 0;
@@ -361,17 +395,20 @@ uint8 Compiler::makeConstant(Value value)
 // JUMPS
 // ============================================
 
-int Compiler::emitJump(uint8 instruction) {
+int Compiler::emitJump(uint8 instruction)
+{
   emitByte(instruction);
   emitByte(0xff);
   emitByte(0xff);
   return currentChunk->count - 2;
 }
 
-void Compiler::patchJump(int offset) {
+void Compiler::patchJump(int offset)
+{
   int jump = currentChunk->count - offset - 2;
 
-  if (jump > UINT16_MAX) {
+  if (jump > UINT16_MAX)
+  {
     error("Too much code to jump over");
   }
 
@@ -379,11 +416,13 @@ void Compiler::patchJump(int offset) {
   currentChunk->code[offset + 1] = jump & 0xff;
 }
 
-void Compiler::emitLoop(int loopStart) {
+void Compiler::emitLoop(int loopStart)
+{
   emitByte(OP_LOOP);
 
   int offset = currentChunk->count - loopStart + 2;
-  if (offset > UINT16_MAX) {
+  if (offset > UINT16_MAX)
+  {
     error("Loop body too large");
   }
 
@@ -391,13 +430,16 @@ void Compiler::emitLoop(int loopStart) {
   emitByte(offset & 0xff);
 }
 
-void Compiler::patchJumpTo(int operandOffset, int targetOffset) {
+void Compiler::patchJumpTo(int operandOffset, int targetOffset)
+{
   int jump = targetOffset - (operandOffset + 2); // target - after operand
-  if (jump < 0) {
+  if (jump < 0)
+  {
     error("Backward goto must use OP_LOOP");
     return;
   }
-  if (jump > UINT16_MAX) {
+  if (jump > UINT16_MAX)
+  {
     error("Jump distance too large");
     return;
   }
@@ -406,11 +448,13 @@ void Compiler::patchJumpTo(int operandOffset, int targetOffset) {
   currentChunk->code[operandOffset + 1] = jump & 0xff;
 }
 
-void Compiler::emitGosubTo(int targetOffset) {
+void Compiler::emitGosubTo(int targetOffset)
+{
   emitByte(OP_GOSUB);
   int from = (int)currentChunk->count + 2;
   int delta = targetOffset - from;
-  if (delta < -32768 || delta > 32767) {
+  if (delta < -32768 || delta > 32767)
+  {
     error("gosub jump out of range");
   }
 
@@ -422,12 +466,14 @@ void Compiler::emitGosubTo(int targetOffset) {
 // PRATT PARSER - CORE
 // ============================================
 
-void Compiler::parsePrecedence(Precedence precedence) {
+void Compiler::parsePrecedence(Precedence precedence)
+{
   advance();
 
   ParseFn prefixRule = getRule(previous.type)->prefix;
 
-  if (prefixRule == nullptr) {
+  if (prefixRule == nullptr)
+  {
     error("Expect expression");
     return;
   }
@@ -435,34 +481,42 @@ void Compiler::parsePrecedence(Precedence precedence) {
   bool canAssign = (precedence <= PREC_ASSIGNMENT);
   (this->*prefixRule)(canAssign);
 
-  while (precedence <= getRule(current.type)->prec) {
+  while (precedence <= getRule(current.type)->prec)
+  {
     advance();
     ParseFn infixRule = getRule(previous.type)->infix;
 
-    if (infixRule == nullptr) {
+    if (infixRule == nullptr)
+    {
       break;
     }
     (this->*infixRule)(canAssign);
   }
 
-  if (canAssign && match(TOKEN_EQUAL)) {
+  if (canAssign && match(TOKEN_EQUAL))
+  {
     error("Invalid assignment target");
   }
 }
 ParseRule *Compiler::getRule(TokenType type) { return &rules[type]; }
 
-void Compiler::resolveGotos() {
-  for (const GotoJump &jump : pendingGotos) {
+void Compiler::resolveGotos()
+{
+  for (const GotoJump &jump : pendingGotos)
+  {
     int targetOffset = -1;
 
-    for (const Label &l : labels) {
-      if (l.name == jump.target) {
+    for (const Label &l : labels)
+    {
+      if (l.name == jump.target)
+      {
         targetOffset = l.offset;
         break;
       }
     }
 
-    if (targetOffset == -1) {
+    if (targetOffset == -1)
+    {
       error("Undefined label");
       continue;
     }
@@ -473,16 +527,20 @@ void Compiler::resolveGotos() {
   pendingGotos.clear();
 }
 
-void Compiler::resolveGosubs() {
-  for (const auto &j : pendingGosubs) {
+void Compiler::resolveGosubs()
+{
+  for (const auto &j : pendingGosubs)
+  {
     int targetOffset = -1;
     for (const auto &l : labels)
-      if (l.name == j.target) {
+      if (l.name == j.target)
+      {
         targetOffset = l.offset;
         break;
       }
 
-    if (targetOffset < 0) {
+    if (targetOffset < 0)
+    {
       error("Undefined label");
       continue;
     }

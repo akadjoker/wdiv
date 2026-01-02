@@ -10,6 +10,20 @@
 #include <cstdio>
 #include <cmath>
 
+
+#if defined(__EMSCRIPTEN__)
+    #define OS_EMSCRIPTEN
+#elif defined(_WIN32)
+    #define OS_WINDOWS
+#elif defined(__linux__)
+    #define OS_LINUX
+#elif defined(__ANDROID__)
+    #define OS_ANDROID
+#elif defined(__APPLE__)
+    #define OS_MAC
+#endif
+
+
 typedef signed char int8;
 typedef signed short int16;
 typedef signed int int32;
@@ -29,6 +43,7 @@ inline T Max(T a, T b)
     return a > b ? a : b;
 }
 
+#if __linux__
 
 #define CONSOLE_COLOR_RESET "\033[0m"
 #define CONSOLE_COLOR_GREEN "\033[1;32m"
@@ -37,6 +52,18 @@ inline T Max(T a, T b)
 #define CONSOLE_COLOR_CYAN "\033[0;36m"
 #define CONSOLE_COLOR_YELLOW "\033[1;33m"
 #define CONSOLE_COLOR_BLUE "\033[0;34m"
+
+#else
+
+#define CONSOLE_COLOR_RESET ""
+#define CONSOLE_COLOR_GREEN ""
+#define CONSOLE_COLOR_RED ""
+#define CONSOLE_COLOR_PURPLE ""
+#define CONSOLE_COLOR_CYAN ""
+#define CONSOLE_COLOR_YELLOW ""
+#define CONSOLE_COLOR_BLUE ""
+
+#endif
 
 
  

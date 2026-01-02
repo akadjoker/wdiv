@@ -10,6 +10,9 @@ const char *valueTypeToString(ValueType type)
     {
     case ValueType::NIL:
         return "nil";
+    case ValueType::CHAR:
+        return "char";
+    
     case ValueType::BOOL:
         return "bool";
     case ValueType::INT:
@@ -20,6 +23,10 @@ const char *valueTypeToString(ValueType type)
         return "float";
     case ValueType::UINT:
         return "uint";
+    case ValueType::LONG:
+        return "long";
+    case ValueType::ULONG:
+        return "ulong";
     case ValueType::DOUBLE:
         return "float";
     case ValueType::STRING:
