@@ -19,12 +19,13 @@ if(CLANG_TIDY_EXE)
 endif()
 
 add_subdirectory(libwdiv)
+add_subdirectory(external/raylib)
 add_subdirectory(main)
-add_subdirectory(game)
-add_subdirectory(tests)
-add_subdirectory(flixel)
-add_subdirectory(engine)
-add_subdirectory(divgraphics)
+
+#add_subdirectory(tests)
+#add_subdirectory(flixel)
+#add_subdirectory(engine)
+#add_subdirectory(divgraphics)
 add_subdirectory(testStructs)
 add_subdirectory(testStructsBidings)
 
