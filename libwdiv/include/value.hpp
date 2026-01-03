@@ -145,6 +145,10 @@ struct Value
   void *asPointer() const;
   int asNativeStructId() const;
 
+  int toInt();
+  float toFloat();
+  double toDouble();
+
   String *asString() const;
   StructInstance *asStructInstance() const;
   ArrayInstance *asArray() const;

@@ -25,7 +25,8 @@ class Interpreter;
 
 typedef void (Compiler::*ParseFn)(bool canAssign);
 
-enum Precedence {
+enum Precedence
+{
   PREC_NONE,
   PREC_ASSIGNMENT,
   PREC_OR,          // ||
@@ -43,7 +44,8 @@ enum Precedence {
   PREC_PRIMARY
 };
 
-struct ParseRule {
+struct ParseRule
+{
   ParseFn prefix;
   ParseFn infix;
   Precedence prec;
@@ -52,25 +54,30 @@ struct ParseRule {
 #define MAX_IDENTIFIER_LENGTH 32
 #define MAX_LOCALS 256
 
-struct Local {
+struct Local
+{
   char name[MAX_IDENTIFIER_LENGTH];
   uint8 length;
   int depth;
-    bool usedInitLocal;
+  bool usedInitLocal;
 
   Local() : length(0), depth(-1), usedInitLocal(false) { name[0] = '\0'; }
 
-  bool equals(const std::string &str) const {
+  bool equals(const std::string &str) const
+  {
 
-    if (length != str.length()) {
+    if (length != str.length())
+    {
       return false;
     }
 
     return std::memcmp(name, str.c_str(), length) == 0;
   }
 
-  bool equals(const char *str, size_t len) const {
-    if (length != len) {
+  bool equals(const char *str, size_t len) const
+  {
+    if (length != len)
+    {
       return false;
     }
     return std::memcmp(name, str, length) == 0;
@@ -80,7 +87,8 @@ struct Local {
 #define MAX_LOOP_DEPTH 32
 #define MAX_BREAKS_PER_LOOP 256
 
-struct LoopContext {
+struct LoopContext
+{
   int loopStart;
   int breakJumps[MAX_BREAKS_PER_LOOP];
   int breakCount;
@@ -88,8 +96,10 @@ struct LoopContext {
 
   LoopContext() : loopStart(0), breakCount(0), scopeDepth(0) {}
 
-  bool addBreak(int jump) {
-    if (breakCount >= MAX_BREAKS_PER_LOOP) {
+  bool addBreak(int jump)
+  {
+    if (breakCount >= MAX_BREAKS_PER_LOOP)
+    {
 
       return false;
     }
@@ -98,18 +108,21 @@ struct LoopContext {
   }
 };
 
-struct Label {
+struct Label
+{
   std::string name;
   int offset;
 };
 
-struct GotoJump {
+struct GotoJump
+{
   std::string target;
   int jumpOffset;
 };
 
 #define MAX_LOCALS 256
-class Compiler {
+class Compiler
+{
 public:
   Compiler(Interpreter *vm);
   ~Compiler();
@@ -149,7 +162,7 @@ private:
   LoopContext loopContexts_[MAX_LOOP_DEPTH];
   int loopDepth_;
   bool isProcess_;
- 
+
   std::vector<Label> labels;
   std::vector<GotoJump> pendingGotos;
   std::vector<GotoJump> pendingGosubs;
@@ -284,15 +297,17 @@ private:
   void exitStatement();
 
   void includeStatement();
-   void parseImport();
+  void parseImport();
+  void parseUsing();
 
   FileLoaderCallback fileLoader = nullptr;
   void *fileLoaderUserdata = nullptr;
   std::set<std::string> includedFiles;
+      std::set<std::string> importedModules;
+    std::set<std::string> usingModules;
 
-
-    HashSet<String*, StringHasher, StringEq> importedModules;
- 
+  // HashSet<String *, StringHasher, StringEq> importedModules;
+  // HashSet<String *, StringHasher, StringEq> usingModules;
 
   static ParseRule rules[TOKEN_COUNT];
 };

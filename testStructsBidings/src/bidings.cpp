@@ -129,8 +129,8 @@ namespace RaylibBindings
         {
             return Value::makeNil();
         }
-        int width = args[0].asInt();
-        int height = args[1].asInt();
+        int width = args[0].toInt();
+        int height = args[1].toInt();
         const char *title = args[2].asString()->chars();
 
         InitWindow(width, height, title);
@@ -156,7 +156,7 @@ namespace RaylibBindings
             Error("SetTargetFPS expects 1 argument");
             return Value::makeNil();
         }
-        SetTargetFPS(args[0].asInt());
+        SetTargetFPS(args[0].toInt());
         return Value::makeNil();
     }
 
@@ -198,9 +198,9 @@ namespace RaylibBindings
         Color *tint = (Color *)colorInst->data;
 
         const char *text = args[0].asString()->chars();
-        int x = args[1].asInt();
-        int y = args[2].asInt();
-        int fontSize = args[3].asInt();
+        int x = args[1].toInt();
+        int y = args[2].toInt();
+        int fontSize = args[3].toInt();
 
         DrawText(text, x, y, fontSize, *tint); 
         return Value::makeNil();
@@ -252,8 +252,8 @@ namespace RaylibBindings
             return Value::makeNil();
         }
 
-        int x = args[0].asInt();
-        int y = args[1].asInt();
+        int x = args[0].toInt();
+        int y = args[1].toInt();
 
         auto *inst = args[2].asNativeStructInstance();
         Color *color = (Color *)inst->data;
@@ -276,10 +276,10 @@ namespace RaylibBindings
             return Value::makeNil();
         }
 
-        int x1 = args[0].asInt();
-        int y1 = args[1].asInt();
-        int x2 = args[2].asInt();
-        int y2 = args[3].asInt();
+        int x1 = args[0].toInt();
+        int y1 = args[1].toInt();
+        int x2 = args[2].toInt();
+        int y2 = args[3].toInt();
 
         auto *inst = args[4].asNativeStructInstance();
         Color *color = (Color *)inst->data;
@@ -300,9 +300,9 @@ namespace RaylibBindings
             Error("DrawCircle expects Color");
             return Value::makeNil();
         }
-        int x = args[0].asInt();
-        int y = args[1].asInt();
-        float radius = args[2].asDouble();
+        int x = args[0].toInt();
+        int y = args[1].toInt();
+        float radius = args[2].toDouble();
 
         auto *inst = args[3].asNativeStructInstance();
         Color *color = (Color *)inst->data;
@@ -326,7 +326,7 @@ namespace RaylibBindings
         auto *posInst = args[0].asNativeStructInstance();
         Vector2 *pos = (Vector2 *)posInst->data;
 
-        float radius = args[1].asDouble();
+        float radius = args[1].toDouble();
 
         auto *colorInst = args[2].asNativeStructInstance();
         Color *color = (Color *)colorInst->data;
@@ -347,10 +347,10 @@ namespace RaylibBindings
             Error("DrawRectangle expects Color");
             return Value::makeNil();
         }
-        int x = args[0].asInt();
-        int y = args[1].asInt();
-        int width = args[2].asInt();
-        int height = args[3].asInt();
+        int x = args[0].toInt();
+        int y = args[1].toInt();
+        int width = args[2].toInt();
+        int height = args[3].toInt();
 
         auto *inst = args[4].asNativeStructInstance();
         Color *color = (Color *)inst->data;
@@ -438,8 +438,8 @@ namespace RaylibBindings
             return Value::makeNil();
         }
         Texture2D *tex = (Texture2D *)args[0].asPointer();
-        int x = args[1].asInt();
-        int y = args[2].asInt();
+        int x = args[1].toInt();
+        int y = args[2].toInt();
 
         auto *colorInst = args[3].asNativeStructInstance();
         Color *tint = (Color *)colorInst->data;
@@ -490,8 +490,8 @@ namespace RaylibBindings
             Error("DrawFps expects 2 arguments");
             return Value::makeNil();
         }
-        int x = args[0].asInt();
-        int y = args[1].asInt();
+        int x = args[0].toInt();
+        int y = args[1].toInt();
 
         DrawFPS(x, y);
         return Value::makeNil();
@@ -510,7 +510,7 @@ namespace RaylibBindings
             return Value::makeNil();
         }
 
-        return Value::makeBool(IsMouseButtonDown(args[0].asInt()));
+        return Value::makeBool(IsMouseButtonDown(args[0].toInt()));
     }
 
     Value native_IsMouseButtonPressed(Interpreter *vm, int argc, Value *args)
@@ -526,7 +526,7 @@ namespace RaylibBindings
             return Value::makeNil();
         }
 
-        return Value::makeBool(IsMouseButtonPressed(args[0].asInt()));
+        return Value::makeBool(IsMouseButtonPressed(args[0].toInt()));
     }
 
     Value native_IsMouseButtonReleased(Interpreter *vm, int argc, Value *args)
@@ -542,7 +542,7 @@ namespace RaylibBindings
             return Value::makeNil();
         }
 
-        return Value::makeBool(IsMouseButtonReleased(args[0].asInt()));
+        return Value::makeBool(IsMouseButtonReleased(args[0].toInt()));
     }
 
     Value native_IsMouseButtonUp(Interpreter *vm, int argc, Value *args)
@@ -558,7 +558,7 @@ namespace RaylibBindings
             return Value::makeNil();
         }
 
-        return Value::makeBool(IsMouseButtonUp(args[0].asInt()));
+        return Value::makeBool(IsMouseButtonUp(args[0].toInt()));
     }
 
     Value native_GetMouseX(Interpreter *vm, int argc, Value *args)

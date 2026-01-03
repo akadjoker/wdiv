@@ -182,13 +182,13 @@ Value native_rand(Interpreter *vm, int argCount, Value *args)
     }
     else if (argCount == 1)
     {
-        double value = args[0].isInt() ? (double)args[0].asInt() : args[0].asDouble();
+        double value = args[0].toDouble();
         return Value::makeDouble(RandomGenerator::instance().randFloat(0, value));
     }
     else
     {
-        double min = args[0].isInt() ? (double)args[0].asInt() : args[0].asDouble();
-        double max = args[1].isInt() ? (double)args[1].asInt() : args[1].asDouble();
+        double min = args[0].toDouble();
+        double max = args[1].toDouble();
         return Value::makeDouble(RandomGenerator::instance().randFloat(min, max));
     }
     return Value::makeNil();
@@ -399,7 +399,7 @@ int main()
     vm.registerNative("write", native_write, -1);
     vm.registerNative("format", native_format, -1);
     // vm.registerNative("sqrt", native_sqrt, 1);
-    // vm.registerNative("clock", native_clock, 0);
+     vm.registerNative("clock", native_clock, 0);
     // vm.registerNative("sin", native_sin, 1);
     // vm.registerNative("cos", native_cos, 1);
     // vm.registerNative("abs", native_abs, 1);
