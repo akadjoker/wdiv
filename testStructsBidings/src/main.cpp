@@ -9,7 +9,7 @@
 #include "bidings.hpp"
 #include "interpreter.hpp"
 
-// Helper: converte Value para string
+
 static void valueToString(const Value &v, std::string &out)
 {
     char buffer[256];
