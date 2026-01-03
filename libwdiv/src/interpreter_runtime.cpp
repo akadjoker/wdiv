@@ -262,7 +262,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             }
             if (a.isInt() && b.isDouble())
             {
-                PUSH(Value::makeDouble(a.asInt() + b.asDouble())); 
+                PUSH(Value::makeDouble(a.asInt() + b.asDouble()));
                 break;
             }
             if (a.isDouble() && b.isInt())
@@ -906,6 +906,38 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
                 break;
             }
+            else if (callee.isModuleRef())
+            {
+
+                uint32 packed = callee.as.unsignedInteger;
+                uint16 moduleId = (callee.as.unsignedInteger >> 16) & 0xFFFF;
+                uint16 funcId = callee.as.unsignedInteger & 0xFFFF;
+
+                if (moduleId >= modules.size())
+                {
+                    runtimeError("Invalid module ID: %d", moduleId);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                ModuleDef *mod = modules[moduleId];
+                if (funcId >= mod->functions.size())
+                {
+                    runtimeError("Invalid function ID %d in module '%s'", funcId, mod->name);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                NativeFunctionDef &func = mod->functions[funcId];
+                // Info("args count: %d funcId: %d arity: %d", argCount,funcId,func.arity);
+                if (func.arity != -1 && func.arity != argCount)
+                {
+                    String *funcName;
+                    mod->getFunctionName(funcId, &funcName);
+                    runtimeError("Module '%s' expects %d args on function '%s' got %d", mod->name->chars(), func.arity, funcName->chars(), argCount);
+                    return {FiberResult::FIBER_DONE, instructionsRun, 0, 0};
+                }
+                Value result = func.ptr(this, argCount, fiber->stackTop - argCount);
+                fiber->stackTop -= (argCount + 1);
+                PUSH(result);
+                break;
+            }
             else
             {
 
@@ -1438,7 +1470,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 }
             }
 
-                        if (object.isNativeStructInstance())
+            if (object.isNativeStructInstance())
             {
                 NativeStructInstance *inst = object.asNativeStructInstance();
                 NativeStructDef *def = inst->def;

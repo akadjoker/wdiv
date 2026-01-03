@@ -1,15 +1,31 @@
 
 import timer;
+import math;
 
 
  
 
 var time = timer.create(1.0);
-print(time);
+print(math.PI);
 
+var pi=math.PI;
 
-var time = timer.create(1.0);
  
+
+print(math.PI);
+ 
+
+ var t1 = timer.create(5.0);
+    
+    // Cria timer de 10 segundos
+    var t2 = timer.create(1);
+    
+    // Verifica imediatamente (deve ser false)
+    if (timer.elapsed(t1)) 
+    {
+        print("T1 elapsed! (should not happen)");
+    }
+
 
 // def get(n) 
 // {

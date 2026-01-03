@@ -29,8 +29,6 @@ struct Process;
 class Interpreter;
 class Compiler;
 
-
-
 enum class FieldType : uint8_t
 {
   BYTE,    // byte
@@ -148,34 +146,50 @@ struct NativeStructInstance
   void *data; // Malloc'd block (structSize bytes)
 };
 
-struct FunctionDef
+struct NativeFunctionDef
 {
   NativeFunction ptr;
   int arity;
-};
-
-struct ConstantDef
-{
-  Value value;
 };
 
 class ModuleDef
 {
 private:
   String *name;
-  HashMap<String *, FunctionDef, StringHasher, StringEq> functions;
-  HashMap<String *, ConstantDef, StringHasher, StringEq> constants;
-
+  Vector<NativeFunctionDef> functions;
+  HashMap<String *, uint16, StringHasher, StringEq> functionNames;
+  Vector<Value> constants;
+  HashMap<String *, uint16, StringHasher, StringEq> constantNames;
+  friend class Interpreter;
 public:
-  ModuleDef(String *name) : name(name) {}
-  ModuleDef *add(const char *funcName, NativeFunction ptr, int arity);
-  ModuleDef *addInt(const char *name, int value);
-  ModuleDef *addDouble(const char *name, double value);
-  ModuleDef *addString(const char *name, const char *value);
-  bool getFunction(String *funcName, FunctionDef *out);
-  bool getConstant(String *constName, ConstantDef *out);
+  ModuleDef(String *name);
+  uint16 addFunction(const char *name, NativeFunction func, int arity);
+  uint16 addConstant(const char *name, Value value);
+  NativeFunctionDef *getFunction(uint16 id);
+  Value *getConstant(uint16 id);
+
+  bool getFunctionId(String *name, uint16 *outId);
+  bool getConstantId(String *name, uint16 *outId);
+
+  bool getFunctionName(uint16 id, String **outName);
+  bool getConstantName(uint16 id, String **outName);
 
   String *getName() const { return name; }
+};
+
+class ModuleBuilder
+{
+private:
+  ModuleDef *module;
+
+public:
+  ModuleBuilder(ModuleDef *module);
+  ModuleBuilder &addFunction(const char *name, NativeFunction func, int arity);
+  ModuleBuilder &addInt(const char *name, int value);
+  ModuleBuilder &addFloat(const char *name, float value);
+  ModuleBuilder &addDouble(const char *name, double value);
+  ModuleBuilder &addBool(const char *name, bool value);
+  ModuleBuilder &addString(const char *name, const char *value);
 };
 
 struct GCObject
@@ -328,7 +342,9 @@ class Interpreter
   HashMap<String *, StructDef *, StringHasher, StringEq> structsMap;
   HashMap<String *, ClassDef *, StringHasher, StringEq> classesMap;
   HashMap<const char *, int, CStringHash, CStringEq> privateIndexMap;
-  HashMap<String*, ModuleDef*, StringHasher, StringEq> availableModules;
+
+  Vector<ModuleDef *> modules;                                   // Array de módulos!
+  HashMap<String *, uint16, StringHasher, StringEq> moduleNames; // Nome  ID
 
   Vector<Function *> functions;
   Vector<Function *> functionsClass;
@@ -467,8 +483,10 @@ public:
 
   void render();
 
-  ModuleDef* defineModule(const char* moduleName) ;
-  bool getModuleDef(String* name, ModuleDef** out);
+  uint16 defineModule(const char *name);
+  ModuleBuilder addModule(const char *name);
+  ModuleDef *getModule(uint16 id);
+  bool getModuleId(String *name, uint16 *outId);
 
   void disassemble();
 

@@ -14,12 +14,13 @@ Interpreter::Interpreter()
 
 Interpreter::~Interpreter()
 {
-
-  availableModules.forEach([&](String *name, ModuleDef *def)
+  for (size_t i = 0; i < modules.size(); i++)
   {
-    delete def;
-  });
-  availableModules.destroy();
+    ModuleDef *mod = modules[i];
+    delete mod;
+  }
+  
+  modules.clear();
 
   delete compiler;
 

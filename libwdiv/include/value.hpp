@@ -10,6 +10,8 @@ struct NativeInstance;
 struct NativeStructInstance;
 
 
+ 
+
 enum class ValueType : uint8
 {
   NIL,
@@ -37,6 +39,7 @@ enum class ValueType : uint8
   CLASSINSTANCE,
   PROCESS,
   POINTER,
+  MODULEREFERENCE,
 };
 
 struct Value
@@ -51,17 +54,15 @@ struct Value
     double number;
     String *string;
 
- 
     uint32 unsignedInteger;
     StructInstance *sInstance;
-    ArrayInstance  *array;
-    MapInstance    *map;
+    ArrayInstance *array;
+    MapInstance *map;
 
     NativeInstance *sClassInstance;
-    NativeStructInstance   *sNativeStruct;
-    void* pointer;
+    NativeStructInstance *sNativeStruct;
+    void *pointer;
 
- 
   } as;
 
   Value();
@@ -88,15 +89,17 @@ struct Value
   static Value makeNativeClassInstance();
   static Value makeProcess(int idx);
   static Value makeStruct(int idx);
-  static Value makeStructInstance( );
-  static Value makeMap( );
+  static Value makeStructInstance();
+  static Value makeMap();
   static Value makeArray();
 
   static Value makeClass(int idx);
   static Value makeClassInstance();
-  static Value makePointer(void* pointer);
+  static Value makePointer(void *pointer);
   static Value makeNativeStruct(int idx);
   static Value makeNativeStructInstance();
+
+  static Value makeModuleRef(  uint16 moduleId, uint16 funcId);
 
   // Type checks
   bool isNumber() const;
@@ -117,11 +120,12 @@ struct Value
   bool isMap() const { return type == ValueType::MAP; }
   bool isArray() const { return type == ValueType::ARRAY; }
   bool isClass() const { return type == ValueType::CLASS; }
-  bool isClassInstance(){ return type == ValueType::CLASSINSTANCE; }
-  bool isNativeClassInstance(){ return type == ValueType::NATIVECLASSINSTANCE; }
-  bool isPointer(){ return type == ValueType::POINTER; }
-  bool isNativeStruct(){ return type == ValueType::NATIVESTRUCT; }
-  bool isNativeStructInstance(){ return type == ValueType::NATIVESTRUCTINSTANCE; }
+  bool isClassInstance() { return type == ValueType::CLASSINSTANCE; }
+  bool isNativeClassInstance() { return type == ValueType::NATIVECLASSINSTANCE; }
+  bool isPointer() { return type == ValueType::POINTER; }
+  bool isNativeStruct() { return type == ValueType::NATIVESTRUCT; }
+  bool isNativeStructInstance() { return type == ValueType::NATIVESTRUCTINSTANCE; }
+  bool isModuleRef() { return type == ValueType::MODULEREFERENCE; }
 
   // Conversions
   bool asBool() const;
@@ -138,17 +142,16 @@ struct Value
   int asStructId() const;
   int asClassId() const;
   int asClassNativeId() const;
-  void* asPointer() const;
+  void *asPointer() const;
   int asNativeStructId() const;
- 
+
   String *asString() const;
-  StructInstance* asStructInstance() const;
-  ArrayInstance* asArray() const;
-  MapInstance* asMap() const;
+  StructInstance *asStructInstance() const;
+  ArrayInstance *asArray() const;
+  MapInstance *asMap() const;
   ClassInstance *asClassInstance() const;
   NativeInstance *asNativeClassInstance() const;
   NativeStructInstance *asNativeStructInstance() const;
-
 };
 
 void printValue(const Value &value);

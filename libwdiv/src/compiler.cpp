@@ -33,7 +33,11 @@ Compiler::Compiler(Interpreter *vm)
   initRules();
   cursor = 0;
 }
-Compiler::~Compiler() { delete lexer; }
+Compiler::~Compiler()
+{
+  importedModules.destroy();
+  delete lexer; 
+}
 
 // ============================================
 // INICIALIZAÇÃO DA TABELA

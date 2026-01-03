@@ -12,21 +12,54 @@ GLOBAL FUNCTIONS
     Has return: no
     Index: 0
 
-  Constants (4):
+  Constants (16):
     [0] = "time"
-    [1] = <value type 16>
+    [1] = <value type 25>
     [2] = 1.00
-    [3] = "time"
+    [3] = 3.14
+    [4] = "pi"
+    [5] = 3.14
+    [6] = 3.14
+    [7] = "t1"
+    [8] = <value type 25>
+    [9] = 5.00
+    [10] = "t2"
+    [11] = <value type 25>
+    [12] = 1
+    [13] = <value type 25>
+    [14] = "t1"
+    [15] = "T1 elapsed! (should not happen)"
 
   Bytecode:
-    0000    7 OP_CONSTANT         1 '<native>'
+    0000    8 OP_CONSTANT         1 '<module_reference 0 16 0>'
     0002    | OP_CONSTANT         2 '1.000000.4f'
     0004    | OP_CALL             1
     0006    | OP_DEFINE_GLOBAL    0 'time'
-    0008    8 OP_GET_GLOBAL       3 'time'
+    0008    9 OP_CONSTANT         3 '3.141593.4f'
     0010    | OP_PRINT
-    0011  221 OP_NIL
-    0012    | OP_RETURN
+    0011   11 OP_CONSTANT         5 '3.141593.4f'
+    0013    | OP_DEFINE_GLOBAL    4 'pi'
+    0015   15 OP_CONSTANT         6 '3.141593.4f'
+    0017    | OP_PRINT
+    0018   18 OP_CONSTANT         8 '<module_reference 0 16 0>'
+    0020    | OP_CONSTANT         9 '5.000000.4f'
+    0022    | OP_CALL             1
+    0024    | OP_DEFINE_GLOBAL    7 't1'
+    0026   21 OP_CONSTANT        11 '<module_reference 0 16 0>'
+    0028    | OP_CONSTANT        12 '1'
+    0030    | OP_CALL             1
+    0032    | OP_DEFINE_GLOBAL   10 't2'
+    0034   24 OP_CONSTANT        13 '<module_reference 0 16 1>'
+    0036    | OP_GET_GLOBAL      14 't1'
+    0038    | OP_CALL             1
+    0040    | OP_JUMP_IF_FALSE   40 -> 50
+    0043    | OP_POP
+    0044   26 OP_CONSTANT        15 'T1 elapsed! (should not happen)'
+    0046    | OP_PRINT
+    0047   27 OP_JUMP            47 -> 51
+    0050    | OP_POP
+    0051  237 OP_NIL
+    0052    | OP_RETURN
 
 
 ========================================

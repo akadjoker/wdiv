@@ -155,6 +155,29 @@ Value Value::makeNativeStructInstance()
     return v;
 }
 
+// // Unpack
+// uint8 getType(Value v) {
+//     return (v.as.integer >> 24) & 0xFF;
+// }
+// uint16 getModuleId(Value v) {
+//     return (v.as.integer >> 12) & 0xFFF;
+// }
+// uint16 getFuncId(Value v) {
+//     return v.as.integer & 0xFFF;
+// }
+
+Value Value::makeModuleRef(uint16 moduleId, uint16 funcId)
+{
+    Value v;
+    v.type = ValueType::MODULEREFERENCE;
+    uint32 packed = 0;
+ 
+    packed |= (moduleId & 0xFFFF) << 16; // 16 bits
+    packed |= (funcId & 0xFFFF);         // 16 bits
+    v.as.unsignedInteger = packed;
+    return v;
+}
+
 Value Value::makeBool(bool b)
 {
     Value v;
@@ -471,8 +494,6 @@ const char *typeToString(ValueType type)
     }
 }
 
- 
-
 void printValue(const Value &value)
 {
     switch (value.type)
@@ -614,6 +635,11 @@ void printValue(const Value &value)
     {
 
         OsPrintf("<pointer %p>", value.as.pointer);
+        break;
+    }
+    case ValueType::MODULEREFERENCE:
+    {
+        OsPrintf("<module_reference %d %d %d>", value.as.unsignedInteger >> 24, (value.as.unsignedInteger >> 12) & 0xFFF, value.as.unsignedInteger & 0xFFF);
         break;
     }
 

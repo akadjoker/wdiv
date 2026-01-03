@@ -209,68 +209,49 @@ void Compiler::variable(bool canAssign)
 
         if (importedModules.contains(nameStr))
         {
-            advance(); // Consome DOT
-            consume(TOKEN_IDENTIFIER, "Expect function name after '.'");
-            Token funcName = previous;
-            Warning("Importing function '%s' from module '%s'", funcName.lexeme.c_str(), name.lexeme.c_str());
-            ModuleDef *mod = nullptr;
-            if (!vm_->getModuleDef(nameStr, &mod))
+            // É módulo!
+            advance(); // DOT
+            consume(TOKEN_IDENTIFIER, "Expect member");
+            Token member = previous;
+
+            // Pega IDs
+            uint16 moduleId;
+            vm_->getModuleId(nameStr, &moduleId);
+
+            ModuleDef *mod = vm_->getModule(moduleId);
+            String *memberStr = createString(member.lexeme.c_str());
+
+            uint16 funcId;
+            if (mod->getFunctionId(memberStr, &funcId))
             {
-                error("Module not found (internal error)");
-                return;
-            }
-            String *funcNameStr = createString(funcName.lexeme.c_str());
-            FunctionDef funcDef;
-            int index = -1;
-            if (mod->getFunction(funcNameStr, &funcDef))
-            {
-                char fullName[256];
-                snprintf(fullName, 256, "%s_%s",
-                         name.lexeme.c_str(),
-                         funcName.lexeme.c_str());
-                String *fullNameStr = createString(fullName);
-                Warning("Importing function '%s' from module '%s'", fullName, name.lexeme.c_str());
-                index = vm_->registerNative(fullName, funcDef.ptr, funcDef.arity);
-                if(index==1)
+                // É função!
+                if (!match(TOKEN_LPAREN))
                 {
-                    vm_->n
-                    if (match(TOKEN_LPAREN))
-                    {
-                        Value calee = Value::makeNative(index);
-                        emitConstant(calee);
-                        call(false);
-                    }
-                    else
-                    {
-                        error("Module functions must be called with ()");
-                    }
-                    
+                    error("Module functions must be called");
                     return;
                 }
 
-                if (match(TOKEN_LPAREN))
-                {
-                    Value calee = Value::makeNative(index);
-                    emitConstant(calee);
-                    call(false);
-                }
-                else
-                {
-                    error("Module functions must be called with ()");
-                }
-
-                return; // Processado! Não continua
+                Value ref = Value::makeModuleRef( moduleId, funcId);
+                emitConstant(ref);
+                call(false);
+                return;
             }
 
-            // Verifica se é constante
-            ConstantDef constDef;
-            if (mod->getConstant(funcNameStr, &constDef))
+            uint16 constId;
+            if (mod->getConstantId(memberStr, &constId)) 
             {
-                emitConstant(constDef.value);
-                return; // Processado!
+                Value* constantValue = mod->getConstant(constId);
+                if (constantValue) 
+                {
+                    emitConstant(*constantValue);  
+                } else 
+                {
+                    error("Constant not found");
+                }
+                return;
             }
 
-            fail("'%s' not found in module '%s'",  funcName.lexeme.c_str(),name.lexeme.c_str());
+            fail("'%s' not found in module '%s'", member.lexeme.c_str(), name.lexeme.c_str());
             return;
         }
     }
@@ -1329,26 +1310,51 @@ void Compiler::includeStatement()
 
 void Compiler::parseImport()
 {
-    // import timer;
-    consume(TOKEN_IDENTIFIER, "Expect module name after 'import'");
-    Token moduleName = previous;
+    // import timer, net, fs;
 
-    // Verifica se módulo existe
-    String *modNameStr = createString(moduleName.lexeme.c_str());
-    ModuleDef *mod = nullptr;
-
-    if (!vm_->getModuleDef(modNameStr, &mod))
+    if (match(TOKEN_STAR))
     {
-        fail("Module '%s' not found", moduleName.lexeme.c_str());
+        // Importa TODOS os módulos definidos
+        for (size_t i = 0; i < vm_->modules.size(); i++)
+        {
+            ModuleDef *mod = vm_->modules[i];
+            importedModules.insert(mod->getName());
+        }
+
+        consume(TOKEN_SEMICOLON, "Expect ';'");
+        Warning("Imported all modules");
         return;
     }
 
-    // Warning("Importing module '%s'", moduleName.lexeme.c_str());
+    do
+    {
+        consume(TOKEN_IDENTIFIER, "Expect module name");
+        Token moduleName = previous;
 
-    // Marca como importado (GLOBAL!)
-    importedModules.insert(modNameStr);
+        String *modNameStr = createString(moduleName.lexeme.c_str());
+        uint16 modId;
 
-    consume(TOKEN_SEMICOLON, "Expect ';' after module name");
+        // Verifica se módulo existe
+        if (!vm_->getModuleId(modNameStr, &modId))
+        {
+            fail("Module '%s' not defined", moduleName.lexeme.c_str());
+            return;
+        }
+
+        // Verifica duplicado
+        if (importedModules.contains(modNameStr))
+        {
+            Warning("Module '%s' already imported", moduleName.lexeme.c_str());
+        }
+        else
+        {
+            // Importa
+            importedModules.insert(modNameStr);
+        }
+
+    } while (match(TOKEN_COMMA)); //  Loop enquanto tiver vírgula!
+
+    consume(TOKEN_SEMICOLON, "Expect ';' after import");
 }
 
 void Compiler::yieldStatement()

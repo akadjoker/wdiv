@@ -292,7 +292,7 @@ private:
 
 
     HashSet<String*, StringHasher, StringEq> importedModules;
-    HashSet<String*, StringHasher, StringEq> registeredModuleFunctions;
+ 
 
   static ParseRule rules[TOKEN_COUNT];
 };
