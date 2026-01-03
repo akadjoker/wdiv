@@ -248,6 +248,7 @@ std::string executeCode(const std::string &code)
 
     Interpreter vm;
 
+<<<<<<< HEAD
         // vm.addModule("math")
         // .addDouble("PI", 3.14159265358979)
         // .addDouble("E", 2.71828182845905)
@@ -268,6 +269,19 @@ std::string executeCode(const std::string &code)
     vm.registerNative("ceil", native_ceil, 1);
     
 
+=======
+        vm.addModule("math")
+        .addDouble("PI", 3.14159265358979)
+        .addDouble("E", 2.71828182845905)
+        .addFloat("SQRT2", 1.41421356f)
+        .addInt("MAX_INT", 2147483647)
+        .addFunction("sin",  native_sin , 1)
+        .addFunction("cos",  native_cos , 1)
+        .addFunction("sqrt", native_sqrt, 1)
+        .addFunction("abs",  native_abs , 1)
+        .addFunction("rand", native_rand, -1);
+ 
+>>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
     vm.registerNative("clock", native_clock, 0);
     vm.registerNative("write", native_write, -1);
     vm.registerNative("format", native_format, -1);

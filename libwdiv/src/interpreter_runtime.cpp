@@ -647,9 +647,15 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
 
             Value callee = NPEEK(argCount);
 
+<<<<<<< HEAD
             //  printf("Call : (");
             //   printValue(callee);
             //   printf(") count %d\n", argCount);
+=======
+             printf("Call : (");
+              printValue(callee);
+              printf(") count %d\n", argCount);
+>>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
 
             if (callee.isFunction())
             {

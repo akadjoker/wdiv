@@ -429,6 +429,7 @@ int Value::asNativeStructId() const
     return as.integer;
 }
 
+<<<<<<< HEAD
 // int Value::toInt()
 // {
 //      if (type == ValueType::INT)
@@ -523,6 +524,102 @@ int Value::asNativeStructId() const
 //     printValueNl(*this);
 //     return 0;
 // }
+=======
+int Value::toInt()
+{
+     if (type == ValueType::INT)
+    {
+        return as.integer;
+    }
+
+    if (type == ValueType::DOUBLE)
+    {
+        return static_cast<int>(as.number);
+    }
+    else if (type == ValueType::BYTE)
+    {
+        return static_cast<int>(as.byte);
+    }
+    else if (type == ValueType::FLOAT)
+    {
+        return static_cast<int>(as.real);
+    }
+    else if (type == ValueType::UINT)
+    {
+        return static_cast<int>(as.unsignedInteger);
+    }
+    else if (type == ValueType::BOOL)
+    {
+        return static_cast<int>(as.boolean);
+    }
+    Warning("Wrong type conversion to int");
+    printValueNl(*this);
+    return 0;
+}
+
+float Value::toFloat()
+{
+    if (type == ValueType::FLOAT)
+    {
+        return as.real;
+    }
+    if (type == ValueType::DOUBLE)
+    {
+        return static_cast<float>(as.number);
+    }
+    else if (type == ValueType::INT)
+    {
+        return static_cast<float>(as.integer);
+    }
+    else if (type == ValueType::BYTE)
+    {
+        return static_cast<float>(as.byte);
+    }
+    else if (type == ValueType::UINT)
+    {
+        return static_cast<float>(as.unsignedInteger);
+    }
+    else if (type == ValueType::BOOL)
+    {
+        return static_cast<float>(as.boolean);
+    }
+    Warning("Wrong type conversion to float");
+    printValueNl(*this);
+    return 0;
+  
+}
+
+double Value::toDouble()
+{
+    if (type == ValueType::DOUBLE)
+    {
+        return as.number;
+    }
+    else if (type == ValueType::INT)
+    {
+        return static_cast<double>(as.integer);
+    }
+    else if (type == ValueType::BYTE)
+    {
+        return static_cast<double>(as.byte);
+    }
+    else if (type == ValueType::FLOAT)
+    {
+        return static_cast<double>(as.real);
+    }
+    else if (type == ValueType::UINT)
+    {
+        return static_cast<double>(as.unsignedInteger);
+    }
+    else if (type == ValueType::BOOL)
+    {
+        return static_cast<double>(as.boolean);
+    }
+    Warning("Wrong type conversion to double");
+    printValueNl(*this);
+    return 0;
+}
+>>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
 
 StructInstance *Value::asStructInstance() const
 {

@@ -181,13 +181,22 @@ Value native_rand(Interpreter *vm, int argCount, Value *args)
     }
     else if (argCount == 1)
     {
+<<<<<<< HEAD
         double value = TO_DOUBLE(args[0]);
+=======
+        double value = args[0].toDouble();
+>>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
         return Value::makeDouble(RandomGenerator::instance().randFloat(0, value));
     }
     else
     {
+<<<<<<< HEAD
         double min = TO_DOUBLE(args[0]);
         double max = TO_DOUBLE(args[1]);
+=======
+        double min = args[0].toDouble();
+        double max = args[1].toDouble();
+>>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
         return Value::makeDouble(RandomGenerator::instance().randFloat(min, max));
     }
     return Value::makeNil();
@@ -350,10 +359,17 @@ int main()
         vm.registerNative("GetMouseY", RaylibBindings::native_GetMouseY, 0);
     }
 
+<<<<<<< HEAD
     // printf("Modules registered: %zu\n", vm.modules.size());
     // printf("Module 'raylib' functions: %zu\n", vm.modules[0]->functions.size());
 
     // printf("Global natives registered: %zu\n", vm.natives.size());
+=======
+    printf("Modules registered: %zu\n", vm.modules.size());
+    printf("Module 'raylib' functions: %zu\n", vm.modules[0]->functions.size());
+
+    printf("Global natives registered: %zu\n", vm.natives.size());
+>>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
 
     RaylibBindings::registerColor(vm);
     RaylibBindings::registerRectangle(vm);
