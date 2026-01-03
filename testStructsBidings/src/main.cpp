@@ -7,8 +7,8 @@
 #include <chrono>
 #include <thread>
 #include "bidings.hpp"
+#include "random.hpp"
 #include "interpreter.hpp"
-
 
 static void valueToString(const Value &v, std::string &out)
 {
@@ -63,8 +63,6 @@ Value native_format(Interpreter *vm, int argCount, Value *args)
         vm->runtimeError("format expects string as first argument");
         return Value::makeNil();
     }
-
-  
 
     const char *fmt = args[0].as.string->chars();
     std::string result;
@@ -121,7 +119,6 @@ Value native_write(Interpreter *vm, int argCount, Value *args)
     return Value::makeNil();
 }
 
-
 Value native_sqrt(Interpreter *vm, int argCount, Value *args)
 {
     if (argCount != 1)
@@ -177,26 +174,23 @@ Value native_clock(Interpreter *vm, int argCount, Value *args)
 
 Value native_rand(Interpreter *vm, int argCount, Value *args)
 {
-    if (argCount != 1 || !args[0].isInt())
-    {
-        Error("rand expects 1 integer argument");
-        return Value::makeNil();
-    }
 
-    int max = args[0].asInt();
-    return Value::makeInt(GetRandomValue(0, max));
-}
-
-Value native_rand_range(Interpreter *vm, int argCount, Value *args)
-{
-    if (argCount != 2 || !args[0].isInt() || !args[1].isInt())
+    if (argCount == 0)
     {
-       Error("rand_range expects 2 integer arguments");
-        return Value::makeNil();
+        return Value::makeDouble(RandomGenerator::instance().randFloat());
     }
-    int min = args[0].asInt();
-    int max = args[1].asInt();
-    return Value::makeInt(GetRandomValue(min, max));
+    else if (argCount == 1)
+    {
+        double value = TO_DOUBLE(args[0]);
+        return Value::makeDouble(RandomGenerator::instance().randFloat(0, value));
+    }
+    else
+    {
+        double min = TO_DOUBLE(args[0]);
+        double max = TO_DOUBLE(args[1]);
+        return Value::makeDouble(RandomGenerator::instance().randFloat(min, max));
+    }
+    return Value::makeNil();
 }
 
 struct FileLoaderContext
@@ -278,65 +272,88 @@ int main()
 {
 
     Interpreter vm;
- 
-    vm.registerNative("write", native_write, -1);
-    vm.registerNative("format", native_format, -1);
-    vm.registerNative("sqrt", native_sqrt, 1);
-    vm.registerNative("clock", native_clock, 0);
-    vm.registerNative("sin", native_sin, 1);
-    vm.registerNative("cos", native_cos, 1);
-    vm.registerNative("abs", native_abs, 1);
+
+    vm.addModule("math")
+        .addDouble("PI", 3.14159265358979)
+        .addDouble("E", 2.71828182845905)
+        .addFloat("SQRT2", 1.41421356f)
+        .addInt("MAX_INT", 2147483647)
+        .addFunction("sin", native_sin, 1)
+        .addFunction("cos", native_cos, 1)
+        .addFunction("sqrt", native_sqrt, 1)
+        .addFunction("abs", native_abs, 1);
 
     vm.registerNative("rand", native_rand, 1);
-    vm.registerNative("rand_range", native_rand_range, 2);
 
-    vm.registerNative("InitWindow", RaylibBindings::native_InitWindow, 3);
-    vm.registerNative("CloseWindow", RaylibBindings::native_CloseWindow, 0);
+    vm.registerNative("write", native_write, -1);
+    vm.registerNative("format", native_format, -1);
+    vm.registerNative("clock", native_clock, 0);
 
-    vm.registerNative("WindowShouldClose", RaylibBindings::native_WindowShouldClose, 0);
-    vm.registerNative("SetTargetFPS", RaylibBindings::native_SetTargetFPS, 1);
-    vm.registerNative("GetFPS", RaylibBindings::native_GetFPS, 0);
-    vm.registerNative("GetFrameTime", RaylibBindings::native_GetFrameTime, 0);
-    vm.registerNative("BeginDrawing", RaylibBindings::native_BeginDrawing, 0);
-    vm.registerNative("EndDrawing", RaylibBindings::native_EndDrawing, 0);
-    vm.registerNative("ClearBackground", RaylibBindings::native_ClearBackground, 1);
+    bool useModule = true;
 
-    vm.registerNative("DrawFPS", RaylibBindings::native_DrawFps, 2);
-    vm.registerNative("DrawPixel", RaylibBindings::native_DrawPixel, 3);
-    vm.registerNative("DrawText", RaylibBindings::native_DrawText, 5);
-    vm.registerNative("DrawLine", RaylibBindings::native_DrawLine, 4);
-    vm.registerNative("DrawCircle", RaylibBindings::native_DrawCircle, 4);
-    vm.registerNative("DrawRectangle", RaylibBindings::native_DrawRectangle, 5);
-    vm.registerNative("DrawRectangleRec", RaylibBindings::native_DrawRectangleRec, 2);
+    if (useModule)
+    {
+        vm.addModule("raylib")
+            .addFunction("InitWindow", RaylibBindings::native_InitWindow, 3)
+            .addFunction("CloseWindow", RaylibBindings::native_CloseWindow, 0)
+            .addFunction("WindowShouldClose", RaylibBindings::native_WindowShouldClose, 0)
+            .addFunction("SetTargetFPS", RaylibBindings::native_SetTargetFPS, 1)
+            .addFunction("GetFPS", RaylibBindings::native_GetFPS, 0)
+            .addFunction("GetFrameTime", RaylibBindings::native_GetFrameTime, 0)
+            .addFunction("BeginDrawing", RaylibBindings::native_BeginDrawing, 0)
+            .addFunction("EndDrawing", RaylibBindings::native_EndDrawing, 0)
+            .addFunction("ClearBackground", RaylibBindings::native_ClearBackground, 1)
+            .addFunction("DrawFPS", RaylibBindings::native_DrawFps, 2)
+            .addFunction("DrawPixel", RaylibBindings::native_DrawPixel, 3)
+            .addFunction("DrawText", RaylibBindings::native_DrawText, 5)
+            .addFunction("DrawLine", RaylibBindings::native_DrawLine, 4)
+            .addFunction("DrawCircle", RaylibBindings::native_DrawCircle, 4)
+            .addFunction("DrawRectangle", RaylibBindings::native_DrawRectangle, 5)
+            .addFunction("DrawRectangleRec", RaylibBindings::native_DrawRectangleRec, 2)
+            .addFunction("DrawTexture", RaylibBindings::native_DrawTexture, 4)
+            .addFunction("LoadTexture", RaylibBindings::native_LoadTexture, 1)
+            .addFunction("UnloadTexture", RaylibBindings::native_UnloadTexture, 1)
+            .addFunction("GetMousePosition", RaylibBindings::native_GetMousePosition, 0)
+            .addFunction("IsMouseButtonDown", RaylibBindings::native_IsMouseButtonDown, 1)
+            .addFunction("IsMouseButtonPressed", RaylibBindings::native_IsMouseButtonPressed, 1)
+            .addFunction("IsMouseButtonReleased", RaylibBindings::native_IsMouseButtonReleased, 1)
+            .addFunction("GetMouseX", RaylibBindings::native_GetMouseX, 0)
+            .addFunction("GetMouseY", RaylibBindings::native_GetMouseY, 0);
+    }
+    else
+    {
 
-    // texture
+        vm.registerNative("InitWindow", RaylibBindings::native_InitWindow, 3);
+        vm.registerNative("CloseWindow", RaylibBindings::native_CloseWindow, 0);
+        vm.registerNative("WindowShouldClose", RaylibBindings::native_WindowShouldClose, 0);
+        vm.registerNative("SetTargetFPS", RaylibBindings::native_SetTargetFPS, 1);
+        vm.registerNative("GetFPS", RaylibBindings::native_GetFPS, 0);
+        vm.registerNative("GetFrameTime", RaylibBindings::native_GetFrameTime, 0);
+        vm.registerNative("BeginDrawing", RaylibBindings::native_BeginDrawing, 0);
+        vm.registerNative("EndDrawing", RaylibBindings::native_EndDrawing, 0);
+        vm.registerNative("ClearBackground", RaylibBindings::native_ClearBackground, 1);
+        vm.registerNative("DrawFPS", RaylibBindings::native_DrawFps, 2);
+        vm.registerNative("DrawPixel", RaylibBindings::native_DrawPixel, 3);
+        vm.registerNative("DrawText", RaylibBindings::native_DrawText, 5);
+        vm.registerNative("DrawLine", RaylibBindings::native_DrawLine, 4);
+        vm.registerNative("DrawCircle", RaylibBindings::native_DrawCircle, 4);
+        vm.registerNative("DrawRectangle", RaylibBindings::native_DrawRectangle, 5);
+        vm.registerNative("DrawRectangleRec", RaylibBindings::native_DrawRectangleRec, 2);
+        vm.registerNative("DrawTexture", RaylibBindings::native_DrawTexture, 4);
+        vm.registerNative("LoadTexture", RaylibBindings::native_LoadTexture, 1);
+        vm.registerNative("UnloadTexture", RaylibBindings::native_UnloadTexture, 1);
+        vm.registerNative("GetMousePosition", RaylibBindings::native_GetMousePosition, 0);
+        vm.registerNative("IsMouseButtonDown", RaylibBindings::native_IsMouseButtonDown, 1);
+        vm.registerNative("IsMouseButtonPressed", RaylibBindings::native_IsMouseButtonPressed, 1);
+        vm.registerNative("IsMouseButtonReleased", RaylibBindings::native_IsMouseButtonReleased, 1);
+        vm.registerNative("GetMouseX", RaylibBindings::native_GetMouseX, 0);
+        vm.registerNative("GetMouseY", RaylibBindings::native_GetMouseY, 0);
+    }
 
-    vm.registerNative("DrawTexture", RaylibBindings::native_DrawTexture, 4);
-    vm.registerNative("LoadTexture", RaylibBindings::native_LoadTexture, 1);
-    vm.registerNative("UnloadTexture", RaylibBindings::native_UnloadTexture, 1);
-    // vm.registerNative("DrawTextureRec",  RaylibBindings::native_DrawTextureRec, 3);
-    // vm.registerNative("DrawTexturePro",  RaylibBindings::native_DrawTexturePro, 4);
-    // vm.registerNative("DrawTextureV",  RaylibBindings::native_DrawTextureV, 2);
-    // vm.registerNative("DrawTextureEx",  RaylibBindings::native_DrawTextureEx, 2);
+    // printf("Modules registered: %zu\n", vm.modules.size());
+    // printf("Module 'raylib' functions: %zu\n", vm.modules[0]->functions.size());
 
-    // vm.registerNative("BeginMode2D",  RaylibBindings::native_BeginMode2D, 0);
-    // vm.registerNative("EndMode2D",  RaylibBindings::native_EndMode2D, 0);
-    // vm.registerNative("BeginMode3D",  RaylibBindings::native_BeginMode3D, 0);
-    // vm.registerNative("EndMode3D",  RaylibBindings::native_EndMode3D, 0);
-    // vm.registerNative("BeginTextureMode",  RaylibBindings::native_BeginTextureMode, 0);
-
-    // mouse
-
-    vm.registerNative("GetMousePosition", RaylibBindings::native_GetMousePosition, 0);
-    vm.registerNative("IsMouseButtonDown", RaylibBindings::native_IsMouseButtonDown, 1);
-    vm.registerNative("IsMouseButtonPressed", RaylibBindings::native_IsMouseButtonPressed, 1);
-    vm.registerNative("IsMouseButtonReleased", RaylibBindings::native_IsMouseButtonReleased, 1);
-    vm.registerNative("GetMouseX", RaylibBindings::native_GetMouseX, 0);
-    vm.registerNative("GetMouseY", RaylibBindings::native_GetMouseY, 0);
-
-    // vm.registerNative("GetMouseWheelMove",  RaylibBindings::native_GetMouseWheelMove, 0);
-    // vm.registerNative("GetMouseDelta",  RaylibBindings::native_GetMouseDelta, 0);
-    // vm.registerNative("SetMousePosition",  RaylibBindings::native_SetMousePosition, 2);
+    // printf("Global natives registered: %zu\n", vm.natives.size());
 
     RaylibBindings::registerColor(vm);
     RaylibBindings::registerRectangle(vm);
@@ -354,8 +371,6 @@ int main()
     std::ifstream file("bunny.bu");
     std::string code((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
-
- 
 
     if (!vm.run(code.c_str(), false))
     {

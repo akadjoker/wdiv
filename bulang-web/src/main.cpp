@@ -27,13 +27,13 @@ Value native_rand(Interpreter *vm, int argCount, Value *args)
     }
     else if (argCount == 1)
     {
-        double value = args[0].isInt() ? (double)args[0].asInt() : args[0].asDouble();
+        double value = TO_DOUBLE(args[0]);
         return Value::makeDouble(RandomGenerator::instance().randFloat(0, value));
     }
     else
     {
-        double min = args[0].isInt() ? (double)args[0].asInt() : args[0].asDouble();
-        double max = args[1].isInt() ? (double)args[1].asInt() : args[1].asDouble();
+        double min = TO_DOUBLE(args[0]);
+        double max = TO_DOUBLE(args[1]);
         return Value::makeDouble(RandomGenerator::instance().randFloat(min, max));
     }
     return Value::makeNil();
@@ -160,7 +160,7 @@ Value native_sqrt(Interpreter *vm, int argCount, Value *args)
         return Value::makeNil();
     }
 
-    double value = args[0].isInt() ? (double)args[0].asInt() : args[0].asDouble();
+    double value = TO_DOUBLE(args[0]);
     return Value::makeDouble(std::sqrt(value));
 }
 
@@ -171,7 +171,7 @@ Value native_sin(Interpreter *vm, int argCount, Value *args)
         vm->runtimeError("sin expects 1 argument");
         return Value::makeNil();
     }
-    double x = args[0].isInt() ? (double)args[0].asInt() : args[0].asDouble();
+    double x = TO_DOUBLE(args[0]);
     return Value::makeDouble(std::sin(x));
 }
 
@@ -182,7 +182,7 @@ Value native_cos(Interpreter *vm, int argCount, Value *args)
         vm->runtimeError("cos expects 1 argument");
         return Value::makeNil();
     }
-    double x = args[0].isInt() ? (double)args[0].asInt() : args[0].asDouble();
+    double x = TO_DOUBLE(args[0]);
     return Value::makeDouble(std::cos(x));
 }
 
@@ -208,8 +208,8 @@ Value native_pow(Interpreter *vm, int argCount, Value *args)
         return Value::makeNil();
     }
 
-    double base = args[0].isInt() ? (double)args[0].asInt() : args[0].asDouble();
-    double exp = args[1].isInt() ? (double)args[1].asInt() : args[1].asDouble();
+    double base = TO_DOUBLE(args[0]);
+    double exp = TO_DOUBLE(args[1]);
     return Value::makeDouble(std::pow(base, exp));
 }
 
@@ -221,7 +221,7 @@ Value native_floor(Interpreter *vm, int argCount, Value *args)
         return Value::makeNil();
     }
 
-    double value = args[0].isInt() ? (double)args[0].asInt() : args[0].asDouble();
+    double value = TO_DOUBLE(args[0]);
     return Value::makeInt((int)std::floor(value));
 }
 
@@ -233,7 +233,7 @@ Value native_ceil(Interpreter *vm, int argCount, Value *args)
         return Value::makeNil();
     }
 
-    double value = args[0].isInt() ? (double)args[0].asInt() : args[0].asDouble();
+    double value = TO_DOUBLE(args[0]);
     return Value::makeInt((int)std::ceil(value));
 }
 
@@ -248,6 +248,17 @@ std::string executeCode(const std::string &code)
 
     Interpreter vm;
 
+        // vm.addModule("math")
+        // .addDouble("PI", 3.14159265358979)
+        // .addDouble("E", 2.71828182845905)
+        // .addFloat("SQRT2", 1.41421356f)
+        // .addInt("MAX_INT", 2147483647)
+        // .addFunction("sin",  native_sin , 1)
+        // .addFunction("cos",  native_cos , 1)
+        // .addFunction("sqrt", native_sqrt, 1)
+        // .addFunction("abs",  native_abs , 1)
+        // .addFunction("rand", native_rand, -1);
+ 
     vm.registerNative("sqrt", native_sqrt, 1);
     vm.registerNative("sin", native_sin, 1);
     vm.registerNative("cos", native_cos, 1);
@@ -255,6 +266,8 @@ std::string executeCode(const std::string &code)
     vm.registerNative("pow", native_pow, 2);
     vm.registerNative("floor", native_floor, 1);
     vm.registerNative("ceil", native_ceil, 1);
+    
+
     vm.registerNative("clock", native_clock, 0);
     vm.registerNative("write", native_write, -1);
     vm.registerNative("format", native_format, -1);

@@ -1,3 +1,6 @@
+import raylib;
+using raylib;
+
 
 var gravity = 0.5;
 
@@ -43,12 +46,20 @@ var WHITE = Color(255, 255, 255, 255);
 var LIGHTGRAY = Color(200, 200, 200, 255);
 var tex = LoadTexture("assets/wabbit_alpha.png");
 
-SetTargetFPS(30);
-
+//SetTargetFPS(30);
 lista = [];
+
+for(var i=0;i<30000;i++)
+        {
+            var vx = GetMouseX();
+            var vy = GetMouseY();
+            lista.push(Sprite(vx,vy));
+        }
+
 
 while (!WindowShouldClose())
 {
+   
     BeginDrawing();
 
     ClearBackground(BLACK);
@@ -81,7 +92,11 @@ while (!WindowShouldClose())
     DrawFPS(10, 10);
 
     EndDrawing();
+    
 }
 
 UnloadTexture(tex);
 CloseWindow();
+
+
+

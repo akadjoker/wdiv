@@ -9,6 +9,13 @@
 #include <cstdlib>
 #include <stdarg.h>
 
+void ModuleDef::clear()
+{
+    functionNames.destroy();
+    constantNames.destroy();
+    
+}
+
 ModuleDef::ModuleDef(String *name) : name(name)
 {
 }
@@ -18,11 +25,11 @@ uint16 ModuleDef::addFunction(const char *name, NativeFunction func, int arity)
     String *nameStr = createString(name);
 
     uint16 existingId;
-    if (functionNames.get(nameStr, &existingId))
-    {
-        Warning("Function '%s' already exists in module '%s', replacing",name, this->name);
-        return existingId;
-    }
+     if (functionNames.get(nameStr, &existingId))
+     {
+         Warning("Function '%s' already exists in module '%s', replacing",name, this->name);
+         return existingId;
+     }
  
     uint16 id = (uint16)functions.size();
 
@@ -83,6 +90,42 @@ bool ModuleDef::getFunctionId(String *name, uint16 *outId)
      return functionNames.get(name, outId);
 }
 
+bool ModuleDef::getFunctionId(const char *name, uint16 *outId)
+{
+    bool found = false;
+    
+    functionNames.forEachWhile([&](String *key, uint16 value) 
+    {
+        if (strcmp(key->chars(), name) == 0)
+        {
+            *outId = value;
+            found = true;
+            return false;
+        }
+        return true;
+    }
+    );
+    return found;
+}
+
+bool ModuleDef::getConstantId(const char *name, uint16 *outId)
+{
+    bool found = false;
+    
+    constantNames.forEachWhile([&](String *key, uint16 value) 
+    {
+        if (strcmp(key->chars(), name) == 0)
+        {
+            *outId = value;
+            found = true;
+            return false;
+        }
+        return true;
+    }
+    );
+    return found;
+}
+
 bool ModuleDef::getConstantId(String *name, uint16 *outId)
 {
      return constantNames.get(name, outId);
@@ -90,32 +133,38 @@ bool ModuleDef::getConstantId(String *name, uint16 *outId)
 
 bool ModuleDef::getFunctionName(uint16 id, String **outName)
 {
+    bool found = false;
     
     functionNames.forEachWhile([&](String *key, uint16 value) 
     {
         if (value == id)
         {
             *outName = key;
+            found = true;
             return false;
         }
         return true;
     });
-    return false;
+    return found;
+   
 }
 
 bool ModuleDef::getConstantName(uint16 id, String **outName)
 {
+        bool found = false;
     
     constantNames.forEachWhile([&](String *key, uint16 value) 
     {
         if (value == id)
         {
             *outName = key;
+            found = true;
             return false;
         }
         return true;
     });
-    return false;
+    
+    return found;
 }
 
 ModuleBuilder::ModuleBuilder(ModuleDef *module) : module(module)
@@ -201,4 +250,40 @@ ModuleDef *Interpreter::getModule(uint16 id)
 bool Interpreter::getModuleId(String *name, uint16 *outId)
 {
     return moduleNames.get(name, outId);
+}
+
+bool Interpreter::getModuleId(const char *name, uint16 *outId)
+{
+    bool found = false;
+    
+    moduleNames.forEachWhile([&](String *key, uint16 value) 
+    {
+        if (strcmp(key->chars(), name) == 0)
+        {
+            *outId = value;
+            found = true;
+            return false;  // Para o loop
+        }
+        return true;  // Continua
+    });
+    
+    return found;
+   
+}
+
+bool Interpreter::containsModule(const char *name)
+{
+    bool found = false;
+    
+    moduleNames.forEachWhile([&](String *key, uint16 value) 
+    {
+        if (strcmp(key->chars(), name) == 0)
+        {
+            found = true;
+            return false;  // Para o loop
+        }
+        return true;  // Continua
+    });
+    
+    return found;  
 }

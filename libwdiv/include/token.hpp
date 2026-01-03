@@ -111,6 +111,7 @@ enum TokenType
 
     TOKEN_INCLUDE,
     TOKEN_IMPORT,
+    TOKEN_USING,
 
     // Special
     TOKEN_EOF,

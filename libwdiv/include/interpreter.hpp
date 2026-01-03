@@ -156,12 +156,14 @@ class ModuleDef
 {
 private:
   String *name;
-  Vector<NativeFunctionDef> functions;
   HashMap<String *, uint16, StringHasher, StringEq> functionNames;
   Vector<Value> constants;
   HashMap<String *, uint16, StringHasher, StringEq> constantNames;
   friend class Interpreter;
-public:
+  
+  void clear();
+  public:
+  Vector<NativeFunctionDef> functions;
   ModuleDef(String *name);
   uint16 addFunction(const char *name, NativeFunction func, int arity);
   uint16 addConstant(const char *name, Value value);
@@ -170,6 +172,8 @@ public:
 
   bool getFunctionId(String *name, uint16 *outId);
   bool getConstantId(String *name, uint16 *outId);
+  bool getFunctionId(const char *name, uint16 *outId);
+  bool getConstantId(const char *name, uint16 *outId);
 
   bool getFunctionName(uint16 id, String **outName);
   bool getConstantName(uint16 id, String **outName);
@@ -343,66 +347,66 @@ class Interpreter
   HashMap<String *, ClassDef *, StringHasher, StringEq> classesMap;
   HashMap<const char *, int, CStringHash, CStringEq> privateIndexMap;
 
-  Vector<ModuleDef *> modules;                                   // Array de módulos!
   HashMap<String *, uint16, StringHasher, StringEq> moduleNames; // Nome  ID
-
+  
   Vector<Function *> functions;
   Vector<Function *> functionsClass;
   Vector<ProcessDef *> processes;
-  Vector<NativeDef> natives;
   Vector<StructDef *> structs;
   Vector<ClassDef *> classes;
-
+  
   Vector<StructInstance *> structInstances;
   Vector<ArrayInstance *> arrayInstances;
-
+  
   Vector<NativeClassDef *> nativeClasses;
   Vector<NativeInstance *> nativeInstances;
-
+  
   Vector<NativeStructDef *> nativeStructs;
   Vector<NativeStructInstance *> nativeStructInstances;
-
+  
   HashMap<String *, Value, StringHasher, StringEq> globals;
-
+  
   Vector<Process *> aliveProcesses;
   Vector<Process *> cleanProcesses;
-
+  
   HeapAllocator heapAllocator;
   bool asEnded = false;
-
+  
   float currentTime;
   float lastFrameTime;
   float accumulator = 0.0f;
   const float FIXED_DT = 1.0f / 60.0f;
-
+  
   Fiber *currentFiber;
   Process *currentProcess;
   Process *mainProcess;
   bool hasFatalError_;
-
+  
   bool isTruthy(const Value &value);
   bool isFalsey(Value value);
-
+  
   Compiler *compiler;
-
+  
   VMHooks hooks;
-
+  
   // const Value &peek(int distance = 0);
-
+  
   Fiber *get_ready_fiber(Process *proc);
   void resetFiber();
   void initFiber(Fiber *fiber, Function *func);
   void setPrivateTable();
   void checkType(int index, ValueType expected, const char *funcName);
-
+  
   void addFunctionsClasses(Function *fun);
-
+  
   friend class Compiler;
-
+  
   void dumpAllFunctions(FILE *f);
   void dumpAllClasses(FILE *f);
-
-public:
+  
+  public:
+  Vector<NativeDef> natives;
+  Vector<ModuleDef *> modules;                                   // Array de módulos!
   Interpreter();
   ~Interpreter();
   void update(float deltaTime);
@@ -487,6 +491,8 @@ public:
   ModuleBuilder addModule(const char *name);
   ModuleDef *getModule(uint16 id);
   bool getModuleId(String *name, uint16 *outId);
+  bool getModuleId(const char *name, uint16 *outId);
+  bool containsModule(const char *name);
 
   void disassemble();
 

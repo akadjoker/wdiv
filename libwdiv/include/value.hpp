@@ -144,6 +144,7 @@ struct Value
   int asClassNativeId() const;
   void *asPointer() const;
   int asNativeStructId() const;
+ 
 
   String *asString() const;
   StructInstance *asStructInstance() const;
@@ -157,3 +158,22 @@ struct Value
 void printValue(const Value &value);
 bool valuesEqual(const Value &a, const Value &b);
 void printValueNl(const Value &value);
+
+
+#define TO_DOUBLE(v) \
+  ((v).type == ValueType::DOUBLE ? (v).as.number : \
+    (v).type == ValueType::INT    ? (double)(v).as.integer : \
+    (v).type == ValueType::FLOAT  ? (double)(v).as.real : \
+    0.0)
+
+    #define TO_FLOAT(v) \
+  ((v).type == ValueType::FLOAT ? (v).as.real : \
+    (v).type == ValueType::INT   ? (float)(v).as.integer : \
+    (v).type == ValueType::DOUBLE ? (float)(v).as.number : \
+    0.0f)
+
+    #define TO_INT(v) \
+  ((v).type == ValueType::INT ? (v).as.integer : \
+    (v).type == ValueType::FLOAT ? (int)(v).as.real : \
+    (v).type == ValueType::DOUBLE ? (int)(v).as.number : \
+    0)

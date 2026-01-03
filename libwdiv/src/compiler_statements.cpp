@@ -32,6 +32,10 @@ void Compiler::declaration()
     {
         includeStatement();
     }
+    else if (match(TOKEN_USING))
+    {
+        parseUsing();
+    }
     else
     {
         statement();
@@ -45,11 +49,7 @@ void Compiler::declaration()
 
 void Compiler::statement()
 {
-    if (match(TOKEN_INCLUDE))
-    {
-        includeStatement();
-    }
-    else if (check(TOKEN_IDENTIFIER) && peek(0).type == TOKEN_COLON)
+    if (check(TOKEN_IDENTIFIER) && peek(0).type == TOKEN_COLON)
     {
         labelStatement();
     }
@@ -202,60 +202,136 @@ void Compiler::varDeclaration()
 void Compiler::variable(bool canAssign)
 {
     Token name = previous;
+    std::string nameStr = name.lexeme;
 
+    // =====================================================
+    // PASSO 1: Procura em módulos USING (flat access)
+    // =====================================================
+    bool foundInUsing = false;
+
+    for (const auto &modName : usingModules)
+    {
+
+        uint16 moduleId;
+        if (!vm_->getModuleId(modName.c_str(), &moduleId))
+        {
+            continue; // Módulo não existe (não deve acontecer)
+        }
+
+        ModuleDef *mod = vm_->getModule(moduleId);
+        if (!mod)
+        {
+            continue;
+        }
+
+        // Tenta como função
+        uint16 funcId;
+        if (mod->getFunctionId(nameStr.c_str(), &funcId))
+        {
+            // É função! Deve ser chamada
+            if (!match(TOKEN_LPAREN))
+            {
+                error("Module functions must be called");
+                return;
+            }
+
+            // Emite ModuleRef
+            Value ref = Value::makeModuleRef(moduleId, funcId);
+            emitConstant(ref);
+
+            // Compila argumentos e CALL
+            call(false);
+
+            foundInUsing = true;
+            return; //  Encontrou!
+        }
+
+        // Tenta como constante
+        uint16 constId;
+        if (mod->getConstantId(nameStr.c_str(), &constId))
+        {
+            // É constante! Emite valor direto
+            Value *value = mod->getConstant(constId);
+            if (value)
+            {
+                emitConstant(*value);
+                foundInUsing = true;
+                return; //  Encontrou!
+            }
+        }
+    }
+
+    // =====================================================
+    // PASSO 2: Verifica se é module.member (DOT access)
+    // =====================================================
     if (check(TOKEN_DOT))
     {
-        String *nameStr = createString(name.lexeme.c_str());
-
-        if (importedModules.contains(nameStr))
+        // Verifica se é módulo importado
+        if (importedModules.find(nameStr) != importedModules.end())
         {
-            // É módulo!
-            advance(); // DOT
-            consume(TOKEN_IDENTIFIER, "Expect member");
+            // É módulo! Processa module.member
+            advance(); // Consome DOT
+            consume(TOKEN_IDENTIFIER, "Expect member name");
             Token member = previous;
 
-            // Pega IDs
+         
             uint16 moduleId;
-            vm_->getModuleId(nameStr, &moduleId);
+            if (!vm_->getModuleId(nameStr.c_str(), &moduleId))
+            {
+                fail("Module '%s' not found", nameStr.c_str());
+                return;
+            }
 
             ModuleDef *mod = vm_->getModule(moduleId);
-            String *memberStr = createString(member.lexeme.c_str());
-
-            uint16 funcId;
-            if (mod->getFunctionId(memberStr, &funcId))
+            if (!mod)
             {
-                // É função!
+                fail("Module '%s' not found", nameStr.c_str());
+                return;
+            }
+     // Tenta como função
+            uint16 funcId;
+            if (mod->getFunctionId(member.lexeme.c_str(), &funcId))
+            {
+                // É função! Deve ser chamada
                 if (!match(TOKEN_LPAREN))
                 {
                     error("Module functions must be called");
                     return;
                 }
 
-                Value ref = Value::makeModuleRef( moduleId, funcId);
+                // Emite ModuleRef
+                Value ref = Value::makeModuleRef(moduleId, funcId);
                 emitConstant(ref);
+
+                // Compila argumentos e CALL
                 call(false);
-                return;
+                return; //  Sucesso!
             }
 
+            // Tenta como constante
             uint16 constId;
-            if (mod->getConstantId(memberStr, &constId)) 
+            if (mod->getConstantId(member.lexeme.c_str(), &constId))
             {
-                Value* constantValue = mod->getConstant(constId);
-                if (constantValue) 
+                // É constante! Emite valor direto
+                Value *value = mod->getConstant(constId);
+                if (value)
                 {
-                    emitConstant(*constantValue);  
-                } else 
-                {
-                    error("Constant not found");
+                    emitConstant(*value);
+                    return; //  Sucesso!
                 }
-                return;
             }
 
-            fail("'%s' not found in module '%s'", member.lexeme.c_str(), name.lexeme.c_str());
+            // Não encontrou
+            fail("'%s' not found in module '%s'",
+                 member.lexeme.c_str(),
+                 nameStr.c_str());
             return;
         }
     }
 
+    // =====================================================
+    // PASSO 3: Variável normal (local ou global)
+    // =====================================================
     namedVariable(name, canAssign);
 }
 
@@ -1084,7 +1160,7 @@ void Compiler::compileFunction(Function *func, bool isProcess)
             consume(TOKEN_IDENTIFIER, "Expect parameter name");
             if (isProcess)
             {
-                argNames.push(std::move(createString(previous.lexeme.c_str())));
+                argNames.push(createString(previous.lexeme.c_str()));
             }
             addLocal(previous);
             markInitialized();
@@ -1308,51 +1384,78 @@ void Compiler::includeStatement()
     consume(TOKEN_SEMICOLON, "Expect ';' after include");
 }
 
+void Compiler::parseUsing()
+{
+    // using raylib, math;
+
+    do
+    {
+        consume(TOKEN_IDENTIFIER, "Expect module name");
+        Token moduleName = previous;
+        std::string modName = moduleName.lexeme;
+
+        if (importedModules.find(modName) == importedModules.end())
+        {
+            fail("Module '%s' not imported. Use 'import %s;' first",
+                 moduleName.lexeme.c_str(),
+                 moduleName.lexeme.c_str());
+            return;
+        }
+
+        if (usingModules.find(modName) != usingModules.end())
+        {
+            Warning("Module '%s' already using", moduleName.lexeme.c_str());
+        }
+        else
+        {
+            usingModules.insert(modName);
+        }
+
+    } while (match(TOKEN_COMMA));
+
+    consume(TOKEN_SEMICOLON, "Expect ';'");
+}
+
 void Compiler::parseImport()
 {
-    // import timer, net, fs;
-
+    // import *;
     if (match(TOKEN_STAR))
     {
         // Importa TODOS os módulos definidos
         for (size_t i = 0; i < vm_->modules.size(); i++)
         {
             ModuleDef *mod = vm_->modules[i];
-            importedModules.insert(mod->getName());
+            importedModules.insert(mod->getName()->chars());
         }
-
         consume(TOKEN_SEMICOLON, "Expect ';'");
-        Warning("Imported all modules");
         return;
     }
 
+    // import timer, net, fs;
     do
     {
         consume(TOKEN_IDENTIFIER, "Expect module name");
         Token moduleName = previous;
-
-        String *modNameStr = createString(moduleName.lexeme.c_str());
-        uint16 modId;
+        std::string modName = moduleName.lexeme;
 
         // Verifica se módulo existe
-        if (!vm_->getModuleId(modNameStr, &modId))
+        if (!vm_->containsModule(modName.c_str()))
         {
             fail("Module '%s' not defined", moduleName.lexeme.c_str());
             return;
         }
 
-        // Verifica duplicado
-        if (importedModules.contains(modNameStr))
+        //  Adiciona a importedModules, não usingModules!
+        if (importedModules.find(modName) == importedModules.end())
         {
-            Warning("Module '%s' already imported", moduleName.lexeme.c_str());
+            importedModules.insert(modName);
         }
         else
         {
-            // Importa
-            importedModules.insert(modNameStr);
+            Warning("Module '%s' already imported", moduleName.lexeme.c_str());
         }
 
-    } while (match(TOKEN_COMMA)); //  Loop enquanto tiver vírgula!
+    } while (match(TOKEN_COMMA));
 
     consume(TOKEN_SEMICOLON, "Expect ';' after import");
 }
@@ -1591,8 +1694,7 @@ void Compiler::structDeclaration()
 
     consume(TOKEN_LBRACE, "Expect '{' before struct body");
 
-    StructDef *structDef = vm_->registerStruct(
-        createString(structName.lexeme.c_str()));
+    StructDef *structDef = vm_->registerStruct(createString(structName.lexeme.c_str()));
 
     if (!structDef)
     {
