@@ -24,10 +24,7 @@ void Compiler::declaration()
     {
         varDeclaration();
     }
-    else if (match(TOKEN_IMPORT))
-    {
-        parseImport();
-    }
+ 
     else if (match(TOKEN_INCLUDE))
     {
         includeStatement();
@@ -203,78 +200,7 @@ void Compiler::variable(bool canAssign)
 {
     Token name = previous;
 
-    if (check(TOKEN_DOT))
-    {
-        String *nameStr = createString(name.lexeme.c_str());
-
-        if (importedModules.contains(nameStr))
-        {
-            advance(); // Consome DOT
-            consume(TOKEN_IDENTIFIER, "Expect function name after '.'");
-            Token funcName = previous;
-            Warning("Importing function '%s' from module '%s'", funcName.lexeme.c_str(), name.lexeme.c_str());
-            ModuleDef *mod = nullptr;
-            if (!vm_->getModuleDef(nameStr, &mod))
-            {
-                error("Module not found (internal error)");
-                return;
-            }
-            String *funcNameStr = createString(funcName.lexeme.c_str());
-            FunctionDef funcDef;
-            int index = -1;
-            if (mod->getFunction(funcNameStr, &funcDef))
-            {
-                char fullName[256];
-                snprintf(fullName, 256, "%s_%s",
-                         name.lexeme.c_str(),
-                         funcName.lexeme.c_str());
-                String *fullNameStr = createString(fullName);
-                Warning("Importing function '%s' from module '%s'", fullName, name.lexeme.c_str());
-                index = vm_->registerNative(fullName, funcDef.ptr, funcDef.arity);
-                if(index==1)
-                {
-                    vm_->n
-                    if (match(TOKEN_LPAREN))
-                    {
-                        Value calee = Value::makeNative(index);
-                        emitConstant(calee);
-                        call(false);
-                    }
-                    else
-                    {
-                        error("Module functions must be called with ()");
-                    }
-                    
-                    return;
-                }
-
-                if (match(TOKEN_LPAREN))
-                {
-                    Value calee = Value::makeNative(index);
-                    emitConstant(calee);
-                    call(false);
-                }
-                else
-                {
-                    error("Module functions must be called with ()");
-                }
-
-                return; // Processado! Não continua
-            }
-
-            // Verifica se é constante
-            ConstantDef constDef;
-            if (mod->getConstant(funcNameStr, &constDef))
-            {
-                emitConstant(constDef.value);
-                return; // Processado!
-            }
-
-            fail("'%s' not found in module '%s'",  funcName.lexeme.c_str(),name.lexeme.c_str());
-            return;
-        }
-    }
-
+  
     namedVariable(name, canAssign);
 }
 
@@ -1325,31 +1251,7 @@ void Compiler::includeStatement()
     includedFiles.erase(filename);
 
     consume(TOKEN_SEMICOLON, "Expect ';' after include");
-}
-
-void Compiler::parseImport()
-{
-    // import timer;
-    consume(TOKEN_IDENTIFIER, "Expect module name after 'import'");
-    Token moduleName = previous;
-
-    // Verifica se módulo existe
-    String *modNameStr = createString(moduleName.lexeme.c_str());
-    ModuleDef *mod = nullptr;
-
-    if (!vm_->getModuleDef(modNameStr, &mod))
-    {
-        fail("Module '%s' not found", moduleName.lexeme.c_str());
-        return;
-    }
-
-    // Warning("Importing module '%s'", moduleName.lexeme.c_str());
-
-    // Marca como importado (GLOBAL!)
-    importedModules.insert(modNameStr);
-
-    consume(TOKEN_SEMICOLON, "Expect ';' after module name");
-}
+} 
 
 void Compiler::yieldStatement()
 {

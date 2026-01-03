@@ -284,15 +284,13 @@ private:
   void exitStatement();
 
   void includeStatement();
-   void parseImport();
+ 
 
   FileLoaderCallback fileLoader = nullptr;
   void *fileLoaderUserdata = nullptr;
   std::set<std::string> includedFiles;
 
-
-    HashSet<String*, StringHasher, StringEq> importedModules;
-    HashSet<String*, StringHasher, StringEq> registeredModuleFunctions;
+ 
 
   static ParseRule rules[TOKEN_COUNT];
 };

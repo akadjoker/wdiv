@@ -79,8 +79,7 @@ void Lexer::initKeywords()
         {"class", TOKEN_CLASS},
         {"self", TOKEN_SELF},
         {"super", TOKEN_SUPER},
-        {"include", TOKEN_INCLUDE},
-        {"import", TOKEN_IMPORT},
+        {"include", TOKEN_INCLUDE}
     };
 }
 
