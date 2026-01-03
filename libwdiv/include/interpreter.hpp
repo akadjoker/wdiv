@@ -29,27 +29,7 @@ struct Process;
 class Interpreter;
 class Compiler;
 
-struct IntEq
-{
-  bool operator()(int a, int b) const { return a == b; }
-};
 
-struct StringEq
-{
-  bool operator()(String *a, String *b) const
-  {
-    if (a == b)
-      return true;
-    if (a->length() != b->length())
-      return false;
-    return memcmp(a->chars(), b->chars(), a->length()) == 0;
-  }
-};
-
-struct StringHasher
-{
-  size_t operator()(String *x) const { return x->hash; }
-};
 
 enum class FieldType : uint8_t
 {
@@ -154,6 +134,7 @@ struct NativeFieldDef
 
 struct NativeStructDef
 {
+  int id;
   String *name;
   size_t structSize;
   HashMap<String *, NativeFieldDef, StringHasher, StringEq> fields;
@@ -165,6 +146,36 @@ struct NativeStructInstance
 {
   NativeStructDef *def;
   void *data; // Malloc'd block (structSize bytes)
+};
+
+struct FunctionDef
+{
+  NativeFunction ptr;
+  int arity;
+};
+
+struct ConstantDef
+{
+  Value value;
+};
+
+class ModuleDef
+{
+private:
+  String *name;
+  HashMap<String *, FunctionDef, StringHasher, StringEq> functions;
+  HashMap<String *, ConstantDef, StringHasher, StringEq> constants;
+
+public:
+  ModuleDef(String *name) : name(name) {}
+  ModuleDef *add(const char *funcName, NativeFunction ptr, int arity);
+  ModuleDef *addInt(const char *name, int value);
+  ModuleDef *addDouble(const char *name, double value);
+  ModuleDef *addString(const char *name, const char *value);
+  bool getFunction(String *funcName, FunctionDef *out);
+  bool getConstant(String *constName, ConstantDef *out);
+
+  String *getName() const { return name; }
 };
 
 struct GCObject
@@ -317,6 +328,7 @@ class Interpreter
   HashMap<String *, StructDef *, StringHasher, StringEq> structsMap;
   HashMap<String *, ClassDef *, StringHasher, StringEq> classesMap;
   HashMap<const char *, int, CStringHash, CStringEq> privateIndexMap;
+  HashMap<String*, ModuleDef*, StringHasher, StringEq> availableModules;
 
   Vector<Function *> functions;
   Vector<Function *> functionsClass;
@@ -447,13 +459,16 @@ public:
   Function *compile(const char *source);
   Function *compileExpression(const char *source);
   bool run(const char *source, bool dump = false);
-  bool compile(const char *source, bool dump  );
+  bool compile(const char *source, bool dump);
 
   void reset();
 
   void setHooks(const VMHooks &h);
 
   void render();
+
+  ModuleDef* defineModule(const char* moduleName) ;
+  bool getModuleDef(String* name, ModuleDef** out);
 
   void disassemble();
 

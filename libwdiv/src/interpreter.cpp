@@ -15,6 +15,12 @@ Interpreter::Interpreter()
 Interpreter::~Interpreter()
 {
 
+  availableModules.forEach([&](String *name, ModuleDef *def)
+  {
+    delete def;
+  });
+  availableModules.destroy();
+
   delete compiler;
 
   for (size_t i = 0; i < natives.size(); i++)
@@ -210,9 +216,9 @@ NativeStructDef *Interpreter::registerNativeStruct(const char *name,
   klass->constructor = ctor;
   klass->destructor = dtor;
   klass->structSize = structSize;
-  int id = nativeStructs.size();
+  klass->id = nativeStructs.size();
   nativeStructs.push(klass);
-  globals.set(klass->name, Value::makeNativeStruct(id));
+  globals.set(klass->name, Value::makeNativeStruct(klass->id));
   return klass;
 }
 
@@ -328,6 +334,13 @@ void Interpreter::disassemble()
   printf("\n========================================\n");
   printf("              END OF DUMP\n");
   printf("========================================\n\n");
+}
+
+int Interpreter::addGlobal(const char *name, Value value)
+{
+  String *str = createString(name);
+  globals.set(str, value);
+  return 0;
 }
 
 void Interpreter::print(Value value) { printValue(value); }
@@ -966,3 +979,4 @@ void Interpreter::dumpAllClasses(FILE *f)
         fprintf(f, "\n"); });
   #endif
 }
+

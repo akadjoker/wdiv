@@ -23,7 +23,6 @@ file(GLOB SOURCES "src/*.cpp")
 # ============================================
 add_library(libwdiv STATIC ${SOURCES})
  
-
 target_include_directories(libwdiv PUBLIC include  src)
 
 # ============================================

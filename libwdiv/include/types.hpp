@@ -1,5 +1,6 @@
 #pragma once
 #include "config.hpp"
+#include "string.hpp"
 
 
 typedef const char* (*FileLoaderCallback)(const char* filename, size_t* outSize, void* userdata);
@@ -34,3 +35,4 @@ enum class FunctionType  : uint8
     TYPE_INITIALIZER,   // init (construtor)
     TYPE_SCRIPT         // top-level script
 };
+

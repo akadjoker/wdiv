@@ -24,6 +24,14 @@ void Compiler::declaration()
     {
         varDeclaration();
     }
+    else if (match(TOKEN_IMPORT))
+    {
+        parseImport();
+    }
+    else if (match(TOKEN_INCLUDE))
+    {
+        includeStatement();
+    }
     else
     {
         statement();
@@ -148,7 +156,7 @@ void Compiler::expressionStatement()
 // ============================================
 // VARIABLES
 // ============================================
- 
+
 void Compiler::varDeclaration()
 {
     do
@@ -162,9 +170,9 @@ void Compiler::varDeclaration()
         {
             declareVariable();
 
-            if (currentClass != nullptr && loopDepth_ >  1 && scopeDepth >1) 
+            if (currentClass != nullptr && loopDepth_ > 1 && scopeDepth > 1)
             {
-                Warning("Variable '%s' is declared inside loops in class methods.",nameToken.lexeme.c_str());
+                Warning("Variable '%s' is declared inside loops in class methods.", nameToken.lexeme.c_str());
             }
         }
 
@@ -191,10 +199,81 @@ void Compiler::varDeclaration()
     consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration");
 }
 
-
 void Compiler::variable(bool canAssign)
 {
     Token name = previous;
+
+    if (check(TOKEN_DOT))
+    {
+        String *nameStr = createString(name.lexeme.c_str());
+
+        if (importedModules.contains(nameStr))
+        {
+            advance(); // Consome DOT
+            consume(TOKEN_IDENTIFIER, "Expect function name after '.'");
+            Token funcName = previous;
+            Warning("Importing function '%s' from module '%s'", funcName.lexeme.c_str(), name.lexeme.c_str());
+            ModuleDef *mod = nullptr;
+            if (!vm_->getModuleDef(nameStr, &mod))
+            {
+                error("Module not found (internal error)");
+                return;
+            }
+            String *funcNameStr = createString(funcName.lexeme.c_str());
+            FunctionDef funcDef;
+            int index = -1;
+            if (mod->getFunction(funcNameStr, &funcDef))
+            {
+                char fullName[256];
+                snprintf(fullName, 256, "%s_%s",
+                         name.lexeme.c_str(),
+                         funcName.lexeme.c_str());
+                String *fullNameStr = createString(fullName);
+                Warning("Importing function '%s' from module '%s'", fullName, name.lexeme.c_str());
+                index = vm_->registerNative(fullName, funcDef.ptr, funcDef.arity);
+                if(index==1)
+                {
+                    vm_->n
+                    if (match(TOKEN_LPAREN))
+                    {
+                        Value calee = Value::makeNative(index);
+                        emitConstant(calee);
+                        call(false);
+                    }
+                    else
+                    {
+                        error("Module functions must be called with ()");
+                    }
+                    
+                    return;
+                }
+
+                if (match(TOKEN_LPAREN))
+                {
+                    Value calee = Value::makeNative(index);
+                    emitConstant(calee);
+                    call(false);
+                }
+                else
+                {
+                    error("Module functions must be called with ()");
+                }
+
+                return; // Processado! Não continua
+            }
+
+            // Verifica se é constante
+            ConstantDef constDef;
+            if (mod->getConstant(funcNameStr, &constDef))
+            {
+                emitConstant(constDef.value);
+                return; // Processado!
+            }
+
+            fail("'%s' not found in module '%s'",  funcName.lexeme.c_str(),name.lexeme.c_str());
+            return;
+        }
+    }
 
     namedVariable(name, canAssign);
 }
@@ -296,7 +375,7 @@ void Compiler::handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssi
         emitBytes(getOp, (uint8)arg);
     }
 }
- 
+
 void Compiler::namedVariable(Token &name, bool canAssign)
 {
     uint8 getOp, setOp;
@@ -417,7 +496,7 @@ void Compiler::endScope()
 {
 
     int popped = discardLocals(scopeDepth);
-    localCount_ -= popped;  
+    localCount_ -= popped;
     scopeDepth--;
 }
 
@@ -439,8 +518,6 @@ int Compiler::resolveLocal(Token &name)
 
     return -1;
 }
-
- 
 
 void Compiler::block()
 {
@@ -538,8 +615,6 @@ void Compiler::endLoop()
     }
 }
 
- 
-
 int Compiler::discardLocals(int depth)
 {
     int local = localCount_ - 1;
@@ -548,11 +623,8 @@ int Compiler::discardLocals(int depth)
         emitByte(OP_POP);
         local--;
     }
-    return localCount_ - local - 1;   
+    return localCount_ - local - 1;
 }
-
-
- 
 
 void Compiler::emitBreak()
 {
@@ -561,11 +633,11 @@ void Compiler::emitBreak()
         error("Cannot use 'break' outside of a loop");
         return;
     }
-   
+
     LoopContext &ctx = loopContexts_[loopDepth_ - 1];
-    
-    discardLocals(ctx.scopeDepth + 1); 
-    
+
+    discardLocals(ctx.scopeDepth + 1);
+
     if (!ctx.addBreak(emitJump(OP_JUMP)))
     {
         error("Too many breaks");
@@ -695,8 +767,6 @@ void Compiler::switchStatement()
 
         patchJump(caseJump);
         emitByte(OP_POP); // [value] - Pop comparison result
-
-
     }
 
     // Default (opcional)
@@ -896,7 +966,6 @@ void Compiler::funDeclaration()
     consume(TOKEN_IDENTIFIER, "Expect function name");
     Token nameToken = previous;
 
- 
     Function *func = vm_->addFunction(nameToken.lexeme.c_str(), 0);
 
     if (!func)
@@ -925,7 +994,7 @@ void Compiler::processDeclaration()
     // Warning("Compiling process '%s'", nameToken.lexeme.c_str());
 
     // Cria função para o process
- 
+
     Function *func = vm_->addFunction(nameToken.lexeme.c_str(), 0);
 
     if (!func)
@@ -964,11 +1033,9 @@ void Compiler::processDeclaration()
 
             proc->argsNames.push(255); // Marcador "sem private"
         }
-
     }
     argNames.clear();
 
- 
     // Warning("Process '%s' registered with index %d", nameToken.lexeme.c_str(), index);
 
     emitConstant(Value::makeProcess(proc->index));
@@ -1014,13 +1081,13 @@ void Compiler::compileFunction(Function *func, bool isProcess)
     // Parse parâmetros
     beginScope();
     consume(TOKEN_LPAREN, "Expect '(' after name");
-    if (!isProcess) 
+    if (!isProcess)
     {
         Token dummyToken;
         dummyToken.lexeme = func->name->chars();
         addLocal(dummyToken);
         markInitialized();
-   }
+    }
 
     if (!check(TOKEN_RPAREN))
     {
@@ -1260,6 +1327,30 @@ void Compiler::includeStatement()
     consume(TOKEN_SEMICOLON, "Expect ';' after include");
 }
 
+void Compiler::parseImport()
+{
+    // import timer;
+    consume(TOKEN_IDENTIFIER, "Expect module name after 'import'");
+    Token moduleName = previous;
+
+    // Verifica se módulo existe
+    String *modNameStr = createString(moduleName.lexeme.c_str());
+    ModuleDef *mod = nullptr;
+
+    if (!vm_->getModuleDef(modNameStr, &mod))
+    {
+        fail("Module '%s' not found", moduleName.lexeme.c_str());
+        return;
+    }
+
+    // Warning("Importing module '%s'", moduleName.lexeme.c_str());
+
+    // Marca como importado (GLOBAL!)
+    importedModules.insert(modNameStr);
+
+    consume(TOKEN_SEMICOLON, "Expect ';' after module name");
+}
+
 void Compiler::yieldStatement()
 {
 
@@ -1312,8 +1403,6 @@ void Compiler::fiberStatement()
     emitByte(argCount);
     // emitByte(OP_POP); // descarta o nil/handle se spawn devolver algo
 }
-
-
 
 void Compiler::dot(bool canAssign)
 {
@@ -1402,7 +1491,6 @@ void Compiler::dot(bool canAssign)
         emitBytes(OP_GET_PROPERTY, nameIdx);
     }
 }
-
 
 void Compiler::subscript(bool canAssign)
 {
@@ -1497,7 +1585,6 @@ void Compiler::structDeclaration()
 
     consume(TOKEN_LBRACE, "Expect '{' before struct body");
 
-    
     StructDef *structDef = vm_->registerStruct(
         createString(structName.lexeme.c_str()));
 
@@ -1540,7 +1627,6 @@ void Compiler::structDeclaration()
     emitConstant(Value::makeStruct(structDef->index));
     defineVariable(nameConstant);
 }
-
 
 void Compiler::self(bool canAssign)
 {
@@ -1585,16 +1671,15 @@ void Compiler::super(bool canAssign)
     // DEPOIS ARGUMENTOS!
     uint8_t argCount = argumentList();
 
-    // printf("[COMPILER] super.%s em classe %s (ID=%d), super=%s\n", 
+    // printf("[COMPILER] super.%s em classe %s (ID=%d), super=%s\n",
     //        methodName.lexeme.c_str(),
     //        currentClass->name->chars(),
     //        currentClass->index,
     //        currentClass->superclass->name->chars());
-    
+
     emitBytes(OP_SUPER_INVOKE, currentClass->index);
     emitByte(nameIdx);
     emitByte(argCount);
-    
 }
 
 void Compiler::classDeclaration()
@@ -1604,7 +1689,7 @@ void Compiler::classDeclaration()
     uint8_t nameConstant = identifierConstant(className);
 
     //  Regista class blueprint na VM
-    
+
     ClassDef *classDef = vm_->registerClass(
         createString(className.lexeme.c_str()));
 
@@ -1650,7 +1735,6 @@ void Compiler::classDeclaration()
             classDef->fieldCount++; });
     }
     consume(TOKEN_LBRACE, "Expect '{'");
- 
 
     while (check(TOKEN_VAR))
     {
@@ -1688,15 +1772,13 @@ void Compiler::classDeclaration()
 
     consume(TOKEN_RBRACE, "Expect '}'");
 
- if (classDef->constructor == nullptr)
+    if (classDef->constructor == nullptr)
     {
-        Warning("Class '%s' has no init() method - fields will be uninitialized (nil)", 
+        Warning("Class '%s' has no init() method - fields will be uninitialized (nil)",
                 className.lexeme.c_str());
     }
 
-
-
-//    Debug::dumpFunction(classDef->constructor);
+    //    Debug::dumpFunction(classDef->constructor);
 }
 
 void Compiler::method(ClassDef *classDef)
@@ -1746,8 +1828,6 @@ void Compiler::method(ClassDef *classDef)
     selfToken.lexeme = "self";
     selfToken.type = TOKEN_IDENTIFIER;
 
- 
-    
     addLocal(selfToken);
     markInitialized();
 
@@ -1790,14 +1870,14 @@ void Compiler::method(ClassDef *classDef)
     }
     else if (!function->hasReturn) // sempre retorna ??
     {
-            emitBytes(OP_GET_LOCAL, 0); // self
-            emitByte(OP_RETURN);
+        emitBytes(OP_GET_LOCAL, 0); // self
+        emitByte(OP_RETURN);
 
-         function->hasReturn = true;
+        function->hasReturn = true;
     }
 
     endScope();
- 
+
     // ===== RESTAURA ESTADO =====
     this->function = enclosing;
     this->currentChunk = enclosingChunk;

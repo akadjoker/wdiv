@@ -41,3 +41,28 @@ inline size_t hashString(const char *s, uint32 len)
 }
 
  
+
+
+
+
+struct IntEq
+{
+  bool operator()(int a, int b) const { return a == b; }
+};
+
+struct StringEq
+{
+  bool operator()(String *a, String *b) const
+  {
+    if (a == b)
+      return true;
+    if (a->length() != b->length())
+      return false;
+    return memcmp(a->chars(), b->chars(), a->length()) == 0;
+  }
+};
+
+struct StringHasher
+{
+  size_t operator()(String *x) const { return x->hash; }
+};
