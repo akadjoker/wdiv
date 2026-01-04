@@ -919,7 +919,7 @@ op_call:
 
         Value literal = makeNativeClassInstance();
         NativeClassInstance *instance = literal.as.sClassInstance;
-        nativeInstances.push(instance);
+  
         instance->klass = klass;
         instance->userData = userData;
 
@@ -2321,7 +2321,6 @@ op_define_array:
     uint8_t count = READ_BYTE();
     Value array = makeArray();
     ArrayInstance *instance = array.asArray();
-    arrayInstances.push(instance);
     instance->values.resize(count);
     for (int i = count - 1; i >= 0; i--)
     {

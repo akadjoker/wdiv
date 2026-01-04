@@ -147,6 +147,14 @@ Value native_sqrt(Interpreter *vm, int argCount, Value *args)
     return vm->makeDouble(std::sqrt(value));
 }
 
+
+Value native_gc(Interpreter *vm, int argCount, Value *args)
+{
+    vm->runGC();
+    return vm->makeNil();
+}
+
+
 Value native_sin(Interpreter *vm, int argCount, Value *args)
 {
     double x = args[0].isInt() ? (double)args[0].asInt() : args[0].asDouble();
@@ -309,6 +317,7 @@ int main()
 
     vm.registerNative("rand", native_rand, 1);
     //vm.registerNative("len", native_length, 1);
+    vm.registerNative("_gc", native_gc, 0);
 
     vm.registerNative("write", native_write, -1);
     vm.registerNative("format", native_format, -1);

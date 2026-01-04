@@ -36,31 +36,8 @@ Interpreter::Interpreter()
   staticNames[STATIC_INIT] = createString("init");
 }
 
-Interpreter::~Interpreter()
+void Interpreter::freeInstances()
 {
-
-  Info("VM shutdown");
-  Info("Memory allocated : %s", formatBytes(totalAllocated));
-  Info("Classes          : %zu", totalClasses);
-  Info("Structs          : %zu", totalStructs);
-  Info("Arrays           : %zu", totalArrays);
-  Info("Maps             : %zu", totalMaps);
-  Info("Native classes   : %zu", totalNativeClasses);
-  Info("Native structs   : %zu", totalNativeStructs);
-
-  for (size_t i = 0; i < modules.size(); i++)
-  {
-    ModuleDef *mod = modules[i];
-    totalAllocated -= sizeof(ModuleDef);
-    delete mod;
-  }
-
-  modules.clear();
-
-  delete compiler;
-
-  // instances
-
   for (size_t i = 0; i < nativeInstances.size(); i++)
   {
     NativeClassInstance *a = nativeInstances[i];
@@ -83,6 +60,13 @@ Interpreter::~Interpreter()
   }
   classInstances.clear();
 
+  for (size_t i = 0; i < mapInstances.size(); i++)
+  {
+    MapInstance *a = mapInstances[i];
+    freeMap(a);
+  }
+  mapInstances.clear();
+
   for (size_t i = 0; i < arrayInstances.size(); i++)
   {
     ArrayInstance *a = arrayInstances[i];
@@ -101,8 +85,10 @@ Interpreter::~Interpreter()
     freeNativeStruct(a);
   }
   nativeStructInstances.clear();
+}
 
-  // BLUEPRINTS
+void Interpreter::freeBlueprints()
+{
 
   for (size_t j = 0; j < classes.size(); j++)
   {
@@ -144,7 +130,37 @@ Interpreter::~Interpreter()
     delete proc;
   }
   processes.clear();
+}
 
+Interpreter::~Interpreter()
+{
+
+  Info("VM shutdown");
+  Info("Memory allocated : %s", formatBytes(totalAllocated));
+  Info("Classes          : %zu", getTotalClasses());
+  Info("Structs          : %zu", getTotalStructs());
+  Info("Arrays           : %zu", getTotalArrays());
+  Info("Maps             : %zu", getTotalMaps());
+  Info("Native classes   : %zu", getTotalNativeClasses());
+  Info("Native structs   : %zu", getTotalNativeStructs());
+
+  for (size_t i = 0; i < modules.size(); i++)
+  {
+    ModuleDef *mod = modules[i];
+    totalAllocated -= sizeof(ModuleDef);
+    delete mod;
+  }
+
+  modules.clear();
+
+  delete compiler;
+
+  // instances
+  freeInstances();
+  // BLUEPRINTS
+  freeBlueprints();
+
+  runGC();
   functionsMap.destroy();
   processesMap.destroy();
 
@@ -735,13 +751,25 @@ void Interpreter::addFunctionsClasses(Function *fun)
   functionsClass.push(fun);
 }
 
-StructInstance::StructInstance() : GCObject(), def(nullptr) {}
+StructInstance::StructInstance() : marked(0), def(nullptr) {}
 
-ArrayInstance::ArrayInstance() : GCObject() {}
+ArrayInstance::ArrayInstance() : marked(0) {}
 
-MapInstance::MapInstance() : GCObject() {}
+MapInstance::MapInstance() : marked(0) {}
 
-ClassInstance::ClassInstance() : GCObject() {}
+ClassInstance::ClassInstance() : marked(0) {}
+
+ClassInstance::~ClassInstance()
+{
+}
+
+NativeClassInstance::NativeClassInstance() : marked(0), klass(nullptr), userData(nullptr)
+{
+}
+
+NativeStructInstance::NativeStructInstance() : marked(0), def(nullptr), data(nullptr)
+{
+}
 
 // bool ClassInstance::getMethod(String *name, Function **out)
 // {

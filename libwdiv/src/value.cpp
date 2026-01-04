@@ -15,14 +15,7 @@ Value::Value() : type(ValueType::NIL)
     as.byte = 0;
 }
 
-// Value::~Value()
-// {
-//     if(type==ValueType::STRUCT)
-//     {
-//          printValue(*this);
-//          printf("Destroy \n");
-//     }
-// }
+ 
 
 // // Unpack
 // uint8 getType(Value v) {
@@ -36,36 +29,6 @@ Value::Value() : type(ValueType::NIL)
 // }
 
 
-
-bool valuesEqual(const Value &a, const Value &b)
-{
-
-    if ((a.isInt() || a.isDouble()) && (b.isInt() || b.isDouble()))
-    {
-        double da = a.isInt() ? a.asInt() : a.asDouble();
-        double db = b.isInt() ? b.asInt() : b.asDouble();
-        return da == db;
-    }
-
-    // Resto precisa tipos iguais
-    if (a.type != b.type)
-        return false;
-
-    switch (a.type)
-    {
-    case ValueType::BOOL:
-        return a.asBool() == b.asBool();
-    case ValueType::NIL:
-        return true;
-    case ValueType::STRING:
-    {
-        return compare_strings(a.asString(), b.asString());
-    }
-
-    default:
-        return false;
-    }
-}
 
 const char *typeToString(ValueType type)
 {

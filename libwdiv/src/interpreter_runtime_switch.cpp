@@ -876,7 +876,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
                 Value literal = makeNativeClassInstance();
                 // Cria instance wrapper
                 NativeClassInstance *instance = literal.as.sClassInstance;
-                nativeInstances.push(instance);
+         
                 instance->klass = klass;
                 instance->userData = userData;
 
@@ -2278,7 +2278,7 @@ FiberResult Interpreter::run_fiber(Fiber *fiber)
             uint8_t count = READ_BYTE();
             Value array = makeArray();
             ArrayInstance *instance = array.asArray();
-            arrayInstances.push(instance);
+   
             instance->values.resize(count);
             for (int i = count - 1; i >= 0; i--)
             {

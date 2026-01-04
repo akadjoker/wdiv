@@ -172,18 +172,6 @@ struct NativeFunctionDef
   int arity;
 };
 
-struct NativeClassInstance
-{
-  NativeClassDef *klass;
-  void *userData; //  Ponteiro para struct C++
-};
-
-struct NativeStructInstance
-{
-  NativeStructDef *def;
-  void *data; // Malloc'd block (structSize bytes)
-};
-
 class ModuleDef
 {
 private:
@@ -198,7 +186,7 @@ private:
 
 public:
   Vector<NativeFunctionDef> functions;
-  ModuleDef(String *name, Interpreter *vm) ;
+  ModuleDef(String *name, Interpreter *vm);
   uint16 addFunction(const char *name, NativeFunction func, int arity);
   uint16 addConstant(const char *name, Value value);
   NativeFunctionDef *getFunction(uint16 id);
@@ -223,7 +211,7 @@ private:
   friend class Interpreter;
 
 public:
-  ModuleBuilder(ModuleDef *module, Interpreter *vm) ;
+  ModuleBuilder(ModuleDef *module, Interpreter *vm);
   ModuleBuilder &addFunction(const char *name, NativeFunction func, int arity);
   ModuleBuilder &addInt(const char *name, int value);
   ModuleBuilder &addFloat(const char *name, float value);
@@ -232,26 +220,21 @@ public:
   ModuleBuilder &addString(const char *name, const char *value);
 };
 
-struct GCObject
+struct StructInstance
 {
-  bool marked;
-  virtual ~GCObject() {}
-  GCObject() { marked = false; }
-};
-
-struct StructInstance : public GCObject
-{
+  uint8 marked;
   StructDef *def;
   Vector<Value> values;
   StructInstance();
 };
 
-struct ClassInstance : public GCObject
+struct ClassInstance
 {
+  uint8 marked;
   ClassDef *klass;
-
   Vector<Value> fields;
   ClassInstance();
+  ~ClassInstance();
 
   FORCE_INLINE bool getMethod(String *name, Function **out)
   {
@@ -269,16 +252,35 @@ struct ClassInstance : public GCObject
     return false;
   }
 };
-struct ArrayInstance : public GCObject
+
+struct ArrayInstance
 {
+  uint8 marked;
   Vector<Value> values;
   ArrayInstance();
 };
 
-struct MapInstance : public GCObject
+struct MapInstance
 {
+  uint8 marked;
   HashMap<String *, Value, StringHasher, StringEq> table;
   MapInstance();
+};
+
+struct NativeClassInstance
+{
+  uint8 marked;
+  NativeClassDef *klass;
+  void *userData; //  Ponteiro para struct C++
+  NativeClassInstance();
+};
+
+struct NativeStructInstance
+{
+  uint8 marked;
+  NativeStructDef *def;
+  void *data; // Malloc'd block (structSize bytes)
+  NativeStructInstance();
 };
 
 struct CallFrame
@@ -391,6 +393,8 @@ class Interpreter
   HashMap<String *, ClassDef *, StringHasher, StringEq> classesMap;
   HashMap<const char *, int, CStringHash, CStringEq> privateIndexMap;
 
+  
+
   Vector<NativeDef> natives;
   Vector<Function *> functions;
   Vector<Function *> functionsClass;
@@ -400,23 +404,21 @@ class Interpreter
   Vector<NativeClassDef *> nativeClasses;
   Vector<NativeStructDef *> nativeStructs;
 
-  //gc begin
+  // gc begin
 
   size_t totalAllocated = 0;
-  size_t totalClasses = 0;
-  size_t totalStructs = 0;
-  size_t totalArrays = 0;
-  size_t totalMaps = 0;
-  size_t totalNativeClasses = 0;
-  size_t totalNativeStructs = 0;
-
+  size_t nextGC = 1024;  
+  bool gcInProgress = false; 
+  bool enbaledGC = false;
 
   Vector<ClassInstance *> classInstances;
   Vector<StructInstance *> structInstances;
   Vector<ArrayInstance *> arrayInstances;
   Vector<NativeClassInstance *> nativeInstances;
   Vector<NativeStructInstance *> nativeStructInstances;
-  //gc end
+  Vector<MapInstance *> mapInstances;
+
+  // gc end
 
   HashMap<String *, uint16, StringHasher, StringEq> moduleNames; // Nome  ID
   Vector<ModuleDef *> modules;                                   // Array de módulos!
@@ -446,6 +448,11 @@ class Interpreter
 
   String *staticNames[STATIC_COUNT];
 
+  void freeInstances();
+  void freeBlueprints();
+
+  void checkGC() ;
+
   Fiber *get_ready_fiber(Process *proc);
   void resetFiber();
   void initFiber(Fiber *fiber, Function *func);
@@ -462,12 +469,15 @@ class Interpreter
 
   FORCE_INLINE ClassInstance *creatClass()
   {
+    
+    checkGC();
     size_t size = sizeof(ClassInstance);
     void *mem = (MapInstance *)arena.Allocate(size); // 40kb
     ClassInstance *instance = new (mem) ClassInstance();
+    instance->marked = 0;
     classInstances.push(instance);
     totalAllocated += size;
-    totalClasses   += 1;
+ 
     return instance;
   }
 
@@ -479,16 +489,18 @@ class Interpreter
     c->~ClassInstance();
     arena.Free(c, size);
     totalAllocated -= size;
-    totalClasses   -= 1;
+   
   }
 
   FORCE_INLINE StructInstance *createStruct()
   {
+    checkGC();
     size_t size = sizeof(StructInstance);
     void *mem = (StructInstance *)arena.Allocate(size); // 40kb
     StructInstance *instance = new (mem) StructInstance();
+    instance->marked = 0;
     totalAllocated += size;
-    totalStructs   += 1;
+ 
     return instance;
   }
 
@@ -499,44 +511,50 @@ class Interpreter
     s->~StructInstance();
     arena.Free(s, size);
     totalAllocated -= size;
-    totalStructs   -= 1;
+ 
   }
   FORCE_INLINE ArrayInstance *createArray()
   {
+    checkGC();
     size_t size = sizeof(ArrayInstance);
     void *mem = (ArrayInstance *)arena.Allocate(size); // 32kb
     ArrayInstance *instance = new (mem) ArrayInstance();
+    arrayInstances.push(instance);
+    instance->marked = 0;
     totalAllocated += size;
-    totalArrays   += 1;
+   
     return instance;
   }
 
   FORCE_INLINE void freeArray(ArrayInstance *a)
   {
     size_t size = sizeof(ArrayInstance);
+    //size += a->values.capacity() * sizeof(Value);
     a->values.destroy();
     a->~ArrayInstance();
     arena.Free(a, size);
     totalAllocated -= size;
-    totalArrays   -= 1;
+ 
   }
 
   FORCE_INLINE MapInstance *createMap()
   {
+    checkGC();
     size_t size = sizeof(MapInstance);
     void *mem = (MapInstance *)arena.Allocate(size); // 40kb
     MapInstance *instance = new (mem) MapInstance();
+    instance->marked = 0;
+    mapInstances.push(instance);
     totalAllocated += size;
-    totalMaps   += 1;
+ 
     return instance;
   }
 
   FORCE_INLINE void freeMap(MapInstance *m)
   {
     size_t size = sizeof(MapInstance);
+    //size += m->table.capacity * sizeof(Value);
     totalAllocated -= size;
-    totalMaps   -= 1;
-
     m->table.destroy();
     m->~MapInstance();
     arena.Free(m, size);
@@ -544,11 +562,14 @@ class Interpreter
 
   FORCE_INLINE NativeClassInstance *createNativeClass()
   {
+   
+    checkGC();
     size_t size = sizeof(NativeClassInstance);
     void *mem = (NativeClassInstance *)arena.Allocate(size); // 32kb
     NativeClassInstance *instance = new (mem) NativeClassInstance();
+    nativeInstances.push( instance);
     totalAllocated += size;
-    totalNativeClasses   += 1;
+  
     return instance;
   }
 
@@ -556,18 +577,18 @@ class Interpreter
   {
     size_t size = sizeof(NativeClassInstance);
     totalAllocated -= size;
-    totalNativeClasses   -= 1;
     n->~NativeClassInstance();
     arena.Free(n, size);
   }
 
   FORCE_INLINE NativeStructInstance *createNativeStruct()
   {
+    checkGC();
     size_t size = sizeof(NativeStructInstance);
     void *mem = (NativeStructInstance *)arena.Allocate(size); // 32kb
     NativeStructInstance *instance = new (mem) NativeStructInstance();
     totalAllocated += size;
-    totalNativeStructs   += 1;
+  
     return instance;
   }
 
@@ -575,16 +596,35 @@ class Interpreter
   {
     size_t size = sizeof(NativeStructInstance);
     totalAllocated -= size;
-    totalNativeStructs   -= 1;
+  
     n->~NativeStructInstance();
     arena.Free(n, size);
   }
+
+  FORCE_INLINE void markRoots();
+  FORCE_INLINE void markValue(const Value &v);
+
+  FORCE_INLINE void markArray(ArrayInstance *a);
+  FORCE_INLINE void markStruct(StructInstance *s);
+  FORCE_INLINE void markClass(ClassInstance *c);
+  FORCE_INLINE void markMap(MapInstance *m);
+  FORCE_INLINE void markNativeClass(NativeClassInstance *n);
+  FORCE_INLINE void markNativeStruct(NativeStructInstance *n);
+
+  // SWEEP
+  void sweepArrays();
+  void sweepStructs();
+  void sweepClasses();
+  void sweepMaps();
+  void sweepNativeClasses();
+  void sweepNativeStructs();
 
 public:
   Interpreter();
   ~Interpreter();
   void update(float deltaTime);
 
+  void runGC();
   int getProcessPrivateIndex(const char *name);
 
   void dumpToFile(const char *filename);
@@ -662,6 +702,14 @@ public:
   void setHooks(const VMHooks &h);
 
   void render();
+
+  size_t getTotalAlocated() { return totalAllocated; }
+  size_t getTotalClasses() { return  classInstances.size(); }
+  size_t getTotalStructs() { return  structInstances.size(); }
+  size_t getTotalArrays() { return  arrayInstances.size(); }
+  size_t getTotalMaps() { return  mapInstances.size(); }
+  size_t getTotalNativeClasses() { return  nativeInstances.size(); }
+  size_t getTotalNativeStructs() { return nativeStructInstances.size(); }
 
   uint16 defineModule(const char *name);
   ModuleBuilder addModule(const char *name);
@@ -781,14 +829,14 @@ public:
     return v;
   }
 
-   FORCE_INLINE Value makeNil()
+  FORCE_INLINE Value makeNil()
   {
     Value v;
     v.type = ValueType::NIL;
     return v;
   }
 
-   FORCE_INLINE Value makeInt(int i)
+  FORCE_INLINE Value makeInt(int i)
   {
     Value v;
     v.type = ValueType::INT;
@@ -796,7 +844,7 @@ public:
     return v;
   }
 
-   FORCE_INLINE Value makeDouble(double d)
+  FORCE_INLINE Value makeDouble(double d)
   {
     Value v;
     v.type = ValueType::DOUBLE;
@@ -804,7 +852,7 @@ public:
     return v;
   }
 
-   FORCE_INLINE Value makeBool(bool b)
+  FORCE_INLINE Value makeBool(bool b)
   {
     Value v;
     v.type = ValueType::BOOL;
@@ -812,7 +860,7 @@ public:
     return v;
   }
 
-   FORCE_INLINE Value makeFunction(int idx)
+  FORCE_INLINE Value makeFunction(int idx)
   {
     Value v;
     v.type = ValueType::FUNCTION;
@@ -820,7 +868,7 @@ public:
     return v;
   }
 
-   FORCE_INLINE Value makeNative(int idx)
+  FORCE_INLINE Value makeNative(int idx)
   {
     Value v;
     v.type = ValueType::NATIVE;
@@ -828,7 +876,7 @@ public:
     return v;
   }
 
-   FORCE_INLINE Value makeNativeClass(int idx)
+  FORCE_INLINE Value makeNativeClass(int idx)
   {
     Value v;
     v.type = ValueType::NATIVECLASS;
@@ -836,7 +884,7 @@ public:
     return v;
   }
 
-   FORCE_INLINE Value makeProcess(int idx)
+  FORCE_INLINE Value makeProcess(int idx)
   {
     Value v;
     v.type = ValueType::PROCESS;
@@ -844,7 +892,7 @@ public:
     return v;
   }
 
-   FORCE_INLINE Value makeStruct(int idx)
+  FORCE_INLINE Value makeStruct(int idx)
   {
     Value v;
     v.type = ValueType::STRUCT;
@@ -852,7 +900,7 @@ public:
     return v;
   }
 
-   FORCE_INLINE Value makeClass(int idx)
+  FORCE_INLINE Value makeClass(int idx)
   {
     Value v;
     v.type = ValueType::CLASS;
@@ -860,7 +908,7 @@ public:
     return v;
   }
 
-   FORCE_INLINE Value makePointer(void *pointer)
+  FORCE_INLINE Value makePointer(void *pointer)
   {
     Value v;
     v.type = ValueType::POINTER;
@@ -868,7 +916,7 @@ public:
     return v;
   }
 
-   FORCE_INLINE Value makeNativeStruct(int idx)
+  FORCE_INLINE Value makeNativeStruct(int idx)
   {
     Value v;
     v.type = ValueType::NATIVESTRUCT;
@@ -876,7 +924,7 @@ public:
     return v;
   }
 
-   FORCE_INLINE Value makeByte(int idx)
+  FORCE_INLINE Value makeByte(int idx)
   {
     Value v;
     v.type = ValueType::BYTE;
@@ -884,7 +932,7 @@ public:
     return v;
   }
 
-   FORCE_INLINE Value makeUInt(int idx)
+  FORCE_INLINE Value makeUInt(int idx)
   {
     Value v;
     v.type = ValueType::UINT;
@@ -892,7 +940,7 @@ public:
     return v;
   }
 
-   FORCE_INLINE Value makeFloat(float idx)
+  FORCE_INLINE Value makeFloat(float idx)
   {
     Value v;
     v.type = ValueType::FLOAT;

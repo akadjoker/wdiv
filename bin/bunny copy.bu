@@ -6,7 +6,7 @@ var gravity = 0.5;
 
 class Sprite
 {
-    var x, y, vx, vy ;
+    var x, y, vx, vy,live,active,color;
 
     def init(x, y)
     {
@@ -14,8 +14,9 @@ class Sprite
         self.y =  y;
         self.vx =  (rand(200) - 100) / 10.0;
         self.vy =  (rand(200) - 100) / 10.0;
-   
- 
+        self.live=500;
+        self.active=true;
+        self.color = Color(rand(255), rand(255), rand(255), 255);
 
     }
 
@@ -36,8 +37,12 @@ class Sprite
         {
             self.vx = self.vx * -1.0;
         }
-        DrawTexture(tex, self.x,self.y, WHITE);
-      
+        DrawTexture(tex, self.x,self.y, self.color);
+        self.live=self.live-1;
+        if(self.live<=0)
+        {
+            self.active=false;
+        }
     }
 }
 
@@ -49,9 +54,15 @@ var WHITE = Color(255, 255, 255, 255);
 var LIGHTGRAY = Color(200, 200, 200, 255);
 var tex = LoadTexture("assets/wabbit_alpha.png");
 
-SetTargetFPS(60);
+//SetTargetFPS(30);
 lista = [];
 
+for(var i=0;i<5;i++)
+        {
+            var vx = GetMouseX();
+            var vy = GetMouseY();
+            lista.push(Sprite(vx,vy));
+        }
 
 
 while (!WindowShouldClose())
@@ -67,7 +78,7 @@ while (!WindowShouldClose())
 
     if (IsMouseButtonDown(0))
     {
-        for(var i=0;i<500;i++)
+        for(var i=0;i<100;i++)
         {
             var vx = GetMouseX();
             var vy = GetMouseY();
@@ -77,21 +88,43 @@ while (!WindowShouldClose())
 
     if (len(lista) > 0)
     {
-        for (var i = 0; i < len(lista); i++)
+        // for (var i = 0; i < len(lista); i++)
+        // {
+        //     var sprite = lista[i];
+        //     sprite.move(tex);
+
+        // }
+        var i = 0;
+        while (i < len(lista)) 
         {
             var sprite = lista[i];
             sprite.move(tex);
-
+            if (!sprite.active) 
+            {
+                // Swap com última e pop
+                var lastIndex = len(lista) - 1;
+                if (i != lastIndex) 
+                {
+                    lista[i] = lista[lastIndex];
+                }
+                lista.pop();
+            } else 
+            {
+                i = i + 1;
+            }
         }
-      
     }
 
-     DrawText(format("count {}", len(lista)), 10, 30, 20, LIGHTGRAY);
+     DrawText(format("count {}", len(lista)), 10, 420, 20, LIGHTGRAY);
      DrawFPS(10, 10);
 
     EndDrawing();
 
- 
+
+    if(IsMouseButtonDown(1))
+    {
+        _gc();
+    }
     
 }
 

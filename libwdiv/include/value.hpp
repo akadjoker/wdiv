@@ -69,11 +69,8 @@ struct Value
   Value(Value &&other) noexcept = default;
   Value &operator=(const Value &other) = default;
   Value &operator=(Value &&other) noexcept = default;
-  // ~Value() ;
-  // contrutors
-
-
  
+  
 
   // Type checks
   FORCE_INLINE bool isNumber() const { return ((type == ValueType::INT) || (type == ValueType::DOUBLE) || (type == ValueType::BYTE) || (type == ValueType::FLOAT)); }
@@ -94,11 +91,11 @@ struct Value
   FORCE_INLINE bool isMap() const { return type == ValueType::MAP; }
   FORCE_INLINE bool isArray() const { return type == ValueType::ARRAY; }
   FORCE_INLINE bool isClass() const { return type == ValueType::CLASS; }
-  FORCE_INLINE bool isClassInstance() { return type == ValueType::CLASSINSTANCE; }
-  FORCE_INLINE bool isNativeClassInstance() { return type == ValueType::NATIVECLASSINSTANCE; }
-  FORCE_INLINE bool isPointer() { return type == ValueType::POINTER; }
-  FORCE_INLINE bool isNativeStruct() { return type == ValueType::NATIVESTRUCT; }
-  FORCE_INLINE bool isNativeStructInstance() { return type == ValueType::NATIVESTRUCTINSTANCE; }
+  FORCE_INLINE bool isClassInstance() const { return type == ValueType::CLASSINSTANCE; }
+  FORCE_INLINE bool isNativeClassInstance()const  { return type == ValueType::NATIVECLASSINSTANCE; }
+  FORCE_INLINE bool isPointer()const  { return type == ValueType::POINTER; }
+  FORCE_INLINE bool isNativeStruct()const  { return type == ValueType::NATIVESTRUCT; }
+  FORCE_INLINE bool isNativeStructInstance() const { return type == ValueType::NATIVESTRUCTINSTANCE; }
   FORCE_INLINE bool isModuleRef() { return type == ValueType::MODULEREFERENCE; }
 
   // Conversions
@@ -362,8 +359,40 @@ struct Value
 };
 
 void printValue(const Value &value);
-bool valuesEqual(const Value &a, const Value &b);
+ 
 void printValueNl(const Value &value);
+
+
+
+static FORCE_INLINE bool valuesEqual(const Value &a, const Value &b)
+{
+
+    if ((a.isInt() || a.isDouble()) && (b.isInt() || b.isDouble()))
+    {
+        double da = a.isInt() ? a.asInt() : a.asDouble();
+        double db = b.isInt() ? b.asInt() : b.asDouble();
+        return da == db;
+    }
+
+    // Resto precisa tipos iguais
+    if (a.type != b.type)
+        return false;
+
+    switch (a.type)
+    {
+    case ValueType::BOOL:
+        return a.asBool() == b.asBool();
+    case ValueType::NIL:
+        return true;
+    case ValueType::STRING:
+    {
+        return compare_strings(a.asString(), b.asString());
+    }
+
+    default:
+        return false;
+    }
+}
 
 
 static FORCE_INLINE bool isTruthy(const Value &value)
