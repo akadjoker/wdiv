@@ -93,12 +93,7 @@ int Interpreter::getProcessPrivateIndex(const char *name)
     }
     return -1;
 }
-
-uint32 Interpreter::liveProcess()
-{
-    if(asEnded) return 0;
-    return aliveProcesses.size();
-}
+ 
 
 
 
@@ -125,15 +120,15 @@ ProcessDef *Interpreter::addProcess(const char *name, Function *func)
         proc->fibers[i].ip = nullptr;
     }
 
-    proc->privates[0] = Value::makeDouble(0); // x
-    proc->privates[1] = Value::makeDouble(0); // y
-    proc->privates[2] = Value::makeDouble(0); // z
-    proc->privates[3] = Value::makeInt(0);    // graph
-    proc->privates[4] = Value::makeInt(0);    // angle
-    proc->privates[5] = Value::makeInt(100);  // size
-    proc->privates[6] = Value::makeInt(1);    // flags
-    proc->privates[7] = Value::makeInt(-1);   // id
-    proc->privates[8] = Value::makeInt(-1);   // father
+    proc->privates[0] = makeDouble(0); // x
+    proc->privates[1] = makeDouble(0); // y
+    proc->privates[2] = makeDouble(0); // z
+    proc->privates[3] = makeInt(0);    // graph
+    proc->privates[4] = makeInt(0);    // angle
+    proc->privates[5] = makeInt(100);  // size
+    proc->privates[6] = makeInt(1);    // flags
+    proc->privates[7] = makeInt(-1);   // id
+    proc->privates[8] = makeInt(-1);   // father
 
     initFiber(&proc->fibers[0], func);
     proc->current = &proc->fibers[0];

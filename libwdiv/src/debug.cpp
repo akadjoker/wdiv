@@ -151,25 +151,25 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset)
   case OP_CALL:
     return byteInstruction("OP_CALL", chunk, offset);
 
-  case OP_CALL_NATIVE:
-  {
-    // operands: nameIdx (constant) + argCount
-    if (!hasBytes(chunk, offset, 2))
-    {
-      printf("OP_CALL_NATIVE <truncated>\n");
-      return chunk.count;
-    }
-    uint8 nameIdx = chunk.code[offset + 1];
-    uint8 argCount = chunk.code[offset + 2];
+  // case OP_CALL_NATIVE:
+  // {
+  //   // operands: nameIdx (constant) + argCount
+  //   if (!hasBytes(chunk, offset, 2))
+  //   {
+  //     printf("OP_CALL_NATIVE <truncated>\n");
+  //     return chunk.count;
+  //   }
+  //   uint8 nameIdx = chunk.code[offset + 1];
+  //   uint8 argCount = chunk.code[offset + 2];
 
-    Value c = chunk.constants[nameIdx];
-    const char *nm = (c.isString() ? c.asString()->chars() : "<non-string>");
+  //   Value c = chunk.constants[nameIdx];
+  //   const char *nm = (c.isString() ? c.asString()->chars() : "<non-string>");
 
-    printf("%-16s %4u '%s' (%u args)\n", "OP_CALL_NATIVE", (unsigned)nameIdx,
-           nm, (unsigned)argCount);
+  //   printf("%-16s %4u '%s' (%u args)\n", "OP_CALL_NATIVE", (unsigned)nameIdx,
+  //          nm, (unsigned)argCount);
 
-    return offset + 3;
-  }
+  //   return offset + 3;
+  // }
   case OP_INVOKE:
   {
     if (!hasBytes(chunk, offset, 2))
@@ -197,8 +197,8 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset)
   case OP_DEFINE_MAP:
     return simpleInstruction("OP_DEFINE_MAP", offset);
 
-  case OP_DEFINE_STRUCT:
-    return byteInstruction("OP_DEFINE_STRUCT", chunk, offset);
+  // case OP_DEFINE_STRUCT:
+  //   return byteInstruction("OP_DEFINE_STRUCT", chunk, offset);
 
   case OP_GET_INDEX:
     return simpleInstruction("OP_GET_INDEX", offset);
@@ -206,23 +206,29 @@ size_t Debug::disassembleInstruction(const Code &chunk, size_t offset)
   case OP_SET_INDEX:
     return simpleInstruction("OP_SET_INDEX", offset);
 
-  case OP_INHERIT:
-    return simpleInstruction("OP_INHERIT", offset);
-
-  case OP_GET_SUPER:
-    return constantInstruction("OP_GET_SUPER", chunk, offset);
+case OP_FOREACH_START:
+    return simpleInstruction("OP_FOREACH_START", offset);
+    
+case OP_FOREACH_NEXT:
+    return simpleInstruction("OP_FOREACH_NEXT", offset);
+    
+case OP_FOREACH_CHECK:
+    return simpleInstruction("OP_FOREACH_CHECK", offset); 
+    
+ 
 
   case OP_RETURN:
     return simpleInstruction("OP_RETURN", offset);
-  case OP_RETURN_NIL:
-    return simpleInstruction("OP_RETURN_NIL", offset);
+  // case OP_RETURN_NIL:
+  //   return simpleInstruction("OP_RETURN_NIL", offset);
 
   // -------- Scheduling --------
   case OP_YIELD:
     return simpleInstruction("OP_YIELD", offset);
   case OP_FRAME:
     return simpleInstruction("OP_FRAME", offset);
-
+  case OP_FUNC_LEN:
+    return simpleInstruction("OP_LEN", offset);
   // -------- I/O --------
   case OP_PRINT:
     return simpleInstruction("OP_PRINT", offset);

@@ -2,17 +2,13 @@
 #include "value.hpp"
 #include "arena.hpp"
 #include "interpreter.hpp"
-#include "instances.hpp"
+ 
 #include <ctype.h>
 #include <new>
 #include <stdarg.h>
 #include "string.hpp"
 
-size_t String::length() const
-{
-
-    return length_and_flag & ~IS_LONG_FLAG;
-}
+ 
 
 StringPool::StringPool()
 {
@@ -24,7 +20,6 @@ StringPool::StringPool()
     dummyString->ptr = nullptr;
     std::memcpy(dummyString->data, str, len);
     dummyString->data[len] = '\0';
-
     dummyString->index = -1;
     dummyString->hash = hashString(dummyString->chars(), len);
     bytesAllocated += sizeof(String) + len;
@@ -32,6 +27,7 @@ StringPool::StringPool()
 
 StringPool::~StringPool()
 {
+
 }
 
 // ============= STRING ALLOC =============
@@ -72,14 +68,14 @@ void StringPool::clear()
     dummyString->~String();
     allocator.Free(dummyString, sizeof(String));
 
-  //  allocator.Stats();
+    allocator.Stats();
     allocator.Clear();
 
     map.clear();
     pool.destroy();
 }
 
-String *StringPool::create(const char *str, uint32 len, bool isStatic)
+String *StringPool::create(const char *str, uint32 len)
 {
     // Cache hit?
 
@@ -124,9 +120,9 @@ String *StringPool::create(const char *str, uint32 len, bool isStatic)
     return s;
 }
 
-String *StringPool::create(const char *str, bool isStatic)
+String *StringPool::create(const char *str)
 {
-    return create(str, std::strlen(str), isStatic);
+    return create(str, std::strlen(str));
 }
 // ========================================
 // CONCAT - OTIMIZADO

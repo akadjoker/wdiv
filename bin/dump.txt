@@ -1,339 +1,565 @@
- 
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=2, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=2, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=2, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=2, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-✓ Loaded: ./space_shooter/player.bu (4538 bytes)
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=2, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=2, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=4, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=2, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=3
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=2, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=4, scopeDepth=3
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=4, scopeDepth=4
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=4, scopeDepth=4
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=4, scopeDepth=3
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=4, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=4, scopeDepth=3
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=1, scopeDepth=1
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=3, scopeDepth=2
-  → 'self' resolved as LOCAL[0]
-
-[namedVariable] Processing 'self'
-  localCount=4, scopeDepth=3
-  → 'self' resolved as LOCAL[0]
-  
+========================================
+BULANG BYTECODE DUMP
+========================================
+
+========================================
+GLOBAL FUNCTIONS
+========================================
+
+
+>>> Function: __main__
+    Arity: 0
+    Has return: no
+    Index: 0
+
+  Constants (98):
+    [0] = "gravity"
+    [1] = 0.50
+    [2] = "Sprite"
+    [3] = <value type 21>
+    [4] = <value type 25>
+    [5] = 800
+    [6] = 450
+    [7] = "BuLang with Raylib"
+    [8] = "RED"
+    [9] = "Color"
+    [10] = 255
+    [11] = 0
+    [12] = 0
+    [13] = 255
+    [14] = "BLACK"
+    [15] = "Color"
+    [16] = 0
+    [17] = 0
+    [18] = 0
+    [19] = 255
+    [20] = "WHITE"
+    [21] = "Color"
+    [22] = 255
+    [23] = 255
+    [24] = 255
+    [25] = 255
+    [26] = "LIGHTGRAY"
+    [27] = "Color"
+    [28] = 200
+    [29] = 200
+    [30] = 200
+    [31] = 255
+    [32] = "tex"
+    [33] = <value type 25>
+    [34] = "assets/wabbit_alpha.png"
+    [35] = "lista"
+    [36] = "i"
+    [37] = 0
+    [38] = 30000
+    [39] = 1
+    [40] = "vx"
+    [41] = <value type 25>
+    [42] = "vy"
+    [43] = <value type 25>
+    [44] = "lista"
+    [45] = "push"
+    [46] = "Sprite"
+    [47] = <value type 25>
+    [48] = <value type 25>
+    [49] = <value type 25>
+    [50] = "BLACK"
+    [51] = <value type 25>
+    [52] = 200
+    [53] = 200
+    [54] = "RED"
+    [55] = <value type 25>
+    [56] = "tex"
+    [57] = <value type 25>
+    [58] = <value type 25>
+    [59] = "WHITE"
+    [60] = <value type 25>
+    [61] = 0
+    [62] = "i"
+    [63] = 0
+    [64] = 500
+    [65] = 1
+    [66] = "vx"
+    [67] = <value type 25>
+    [68] = "vy"
+    [69] = <value type 25>
+    [70] = "lista"
+    [71] = "push"
+    [72] = "Sprite"
+    [73] = "lista"
+    [74] = 0
+    [75] = "i"
+    [76] = 0
+    [77] = "lista"
+    [78] = 1
+    [79] = "sprite"
+    [80] = "lista"
+    [81] = "move"
+    [82] = "tex"
+    [83] = <value type 25>
+    [84] = "format"
+    [85] = "count {}"
+    [86] = "lista"
+    [87] = 10
+    [88] = 30
+    [89] = 20
+    [90] = "LIGHTGRAY"
+    [91] = <value type 25>
+    [92] = 10
+    [93] = 10
+    [94] = <value type 25>
+    [95] = <value type 25>
+    [96] = "tex"
+    [97] = <value type 25>
+
+  Bytecode:
+    0000    5 OP_CONSTANT         1 '0.500000.4f'
+    0002    | OP_DEFINE_GLOBAL    0 'gravity'
+    0004    7 OP_CONSTANT         3 '<class 0>'
+    0006    | OP_DEFINE_GLOBAL    2 'Sprite'
+    0008   41 OP_CONSTANT         4 '<module_reference 0 16 0>'
+    0010    | OP_CONSTANT         5 '800'
+    0012    | OP_CONSTANT         6 '450'
+    0014    | OP_CONSTANT         7 'BuLang with Raylib'
+    0016    | OP_CALL             3
+    0018    | OP_POP
+    0019   43 OP_GET_GLOBAL       9 'Color'
+    0021    | OP_CONSTANT        10 '255'
+    0023    | OP_CONSTANT        11 '0'
+    0025    | OP_CONSTANT        12 '0'
+    0027    | OP_CONSTANT        13 '255'
+    0029    | OP_CALL             4
+    0031    | OP_DEFINE_GLOBAL    8 'RED'
+    0033   44 OP_GET_GLOBAL      15 'Color'
+    0035    | OP_CONSTANT        16 '0'
+    0037    | OP_CONSTANT        17 '0'
+    0039    | OP_CONSTANT        18 '0'
+    0041    | OP_CONSTANT        19 '255'
+    0043    | OP_CALL             4
+    0045    | OP_DEFINE_GLOBAL   14 'BLACK'
+    0047   45 OP_GET_GLOBAL      21 'Color'
+    0049    | OP_CONSTANT        22 '255'
+    0051    | OP_CONSTANT        23 '255'
+    0053    | OP_CONSTANT        24 '255'
+    0055    | OP_CONSTANT        25 '255'
+    0057    | OP_CALL             4
+    0059    | OP_DEFINE_GLOBAL   20 'WHITE'
+    0061   46 OP_GET_GLOBAL      27 'Color'
+    0063    | OP_CONSTANT        28 '200'
+    0065    | OP_CONSTANT        29 '200'
+    0067    | OP_CONSTANT        30 '200'
+    0069    | OP_CONSTANT        31 '255'
+    0071    | OP_CALL             4
+    0073    | OP_DEFINE_GLOBAL   26 'LIGHTGRAY'
+    0075   47 OP_CONSTANT        33 '<module_reference 0 16 17>'
+    0077    | OP_CONSTANT        34 'assets/wabbit_alpha.png'
+    0079    | OP_CALL             1
+    0081    | OP_DEFINE_GLOBAL   32 'tex'
+    0083   50 OP_DEFINE_ARRAY     0
+    0085    | OP_SET_GLOBAL      35 'lista'
+    0087    | OP_POP
+    0088   52 OP_CONSTANT        37 '0'
+    0090    | OP_GET_LOCAL        0
+    0092    | OP_CONSTANT        38 '30000'
+    0094    | OP_LESS
+    0095    | OP_JUMP_IF_FALSE   95 -> 143
+    0098    | OP_POP
+    0099    | OP_JUMP            99 -> 116
+    0102    | OP_GET_LOCAL        0
+    0104    | OP_GET_LOCAL        0
+    0106    | OP_CONSTANT        39 '1'
+    0108    | OP_ADD
+    0109    | OP_SET_LOCAL        0
+    0111    | OP_POP
+    0112    | OP_POP
+    0113    | OP_LOOP           113 -> 90
+    0116   54 OP_CONSTANT        41 '<module_reference 0 16 23>'
+    0118    | OP_CALL             0
+    0120   55 OP_CONSTANT        43 '<module_reference 0 16 24>'
+    0122    | OP_CALL             0
+    0124   56 OP_GET_GLOBAL      44 'lista'
+    0126    | OP_GET_GLOBAL      46 'Sprite'
+    0128    | OP_GET_LOCAL        1
+    0130    | OP_GET_LOCAL        2
+    0132    | OP_CALL             2
+    0134    | OP_INVOKE          45 'push' (1 args)
+    0137    | OP_POP
+    0138   57 OP_POP
+    0139    | OP_POP
+    0140    | OP_LOOP           140 -> 102
+    0143    | OP_POP
+    0144    | OP_POP
+    0145   60 OP_CONSTANT        47 '<module_reference 0 16 2>'
+    0147    | OP_CALL             0
+    0149    | OP_NOT
+    0150    | OP_JUMP_IF_FALSE  150 -> 366
+    0153    | OP_POP
+    0154   63 OP_CONSTANT        48 '<module_reference 0 16 6>'
+    0156    | OP_CALL             0
+    0158    | OP_POP
+    0159   65 OP_CONSTANT        49 '<module_reference 0 16 8>'
+    0161    | OP_GET_GLOBAL      50 'BLACK'
+    0163    | OP_CALL             1
+    0165    | OP_POP
+    0166   67 OP_CONSTANT        51 '<module_reference 0 16 10>'
+    0168    | OP_CONSTANT        52 '200'
+    0170    | OP_CONSTANT        53 '200'
+    0172    | OP_GET_GLOBAL      54 'RED'
+    0174    | OP_CALL             3
+    0176    | OP_POP
+    0177   69 OP_CONSTANT        55 '<module_reference 0 16 16>'
+    0179    | OP_GET_GLOBAL      56 'tex'
+    0181    | OP_CONSTANT        57 '<module_reference 0 16 23>'
+    0183    | OP_CALL             0
+    0185    | OP_CONSTANT        58 '<module_reference 0 16 24>'
+    0187    | OP_CALL             0
+    0189    | OP_GET_GLOBAL      59 'WHITE'
+    0191    | OP_CALL             4
+    0193    | OP_POP
+    0194   71 OP_CONSTANT        60 '<module_reference 0 16 20>'
+    0196    | OP_CONSTANT        61 '0'
+    0198    | OP_CALL             1
+    0200    | OP_JUMP_IF_FALSE  200 -> 264
+    0203    | OP_POP
+    0204   73 OP_CONSTANT        63 '0'
+    0206    | OP_GET_LOCAL        0
+    0208    | OP_CONSTANT        64 '500'
+    0210    | OP_LESS
+    0211    | OP_JUMP_IF_FALSE  211 -> 259
+    0214    | OP_POP
+    0215    | OP_JUMP           215 -> 232
+    0218    | OP_GET_LOCAL        0
+    0220    | OP_GET_LOCAL        0
+    0222    | OP_CONSTANT        65 '1'
+    0224    | OP_ADD
+    0225    | OP_SET_LOCAL        0
+    0227    | OP_POP
+    0228    | OP_POP
+    0229    | OP_LOOP           229 -> 206
+    0232   75 OP_CONSTANT        67 '<module_reference 0 16 23>'
+    0234    | OP_CALL             0
+    0236   76 OP_CONSTANT        69 '<module_reference 0 16 24>'
+    0238    | OP_CALL             0
+    0240   77 OP_GET_GLOBAL      70 'lista'
+    0242    | OP_GET_GLOBAL      72 'Sprite'
+    0244    | OP_GET_LOCAL        1
+    0246    | OP_GET_LOCAL        2
+    0248    | OP_CALL             2
+    0250    | OP_INVOKE          71 'push' (1 args)
+    0253    | OP_POP
+    0254   78 OP_POP
+    0255    | OP_POP
+    0256    | OP_LOOP           256 -> 218
+    0259    | OP_POP
+    0260    | OP_POP
+    0261   79 OP_JUMP           261 -> 265
+    0264    | OP_POP
+    0265   81 OP_GET_GLOBAL      73 'lista'
+    0267    | OP_LEN
+    0268    | OP_CONSTANT        74 '0'
+    0270    | OP_GREATER
+    0271    | OP_JUMP_IF_FALSE  271 -> 326
+    0274    | OP_POP
+    0275   83 OP_CONSTANT        76 '0'
+    0277    | OP_GET_LOCAL        0
+    0279    | OP_GET_GLOBAL      77 'lista'
+    0281    | OP_LEN
+    0282    | OP_LESS
+    0283    | OP_JUMP_IF_FALSE  283 -> 321
+    0286    | OP_POP
+    0287    | OP_JUMP           287 -> 304
+    0290    | OP_GET_LOCAL        0
+    0292    | OP_GET_LOCAL        0
+    0294    | OP_CONSTANT        78 '1'
+    0296    | OP_ADD
+    0297    | OP_SET_LOCAL        0
+    0299    | OP_POP
+    0300    | OP_POP
+    0301    | OP_LOOP           301 -> 277
+    0304   85 OP_GET_GLOBAL      80 'lista'
+    0306    | OP_GET_LOCAL        0
+    0308    | OP_GET_INDEX
+    0309   86 OP_GET_LOCAL        1
+    0311    | OP_GET_GLOBAL      82 'tex'
+    0313    | OP_INVOKE          81 'move' (1 args)
+    0316    | OP_POP
+    0317   88 OP_POP
+    0318    | OP_LOOP           318 -> 290
+    0321    | OP_POP
+    0322    | OP_POP
+    0323   89 OP_JUMP           323 -> 327
+    0326    | OP_POP
+    0327   91 OP_CONSTANT        83 '<module_reference 0 16 11>'
+    0329    | OP_GET_GLOBAL      84 'format'
+    0331    | OP_CONSTANT        85 'count {}'
+    0333    | OP_GET_GLOBAL      86 'lista'
+    0335    | OP_LEN
+    0336    | OP_CALL             2
+    0338    | OP_CONSTANT        87 '10'
+    0340    | OP_CONSTANT        88 '30'
+    0342    | OP_CONSTANT        89 '20'
+    0344    | OP_GET_GLOBAL      90 'LIGHTGRAY'
+    0346    | OP_CALL             5
+    0348    | OP_POP
+    0349   92 OP_CONSTANT        91 '<module_reference 0 16 9>'
+    0351    | OP_CONSTANT        92 '10'
+    0353    | OP_CONSTANT        93 '10'
+    0355    | OP_CALL             2
+    0357    | OP_POP
+    0358   94 OP_CONSTANT        94 '<module_reference 0 16 7>'
+    0360    | OP_CALL             0
+    0362    | OP_POP
+    0363   96 OP_LOOP           363 -> 145
+    0366    | OP_POP
+    0367  100 OP_CONSTANT        95 '<module_reference 0 16 18>'
+    0369    | OP_GET_GLOBAL      96 'tex'
+    0371    | OP_CALL             1
+    0373    | OP_POP
+    0374  101 OP_CONSTANT        97 '<module_reference 0 16 1>'
+    0376    | OP_CALL             0
+    0378    | OP_POP
+    0379  189 OP_NIL
+    0380    | OP_RETURN
+
+
+========================================
+CLASSES
+========================================
+
+
+>>> Class: Sprite
+    Index: 0
+    Field count: 4
+    Has superclass: no
+
+    Fields:
+      [3] vy
+      [2] vx
+      [1] y
+      [0] x
+
+    >>> Constructor (init)
+        Arity: 2
+
+      Constants (12):
+        [0] = "x"
+        [1] = "y"
+        [2] = "vx"
+        [3] = "rand"
+        [4] = 200
+        [5] = 100
+        [6] = 10.00
+        [7] = "vy"
+        [8] = "rand"
+        [9] = 200
+        [10] = 100
+        [11] = 10.00
+
+      Bytecode:
+        0000   13 OP_GET_LOCAL        0
+        0002    | OP_GET_LOCAL        1
+        0004    | OP_SET_PROPERTY     0 'x'
+        0006    | OP_POP
+        0007   14 OP_GET_LOCAL        0
+        0009    | OP_GET_LOCAL        2
+        0011    | OP_SET_PROPERTY     1 'y'
+        0013    | OP_POP
+        0014   15 OP_GET_LOCAL        0
+        0016    | OP_GET_GLOBAL       3 'rand'
+        0018    | OP_CONSTANT         4 '200'
+        0020    | OP_CALL             1
+        0022    | OP_CONSTANT         5 '100'
+        0024    | OP_SUBTRACT
+        0025    | OP_CONSTANT         6 '10.000000.4f'
+        0027    | OP_DIVIDE
+        0028    | OP_SET_PROPERTY     2 'vx'
+        0030    | OP_POP
+        0031   16 OP_GET_LOCAL        0
+        0033    | OP_GET_GLOBAL       8 'rand'
+        0035    | OP_CONSTANT         9 '200'
+        0037    | OP_CALL             1
+        0039    | OP_CONSTANT        10 '100'
+        0041    | OP_SUBTRACT
+        0042    | OP_CONSTANT        11 '10.000000.4f'
+        0044    | OP_DIVIDE
+        0045    | OP_SET_PROPERTY     7 'vy'
+        0047    | OP_POP
+        0048   18 OP_GET_LOCAL        0
+        0050    | OP_RETURN
+        0051    | OP_POP
+        0052    | OP_POP
+        0053    | OP_POP
+
+    Methods:
+
+    >>> Method: init
+        Arity: 2
+        Has return: yes
+
+      Constants (12):
+        [0] = "x"
+        [1] = "y"
+        [2] = "vx"
+        [3] = "rand"
+        [4] = 200
+        [5] = 100
+        [6] = 10.00
+        [7] = "vy"
+        [8] = "rand"
+        [9] = 200
+        [10] = 100
+        [11] = 10.00
+
+      Bytecode:
+        0000   13 OP_GET_LOCAL        0
+        0002    | OP_GET_LOCAL        1
+        0004    | OP_SET_PROPERTY     0 'x'
+        0006    | OP_POP
+        0007   14 OP_GET_LOCAL        0
+        0009    | OP_GET_LOCAL        2
+        0011    | OP_SET_PROPERTY     1 'y'
+        0013    | OP_POP
+        0014   15 OP_GET_LOCAL        0
+        0016    | OP_GET_GLOBAL       3 'rand'
+        0018    | OP_CONSTANT         4 '200'
+        0020    | OP_CALL             1
+        0022    | OP_CONSTANT         5 '100'
+        0024    | OP_SUBTRACT
+        0025    | OP_CONSTANT         6 '10.000000.4f'
+        0027    | OP_DIVIDE
+        0028    | OP_SET_PROPERTY     2 'vx'
+        0030    | OP_POP
+        0031   16 OP_GET_LOCAL        0
+        0033    | OP_GET_GLOBAL       8 'rand'
+        0035    | OP_CONSTANT         9 '200'
+        0037    | OP_CALL             1
+        0039    | OP_CONSTANT        10 '100'
+        0041    | OP_SUBTRACT
+        0042    | OP_CONSTANT        11 '10.000000.4f'
+        0044    | OP_DIVIDE
+        0045    | OP_SET_PROPERTY     7 'vy'
+        0047    | OP_POP
+        0048   18 OP_GET_LOCAL        0
+        0050    | OP_RETURN
+        0051    | OP_POP
+        0052    | OP_POP
+        0053    | OP_POP
+
+
+    >>> Method: move
+        Arity: 1
+        Has return: yes
+
+      Constants (25):
+        [0] = "x"
+        [1] = "vx"
+        [2] = "y"
+        [3] = "vy"
+        [4] = "vy"
+        [5] = "vy"
+        [6] = 0.50
+        [7] = "y"
+        [8] = 400
+        [9] = "y"
+        [10] = 400
+        [11] = "vy"
+        [12] = "vy"
+        [13] = 0.85
+        [14] = "x"
+        [15] = 0
+        [16] = "x"
+        [17] = 800
+        [18] = "vx"
+        [19] = "vx"
+        [20] = 1.00
+        [21] = <value>
+        [22] = "x"
+        [23] = "y"
+        [24] = "WHITE"
+
+      Bytecode:
+        0000   22 OP_GET_LOCAL        0
+        0002    | OP_DUP
+        0003    | OP_GET_PROPERTY     0 'x'
+        0005    | OP_GET_LOCAL        0
+        0007    | OP_GET_PROPERTY     1 'vx'
+        0009    | OP_ADD
+        0010    | OP_SET_PROPERTY     0 'x'
+        0012    | OP_POP
+        0013   23 OP_GET_LOCAL        0
+        0015    | OP_DUP
+        0016    | OP_GET_PROPERTY     2 'y'
+        0018    | OP_GET_LOCAL        0
+        0020    | OP_GET_PROPERTY     3 'vy'
+        0022    | OP_ADD
+        0023    | OP_SET_PROPERTY     2 'y'
+        0025    | OP_POP
+        0026   25 OP_GET_LOCAL        0
+        0028    | OP_GET_LOCAL        0
+        0030    | OP_GET_PROPERTY     5 'vy'
+        0032    | OP_CONSTANT         6 '0.500000.4f'
+        0034    | OP_ADD
+        0035    | OP_SET_PROPERTY     4 'vy'
+        0037    | OP_POP
+        0038   27 OP_GET_LOCAL        0
+        0040    | OP_GET_PROPERTY     7 'y'
+        0042    | OP_CONSTANT         8 '400'
+        0044    | OP_GREATER
+        0045    | OP_JUMP_IF_FALSE   45 -> 72
+        0048    | OP_POP
+        0049   29 OP_GET_LOCAL        0
+        0051    | OP_CONSTANT        10 '400'
+        0053    | OP_SET_PROPERTY     9 'y'
+        0055    | OP_POP
+        0056   30 OP_GET_LOCAL        0
+        0058    | OP_GET_LOCAL        0
+        0060    | OP_GET_PROPERTY    12 'vy'
+        0062    | OP_CONSTANT        13 '0.850000.4f'
+        0064    | OP_NEGATE
+        0065    | OP_MULTIPLY
+        0066    | OP_SET_PROPERTY    11 'vy'
+        0068    | OP_POP
+        0069   31 OP_JUMP            69 -> 73
+        0072    | OP_POP
+        0073   33 OP_GET_LOCAL        0
+        0075    | OP_GET_PROPERTY    14 'x'
+        0077    | OP_CONSTANT        15 '0'
+        0079    | OP_LESS
+        0080    | OP_JUMP_IF_FALSE   80 -> 86
+        0083    | OP_JUMP            83 -> 94
+        0086    | OP_POP
+        0087    | OP_GET_LOCAL        0
+        0089    | OP_GET_PROPERTY    16 'x'
+        0091    | OP_CONSTANT        17 '800'
+        0093    | OP_GREATER
+        0094    | OP_JUMP_IF_FALSE   94 -> 114
+        0097    | OP_POP
+        0098   35 OP_GET_LOCAL        0
+        0100    | OP_GET_LOCAL        0
+        0102    | OP_GET_PROPERTY    19 'vx'
+        0104    | OP_CONSTANT        20 '1.000000.4f'
+        0106    | OP_NEGATE
+        0107    | OP_MULTIPLY
+        0108    | OP_SET_PROPERTY    18 'vx'
+        0110    | OP_POP
+        0111   36 OP_JUMP           111 -> 115
+        0114    | OP_POP
+        0115   37 OP_CONSTANT        21 '<module_reference 0 16 16>'
+        0117    | OP_GET_LOCAL        1
+        0119    | OP_GET_LOCAL        0
+        0121    | OP_GET_PROPERTY    22 'x'
+        0123    | OP_GET_LOCAL        0
+        0125    | OP_GET_PROPERTY    23 'y'
+        0127    | OP_GET_GLOBAL      24 'WHITE'
+        0129    | OP_CALL             4
+        0131    | OP_POP
+        0132   38 OP_GET_LOCAL        0
+        0134    | OP_RETURN
+        0135    | OP_POP
+        0136    | OP_POP
+
+
+
+========================================
+END OF DUMP
+========================================

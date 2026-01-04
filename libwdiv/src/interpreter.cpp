@@ -1,8 +1,8 @@
 #include "interpreter.hpp"
 #include "compiler.hpp"
 #include "debug.hpp"
-#include "instances.hpp"
 #include "platform.hpp"
+#include "utils.hpp"
 #include <stdarg.h>
 
 Interpreter::Interpreter()
@@ -10,19 +10,112 @@ Interpreter::Interpreter()
   compiler = new Compiler(this);
   asEnded = false;
   setPrivateTable();
+  staticNames[STATIC_PUSH] = createString("push");
+  staticNames[STATIC_POP] = createString("pop");
+  staticNames[STATIC_BACK] = createString("back");
+  staticNames[STATIC_LENGTH] = createString("length");
+  staticNames[STATIC_CLEAR] = createString("clear");
+
+  staticNames[STATIC_HAS] = createString("has");
+  staticNames[STATIC_REMOVE] = createString("remove");
+  staticNames[STATIC_KEYS] = createString("keys");
+  staticNames[STATIC_VALUES] = createString("values");
+
+  staticNames[STATIC_UPPER] = createString("upper");
+  staticNames[STATIC_LOWER] = createString("lower");
+  staticNames[STATIC_CONCAT] = createString("concat");
+  staticNames[STATIC_SUB] = createString("sub");
+  staticNames[STATIC_REPLACE] = createString("replace");
+  staticNames[STATIC_AT] = createString("at");
+  staticNames[STATIC_CONTAINS] = createString("contains");
+  staticNames[STATIC_TRIM] = createString("trim");
+  staticNames[STATIC_STARTWITH] = createString("startswith");
+  staticNames[STATIC_ENDWITH] = createString("endswith");
+  staticNames[STATIC_INDEXOF] = createString("indexof");
+  staticNames[STATIC_REPEAT] = createString("repeat");
+  staticNames[STATIC_INIT] = createString("init");
 }
 
 Interpreter::~Interpreter()
 {
+
+  Info("VM shutdown");
+  Info("Memory allocated : %s", formatBytes(totalAllocated));
+  Info("Classes          : %zu", totalClasses);
+  Info("Structs          : %zu", totalStructs);
+  Info("Arrays           : %zu", totalArrays);
+  Info("Maps             : %zu", totalMaps);
+  Info("Native classes   : %zu", totalNativeClasses);
+  Info("Native structs   : %zu", totalNativeStructs);
+
   for (size_t i = 0; i < modules.size(); i++)
   {
     ModuleDef *mod = modules[i];
+    totalAllocated -= sizeof(ModuleDef);
     delete mod;
   }
-  
+
   modules.clear();
 
   delete compiler;
+
+  // instances
+
+  for (size_t i = 0; i < nativeInstances.size(); i++)
+  {
+    NativeClassInstance *a = nativeInstances[i];
+    a->klass->destructor(this, a->userData); // so depois apagamos as def
+    freeNativeClass(a);
+  }
+  nativeInstances.clear();
+
+  for (size_t i = 0; i < structInstances.size(); i++)
+  {
+    StructInstance *a = structInstances[i];
+    freeStruct(a);
+  }
+  structInstances.clear();
+
+  for (size_t i = 0; i < classInstances.size(); i++)
+  {
+    ClassInstance *a = classInstances[i];
+    freeClass(a);
+  }
+  classInstances.clear();
+
+  for (size_t i = 0; i < arrayInstances.size(); i++)
+  {
+    ArrayInstance *a = arrayInstances[i];
+    freeArray(a);
+  }
+  arrayInstances.clear();
+
+  for (size_t i = 0; i < nativeStructInstances.size(); i++)
+  {
+    NativeStructInstance *a = nativeStructInstances[i];
+    if (a->def->destructor)
+    {
+      a->def->destructor(this, a->data);
+      arena.Free(a->data, a->def->structSize);
+    }
+    freeNativeStruct(a);
+  }
+  nativeStructInstances.clear();
+
+  // BLUEPRINTS
+
+  for (size_t j = 0; j < classes.size(); j++)
+  {
+    ClassDef *proc = classes[j];
+    delete proc;
+  }
+  classes.clear();
+  for (size_t i = 0; i < nativeStructs.size(); i++)
+  {
+    NativeStructDef *a = nativeStructs[i];
+    delete a;
+  }
+  nativeStructs.clear();
 
   for (size_t i = 0; i < natives.size(); i++)
   {
@@ -37,62 +130,20 @@ Interpreter::~Interpreter()
     delete a;
   }
   structs.clear();
-
-  for (size_t i = 0; i < structInstances.size(); i++)
-  {
-    StructInstance *a = structInstances[i];
-    InstancePool::instance().freeStruct(a);
-  }
-  structInstances.clear();
-
-  for (size_t i = 0; i < arrayInstances.size(); i++)
-  {
-    ArrayInstance *a = arrayInstances[i];
-    InstancePool::instance().freeArray(a);
-  }
-  arrayInstances.clear();
-
-  for (size_t j = 0; j < classes.size(); j++)
-  {
-    ClassDef *proc = classes[j];
-
-    delete proc;
-  }
-
-  for (size_t i = 0; i < nativeStructInstances.size(); i++)
-  {
-    NativeStructInstance *a = nativeStructInstances[i];
-    if (a->def->destructor)
-    {
-      a->def->destructor(this, a->data);
-      heapAllocator.Free(a->data, a->def->structSize);
-    }
-    InstancePool::instance().freeNativeStruct(a);
-  }
-  nativeStructInstances.clear();
-
-  for (size_t i = 0; i < nativeStructs.size(); i++)
-  {
-    NativeStructDef *a = nativeStructs[i];
-
-    delete a;
-  }
-  nativeStructs.clear();
-
-  for (size_t i = 0; i < nativeInstances.size(); i++)
-  {
-    NativeInstance *a = nativeInstances[i];
-    a->klass->destructor(this, a->userData); // so depois apagamos as def
-    InstancePool::instance().freeNativeClass(a);
-  }
-  nativeInstances.clear();
   for (size_t j = 0; j < nativeClasses.size(); j++)
   {
     NativeClassDef *proc = nativeClasses[j];
     delete proc;
   }
+  nativeClasses.clear();
 
-  classes.clear();
+  for (size_t j = 0; j < processes.size(); j++)
+  {
+    ProcessDef *proc = processes[j];
+    proc->release();
+    delete proc;
+  }
+  processes.clear();
 
   functionsMap.destroy();
   processesMap.destroy();
@@ -111,14 +162,6 @@ Interpreter::~Interpreter()
   }
   functionsClass.clear();
 
-  for (size_t j = 0; j < processes.size(); j++)
-  {
-    ProcessDef *proc = processes[j];
-    proc->release();
-    delete proc;
-  }
-
-  processes.clear();
   ProcessPool::instance().clear();
 
   for (size_t j = 0; j < cleanProcesses.size(); j++)
@@ -139,11 +182,10 @@ Interpreter::~Interpreter()
   aliveProcesses.clear();
 
   Info("Heap stats:");
-  // heapAllocator.Stats();
-  heapAllocator.Clear();
-
-  StringPool::instance().clear();
-  InstancePool::instance().clear();
+  arena.Stats();
+  arena.Clear();
+  Info("String Heap stats:");
+  stringPool.clear();
 }
 
 void Interpreter::setFileLoader(FileLoaderCallback loader, void *userdata)
@@ -166,7 +208,7 @@ NativeClassDef *Interpreter::registerNativeClass(const char *name,
   nativeClasses.push(klass);
 
   // Define global
-  globals.set(klass->name, Value::makeNativeClass(id));
+  globals.set(klass->name, makeNativeClass(id));
 
   return klass;
 }
@@ -193,14 +235,14 @@ void Interpreter::addNativeProperty(NativeClassDef *klass, const char *propName,
 Value Interpreter::createNativeStruct(int structId, int argc, Value *args)
 {
   NativeStructDef *def = nativeStructs[structId];
-  void *data = heapAllocator.Allocate(def->structSize);
+  void *data = arena.Allocate(def->structSize);
   std::memset(data, 0, def->structSize);
   if (def->constructor)
   {
     def->constructor(this, data, argc, args);
   }
 
-  Value literal = Value::makeNativeStructInstance();
+  Value literal = makeNativeStructInstance();
   NativeStructInstance *instance = literal.asNativeStructInstance();
   instance->def = def;
   instance->data = data;
@@ -219,7 +261,7 @@ NativeStructDef *Interpreter::registerNativeStruct(const char *name,
   klass->structSize = structSize;
   klass->id = nativeStructs.size();
   nativeStructs.push(klass);
-  globals.set(klass->name, Value::makeNativeStruct(klass->id));
+  globals.set(klass->name, makeNativeStruct(klass->id));
   return klass;
 }
 
@@ -401,14 +443,12 @@ Fiber *Interpreter::get_ready_fiber(Process *proc)
 
 float Interpreter::getCurrentTime() const { return currentTime; }
 
-
 static void OsVPrintf(const char *fmt, va_list args)
 {
-    char buffer[1024];
-    vsnprintf(buffer, sizeof(buffer), fmt, args);
-    OsPrintf("%s", buffer);
+  char buffer[1024];
+  vsnprintf(buffer, sizeof(buffer), fmt, args);
+  OsPrintf("%s", buffer);
 }
-
 
 void Interpreter::runtimeError(const char *format, ...)
 {
@@ -442,32 +482,6 @@ void Interpreter::resetFiber()
     currentFiber->state = FiberState::DEAD;
   }
   hasFatalError_ = false;
-}
-
-bool Interpreter::isTruthy(const Value &value)
-{
-  switch (value.type)
-  {
-  case ValueType::NIL:
-    return false;
-  case ValueType::BOOL:
-    return value.asBool();
-  case ValueType::INT:
-    return value.asInt() != 0;
-  case ValueType::DOUBLE:
-    return value.asDouble() != 0.0;
-  case ValueType::BYTE:
-    return value.asByte() != 0;
-  case ValueType::FLOAT:
-    return value.asFloat() != 0.0f;
-  default:
-    return true; // strings, functions são truthy
-  }
-}
-
-bool Interpreter::isFalsey(Value value)
-{
-  return !isTruthy(value);
 }
 
 Function *Interpreter::compile(const char *source)
@@ -673,6 +687,16 @@ ClassDef *Interpreter::registerClass(String *name)
   return proc;
 }
 
+String *Interpreter::createString(const char *str, uint32 len)
+{
+  return stringPool.create(str, len);
+}
+
+String *Interpreter::createString(const char *str)
+{
+  return stringPool.create(str);
+}
+
 bool Interpreter::containsClassDefenition(String *name)
 {
   return classesMap.exist(name);
@@ -713,41 +737,27 @@ void Interpreter::addFunctionsClasses(Function *fun)
 
 StructInstance::StructInstance() : GCObject(), def(nullptr) {}
 
-StructInstance::~StructInstance() {}
-
-GCObject::GCObject() { index = -1; }
-
-void GCObject::grab() {}
-
-void GCObject::release() {}
-
 ArrayInstance::ArrayInstance() : GCObject() {}
-
-ArrayInstance::~ArrayInstance() {}
 
 MapInstance::MapInstance() : GCObject() {}
 
-MapInstance::~MapInstance() {}
-
 ClassInstance::ClassInstance() : GCObject() {}
 
-ClassInstance::~ClassInstance() {}
+// bool ClassInstance::getMethod(String *name, Function **out)
+// {
+//   ClassDef *current = klass;
 
-bool ClassInstance::getMethod(String *name, Function **out)
-{
-  ClassDef *current = klass;
+//   while (current)
+//   {
+//     if (current->methods.get(name, out))
+//     {
+//       return true;
+//     }
+//     current = current->superclass;
+//   }
 
-  while (current)
-  {
-    if (current->methods.get(name, out))
-    {
-      return true;
-    }
-    current = current->superclass;
-  }
-
-  return false;
-}
+//   return false;
+// }
 
 // bool ClassInstance::getMethod(String *name, Function **out)
 // {
@@ -766,9 +776,9 @@ bool ClassInstance::getMethod(String *name, Function **out)
 //     return false;
 // }
 
-Function *ClassDef::canRegisterFunction(const char *name)
+Function *ClassDef::canRegisterFunction(String *pName)
 {
-  String *pName = createString(name);
+
   if (methods.exist(pName))
   {
     return nullptr;
@@ -783,7 +793,17 @@ Function *ClassDef::canRegisterFunction(const char *name)
   return func;
 }
 
-ClassDef::~ClassDef() { methods.destroy(); }
+StructDef::~StructDef()
+{
+  names.destroy();
+}
+
+ClassDef::~ClassDef()
+{
+  fieldNames.destroy();
+  methods.destroy();
+  superclass = nullptr;
+}
 
 NativeClassDef::~NativeClassDef()
 {
@@ -794,8 +814,7 @@ NativeClassDef::~NativeClassDef()
 void Interpreter::dumpToFile(const char *filename)
 {
 
-
-  #ifdef __linux__
+#ifdef __linux__
 
   FILE *f = fopen(filename, "w");
   if (!f)
@@ -821,12 +840,12 @@ void Interpreter::dumpToFile(const char *filename)
   fclose(f);
   printf("Bytecode dumped to: %s\n", filename);
 
-  #endif
+#endif
 }
 
 void Interpreter::dumpAllFunctions(FILE *f)
 {
-  #ifdef __linux__
+#ifdef __linux__
   fprintf(f, "========================================\n");
   fprintf(f, "GLOBAL FUNCTIONS\n");
   fprintf(f, "========================================\n\n");
@@ -874,12 +893,12 @@ void Interpreter::dumpAllFunctions(FILE *f)
         }
         
         fprintf(f, "\n"); });
-  #endif
+#endif
 }
 
 void Interpreter::dumpAllClasses(FILE *f)
 {
-  #ifdef __linux__
+#ifdef __linux__
   fprintf(f, "\n========================================\n");
   fprintf(f, "CLASSES\n");
   fprintf(f, "========================================\n\n");
@@ -978,6 +997,5 @@ void Interpreter::dumpAllClasses(FILE *f)
         });
         
         fprintf(f, "\n"); });
-  #endif
+#endif
 }
-

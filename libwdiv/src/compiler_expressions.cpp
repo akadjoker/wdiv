@@ -12,6 +12,17 @@ void Compiler::expression()
 // PREFIX FUNCTIONS
 // ============================================
 
+void Compiler::lengthExpression(bool canAssign)
+{
+    consume(TOKEN_LPAREN, "Expect '(' after len");
+
+    expression();  // empilha o valor (array, string, etc.)
+
+    consume(TOKEN_RPAREN, "Expect ')' after expression");
+
+    emitByte(OP_FUNC_LEN);
+}
+
 void Compiler::number(bool canAssign)
 {
     (void)canAssign;
@@ -30,18 +41,18 @@ void Compiler::number(bool canAssign)
             value = std::atoi(str); // Base 10
         }
 
-        emitConstant(Value::makeInt(value));
+        emitConstant(vm_->makeInt(value));
     }
     else
     {
         double value = std::atof(previous.lexeme.c_str());
-        emitConstant(Value::makeDouble(value));
+        emitConstant(vm_->makeDouble(value));
     }
 }
 void Compiler::string(bool canAssign)
 {
     (void)canAssign;
-    emitConstant(Value::makeString(previous.lexeme.c_str()));
+    emitConstant(vm_->makeString(previous.lexeme.c_str()));
 }
 
 void Compiler::literal(bool canAssign)
@@ -206,7 +217,7 @@ void Compiler::mapLiteral(bool canAssign)
                 Token key = previous;
 
                 // String literal da key
-                emitConstant(Value::makeString(key.lexeme.c_str()));
+                emitConstant(vm_->makeString(key.lexeme.c_str()));
 
                 consume(TOKEN_COLON, "Expect ':' after map key");
 
@@ -218,7 +229,7 @@ void Compiler::mapLiteral(bool canAssign)
                 // String key: {"my-key": value}
                 Token key = previous;
 
-                emitConstant(Value::makeString(key.lexeme.c_str()));
+                emitConstant(vm_->makeString(key.lexeme.c_str()));
 
                 consume(TOKEN_COLON, "Expect ':' after map key");
 

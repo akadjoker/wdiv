@@ -1,112 +1,188 @@
 import raylib;
 using raylib;
-<<<<<<< HEAD
-
-=======
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
 
 
-// var gravity = 0.5;
+var gravity = 0.5;
 
-// class Sprite
-// {
-//     var x, y, vx, vy;
+class Sprite
+{
+    var x, y, vx, vy;
 
-//     def init(x, y)
-//     {
-//         self.x =  x;
-//         self.y =  y;
-//         self.vx =  (rand(200) - 100) / 10.0;
-//         self.vy =  (rand(200) - 100) / 10.0;
+    def init(x, y)
+    {
+        self.x =  x;
+        self.y =  y;
+        self.vx =  (rand(200) - 100) / 10.0;
+        self.vy =  (rand(200) - 100) / 10.0;
 
-//     }
+    }
 
-//     def move(tex)
-//     {
-//         self.x +=  self.vx;
-//         self.y +=  self.vy;
+    def move(tex)
+    {
+        self.x +=  self.vx;
+        self.y +=  self.vy;
 
-//          self.vy = self.vy + 0.5;
+         self.vy = self.vy + 0.5;
 
-//         if (self.y > 400)
-//         {
-//             self.y = 400;
-//             self.vy = self.vy * -0.85;
-//         }
+        if (self.y > 400)
+        {
+            self.y = 400;
+            self.vy = self.vy * -0.85;
+        }
 
-//         if (self.x < 0 || self.x > 800)
-//         {
-//             self.vx = self.vx * -1.0;
-//         }
-//         DrawTexture(tex, self.x,self.y, WHITE);
-//     }
-// }
+        if (self.x < 0 || self.x > 800)
+        {
+            self.vx = self.vx * -1.0;
+        }
+        DrawTexture(tex, self.x,self.y, WHITE);
+    }
+}
 
 InitWindow(800, 450, "BuLang with Raylib");
 
-// var RED = Color(255, 0, 0, 255);
-// var BLACK = Color(0, 0, 0, 255);
-// var WHITE = Color(255, 255, 255, 255);
-// var LIGHTGRAY = Color(200, 200, 200, 255);
-// var tex = LoadTexture("assets/wabbit_alpha.png");
+var RED = Color(255, 0, 0, 255);
+var BLACK = Color(0, 0, 0, 255);
+var WHITE = Color(255, 255, 255, 255);
+var LIGHTGRAY = Color(200, 200, 200, 255);
+var tex = LoadTexture("assets/wabbit_alpha.png");
 
-// //SetTargetFPS(30);
-// lista = [];
+//SetTargetFPS(30);
+lista = [];
 
-// for(var i=0;i<30000;i++)
-//         {
-//             var vx = GetMouseX();
-//             var vy = GetMouseY();
-//             lista.push(Sprite(vx,vy));
-//         }
+for(var i=0;i<30000;i++)
+        {
+            var vx = GetMouseX();
+            var vy = GetMouseY();
+            lista.push(Sprite(vx,vy));
+        }
 
 
-// while (!WindowShouldClose())
-// {
-//     break;
-//     BeginDrawing();
+while (!WindowShouldClose())
+{
+    
+    BeginDrawing();
 
-//     ClearBackground(BLACK);
+    ClearBackground(BLACK);
 
-//     DrawPixel(200, 200, RED);
+    DrawPixel(200, 200, RED);
 
-//     DrawTexture(tex, GetMouseX(), GetMouseY(), WHITE);
+    DrawTexture(tex, GetMouseX(), GetMouseY(), WHITE);
 
-//     if (IsMouseButtonDown(0))
-//     {
-//         for(var i=0;i<500;i++)
-//         {
-//             var vx = GetMouseX();
-//             var vy = GetMouseY();
-//             lista.push(Sprite(vx,vy));
-//         }
-//     }
+    if (IsMouseButtonDown(0))
+    {
+        for(var i=0;i<500;i++)
+        {
+            var vx = GetMouseX();
+            var vy = GetMouseY();
+            lista.push(Sprite(vx,vy));
+        }
+    }
 
-//     if (lista.length() > 0)
-//     {
-//         for (var i = 0; i < lista.length(); i++)
-//         {
-//             var sprite = lista[i];
-//             sprite.move(tex);
+    if (len(lista) > 0)
+    {
+        for (var i = 0; i < len(lista); i++)
+        {
+            var sprite = lista[i];
+            sprite.move(tex);
 
-//         }
-//     }
+        }
+    }
 
-<<<<<<< HEAD
+     DrawText(format("count {}", len(lista)), 10, 30, 20, LIGHTGRAY);
+     DrawFPS(10, 10);
+
     EndDrawing();
     
 }
-=======
-//     DrawText(format("count {}", lista.length()), 10, 30, 20, LIGHTGRAY);
-//     DrawFPS(10, 10);
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
 
-//     EndDrawing();
-    
-// }
 
-// UnloadTexture(tex);
+
+UnloadTexture(tex);
 CloseWindow();
 
+// var start = clock();
 
+// struct Sprite 
+// {
+//     var x, y, vx, vy;
+// };
+
+// var lista = [];
+
+// // Cria 100K sprites
+// for (var i = 0; i < 5; i = i + 1) 
+// {
+//     var s = Sprite(400.0,300.0,(i % 200 - 100) * 0.1,(i % 200 - 100) * 0.1);
+//     lista.push(s);
+// }
+
+
+// for (var f = 0; f < 1; f = f + 1) 
+// {
+
+//         //     var s = lista[i];
+//         foreach ( s in lista)
+//         {
+//             print(s);
+//     }
+//     // for (var i = 0; i < len(lista); i = i + 1) 
+//     // {
+//     //     var s = lista[i];
+        
+//     //     s.x = s.x + s.vx;
+//     //     s.y = s.y + s.vy;
+//     //     s.vy = s.vy + 0.5;  // gravity
+        
+//     //     if (s.y > 400.0) {
+//     //         s.y = 400.0;
+//     //         s.vy = s.vy * -0.85;
+//     //     }
+        
+//     //     if (s.x < 0.0 || s.x > 800.0) 
+//     //     {
+//     //         s.vx = s.vx * -1.0;
+//     //     }
+//     // }
+// }
+
+//  write("elapsed: {} ms\n", clock() - start);
+
+// struct Sprite {
+//     var x, y, vx, vy;
+// };
+
+// var lista=[];
+
+// for (var i = 0; i < 5; i = i + 1) 
+// {
+//     var s = Sprite(400.0,300.0,(i % 200 - 100) * 0.1,(i % 200 - 100) * 0.1);
+//     lista.push(s);
+// }
+
+
+
+
+    
+//         foreach ( value in lista)
+//         {
+//             //write("Sprite {} {}",value.x,value.y);
+//             print(value);
+//             value.x= value.x-201;
+//         }
+ 
+
+
+
+// foreach ( value in lista)
+// {
+//     //write("Sprite {} {}",value.x,value.y);
+//   //  print(value);
+ 
+// }
+// // var lista = [1,2,3];
+
+// // foreach (s in lista)
+// // {
+// //     print(s);
+// //}
 

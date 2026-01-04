@@ -182,13 +182,13 @@ Value native_rand(Interpreter *vm, int argCount, Value *args)
     }
     else if (argCount == 1)
     {
-        double value = args[0].toDouble();
+        double value = args[0].asDouble();
         return Value::makeDouble(RandomGenerator::instance().randFloat(0, value));
     }
     else
     {
-        double min = args[0].toDouble();
-        double max = args[1].toDouble();
+        double min = args[0].asDouble();
+        double max = args[1].asDouble();
         return Value::makeDouble(RandomGenerator::instance().randFloat(min, max));
     }
     return Value::makeNil();

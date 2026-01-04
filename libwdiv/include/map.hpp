@@ -195,7 +195,7 @@ struct HashMap
     return isNew;
   }
 
-  bool get(const K &key, V *out) const
+  FORCE_INLINE bool get(const K &key, V *out) const
   {
     if (count == 0)
       return false;

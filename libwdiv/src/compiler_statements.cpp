@@ -101,6 +101,10 @@ void Compiler::statement()
     {
         forStatement();
     }
+    else if (match(TOKEN_FOREACH))
+    {
+        foreachStatement();
+    }
     else if (match(TOKEN_BREAK))
     {
         breakStatement();
@@ -236,7 +240,7 @@ void Compiler::variable(bool canAssign)
             }
 
             // Emite ModuleRef
-            Value ref = Value::makeModuleRef(moduleId, funcId);
+            Value ref = vm_->makeModuleRef(moduleId, funcId);
             emitConstant(ref);
 
             // Compila argumentos e CALL
@@ -274,7 +278,6 @@ void Compiler::variable(bool canAssign)
             consume(TOKEN_IDENTIFIER, "Expect member name");
             Token member = previous;
 
-         
             uint16 moduleId;
             if (!vm_->getModuleId(nameStr.c_str(), &moduleId))
             {
@@ -288,7 +291,7 @@ void Compiler::variable(bool canAssign)
                 fail("Module '%s' not found", nameStr.c_str());
                 return;
             }
-     // Tenta como função
+            // Tenta como função
             uint16 funcId;
             if (mod->getFunctionId(member.lexeme.c_str(), &funcId))
             {
@@ -300,7 +303,7 @@ void Compiler::variable(bool canAssign)
                 }
 
                 // Emite ModuleRef
-                Value ref = Value::makeModuleRef(moduleId, funcId);
+                Value ref = vm_->makeModuleRef(moduleId, funcId);
                 emitConstant(ref);
 
                 // Compila argumentos e CALL
@@ -361,7 +364,7 @@ void Compiler::or_(bool canAssign)
 uint8 Compiler::identifierConstant(Token &name)
 {
 
-    return makeConstant(Value::makeString(name.lexeme.c_str()));
+    return makeConstant(vm_->makeString(name.lexeme.c_str()));
 }
 
 void Compiler::handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssign)
@@ -372,7 +375,7 @@ void Compiler::handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssi
         // i++ (postfix)
         emitBytes(getOp, (uint8)arg);
         emitBytes(getOp, (uint8)arg);
-        emitConstant(Value::makeInt(1));
+        emitConstant(vm_->makeInt(1));
         emitByte(OP_ADD);
         emitBytes(setOp, (uint8)arg);
         emitByte(OP_POP);
@@ -382,7 +385,7 @@ void Compiler::handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssi
         // i-- (postfix)
         emitBytes(getOp, (uint8)arg);
         emitBytes(getOp, (uint8)arg);
-        emitConstant(Value::makeInt(1));
+        emitConstant(vm_->makeInt(1));
         emitByte(OP_SUBTRACT);
         emitBytes(setOp, (uint8)arg);
         emitByte(OP_POP);
@@ -950,7 +953,73 @@ void Compiler::forStatement()
 
     endLoop();  // Patch dos breaks
     endScope(); // Limpa variáveis do initializer
+ }
+
+ 
+void Compiler::foreachStatement()
+{
+    consume(TOKEN_LPAREN, "Expect '(' after 'foreach'");
+    consume(TOKEN_IDENTIFIER, "Expect variable name");
+    Token itemName = previous;
+    consume(TOKEN_IN, "Expect 'in'");
+    
+    expression(); // [array]
+    
+    consume(TOKEN_RPAREN, "Expect ')'");
+    
+    emitByte(OP_FOREACH_START);  // [array, 0]
+    
+    beginScope();
+    
+    // HACK: Cria locals "dummy" para ocupar os slots 0 e 1
+    // (que já estão ocupados pelo array e index no stack)
+    
+    Token dummy;
+    dummy.lexeme = "";
+ 
+    dummy.line = itemName.line;
+    
+    // Dummy para o array (slot 0)
+    addLocal(dummy);
+    markInitialized();
+    
+    // Dummy para o index (slot 1)  
+    addLocal(dummy);
+    markInitialized();
+    
+    // AGORA o item vai para slot 2!
+    addLocal(itemName);
+    markInitialized();
+    uint8_t itemSlot = (uint8_t)(localCount_ - 1);
+    
+    printf("[COMPILER] itemSlot = %d\n", itemSlot);  // ← DEBUG
+    
+    int loopStart = currentChunk->count;
+    
+    emitByte(OP_FOREACH_CHECK);
+    int exitJump = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP);
+    
+    emitByte(OP_FOREACH_NEXT);
+    emitByte(OP_SET_LOCAL);
+    emitByte(itemSlot);  // Agora vai ser slot 2!
+    emitByte(OP_POP);
+    
+    beginLoop(loopStart);
+    statement();
+    
+    emitLoop(loopStart);
+    
+    patchJump(exitJump);
+    emitByte(OP_POP);
+    emitByte(OP_POP);
+    emitByte(OP_POP);
+    
+    endLoop();
+    endScope();
 }
+
+
 
 void Compiler::returnStatement()
 {
@@ -1035,7 +1104,7 @@ void Compiler::funDeclaration()
     compileFunction(func, false); // false = não é process
 
     // Emite constant com o index da função
-    emitConstant(Value::makeFunction(func->index));
+    emitConstant(vm_->makeFunction(func->index));
     // Define como global
     uint8 nameConstant = identifierConstant(nameToken);
     defineVariable(nameConstant);
@@ -1095,7 +1164,7 @@ void Compiler::processDeclaration()
 
     // Warning("Process '%s' registered with index %d", nameToken.lexeme.c_str(), index);
 
-    emitConstant(Value::makeProcess(proc->index));
+    emitConstant(vm_->makeProcess(proc->index));
     uint8 nameConstant = identifierConstant(nameToken);
     defineVariable(nameConstant);
 
@@ -1160,7 +1229,7 @@ void Compiler::compileFunction(Function *func, bool isProcess)
             consume(TOKEN_IDENTIFIER, "Expect parameter name");
             if (isProcess)
             {
-                argNames.push(createString(previous.lexeme.c_str()));
+                argNames.push(vm_->createString(previous.lexeme.c_str()));
             }
             addLocal(previous);
             markInitialized();
@@ -1227,7 +1296,7 @@ void Compiler::prefixIncrement(bool canAssign)
 
     // i = i + 1
     emitBytes(getOp, (uint8)arg);
-    emitConstant(Value::makeInt(1));
+    emitConstant(vm_->makeInt(1));
     emitByte(OP_ADD);
     emitBytes(setOp, (uint8)arg);
 
@@ -1265,7 +1334,7 @@ void Compiler::prefixDecrement(bool canAssign)
     }
 
     emitBytes(getOp, (uint8)arg);
-    emitConstant(Value::makeInt(1));
+    emitConstant(vm_->makeInt(1));
     emitByte(OP_SUBTRACT);
     emitBytes(setOp, (uint8)arg);
 
@@ -1289,7 +1358,7 @@ void Compiler::frameStatement()
     else
     {
         // frame; = frame(100);
-        emitBytes(OP_CONSTANT, makeConstant(Value::makeInt(100)));
+        emitBytes(OP_CONSTANT, makeConstant(vm_->makeInt(100)));
     }
 
     consume(TOKEN_SEMICOLON, "Expect ';' after frame");
@@ -1313,7 +1382,7 @@ void Compiler::exitStatement()
     else
     {
         // exit;
-        emitConstant(Value::makeInt(0));
+        emitConstant(vm_->makeInt(0));
     }
 
     consume(TOKEN_SEMICOLON, "Expect ';' after exit");
@@ -1471,7 +1540,7 @@ void Compiler::yieldStatement()
     else
     {
 
-        emitBytes(OP_CONSTANT, makeConstant(Value::makeDouble(1.0)));
+        emitBytes(OP_CONSTANT, makeConstant(vm_->makeDouble(1.0)));
     }
 
     consume(TOKEN_SEMICOLON, "Expect ';' after yild");
@@ -1510,18 +1579,19 @@ void Compiler::fiberStatement()
 
     emitByte(OP_SPAWN);
     emitByte(argCount);
-    // emitByte(OP_POP); // descarta o nil/handle se spawn devolver algo
 }
 
 void Compiler::dot(bool canAssign)
 {
     consume(TOKEN_IDENTIFIER, "Expect property name after '.'");
     Token propName = previous;
+
     uint8_t nameIdx = identifierConstant(propName);
 
     //  METHOD CALL
     if (match(TOKEN_LPAREN))
     {
+
         uint8_t argCount = argumentList();
         emitBytes(OP_INVOKE, nameIdx);
         emitByte(argCount);
@@ -1581,7 +1651,7 @@ void Compiler::dot(bool canAssign)
         // self.x++ (postfix)
         emitByte(OP_DUP);                    // [self, self]
         emitBytes(OP_GET_PROPERTY, nameIdx); // [self, old_x]
-        emitConstant(Value::makeInt(1));     // [self, old_x, 1]
+        emitConstant(vm_->makeInt(1));     // [self, old_x, 1]
         emitByte(OP_ADD);                    // [self, new_x]
         emitBytes(OP_SET_PROPERTY, nameIdx); // []
     }
@@ -1590,7 +1660,7 @@ void Compiler::dot(bool canAssign)
         // self.x-- (postfix)
         emitByte(OP_DUP);
         emitBytes(OP_GET_PROPERTY, nameIdx);
-        emitConstant(Value::makeInt(1));
+        emitConstant(vm_->makeInt(1));
         emitByte(OP_SUBTRACT);
         emitBytes(OP_SET_PROPERTY, nameIdx);
     }
@@ -1694,7 +1764,7 @@ void Compiler::structDeclaration()
 
     consume(TOKEN_LBRACE, "Expect '{' before struct body");
 
-    StructDef *structDef = vm_->registerStruct(createString(structName.lexeme.c_str()));
+    StructDef *structDef = vm_->registerStruct(vm_->createString(structName.lexeme.c_str()));
 
     if (!structDef)
     {
@@ -1715,7 +1785,7 @@ void Compiler::structDeclaration()
         {
             consume(TOKEN_IDENTIFIER, "Expect field name");
 
-            String *fieldName = createString(previous.lexeme.c_str());
+            String *fieldName = vm_->createString(previous.lexeme.c_str());
             structDef->names.set(fieldName, structDef->argCount);
             structDef->argCount++;
 
@@ -1732,7 +1802,7 @@ void Compiler::structDeclaration()
     consume(TOKEN_RBRACE, "Expect '}' after struct body");
     consume(TOKEN_SEMICOLON, "Expect ';' after struct");
 
-    emitConstant(Value::makeStruct(structDef->index));
+    emitConstant(vm_->makeStruct(structDef->index));
     defineVariable(nameConstant);
 }
 
@@ -1799,7 +1869,7 @@ void Compiler::classDeclaration()
     //  Regista class blueprint na VM
 
     ClassDef *classDef = vm_->registerClass(
-        createString(className.lexeme.c_str()));
+        vm_->createString(className.lexeme.c_str()));
 
     if (!classDef)
     {
@@ -1811,7 +1881,7 @@ void Compiler::classDeclaration()
     // printf("fieldCount inicial: %d\n", classDef->fieldCount);
 
     // Emite class ID como constante
-    emitConstant(Value::makeClass(classDef->index));
+    emitConstant(vm_->makeClass(classDef->index));
     defineVariable(nameConstant);
 
     // Herança?
@@ -1852,7 +1922,7 @@ void Compiler::classDeclaration()
             consume(TOKEN_IDENTIFIER, "Expect field name");
             Token fieldName = previous;
 
-            String *name = createString(fieldName.lexeme.c_str());
+            String *name = vm_->createString(fieldName.lexeme.c_str());
             classDef->fieldNames.set(name, classDef->fieldCount);
             classDef->fieldCount++;
 
@@ -1899,7 +1969,7 @@ void Compiler::method(ClassDef *classDef)
     // Registra função
     //    std::string funcName = classDef->name->chars() +std::string("::") + methodName.lexeme;
     std::string funcName = methodName.lexeme;
-    Function *func = classDef->canRegisterFunction(funcName.c_str());
+    Function *func = classDef->canRegisterFunction(vm_->createString(funcName.c_str()));
     if (!func)
     {
         fail("Function '%s' already exists in class '%s' ", funcName.c_str(), classDef->name->chars());

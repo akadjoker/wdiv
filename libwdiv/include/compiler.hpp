@@ -218,6 +218,7 @@ private:
   void grouping(bool canAssign);
   void unary(bool canAssign);
   void variable(bool canAssign);
+  void lengthExpression(bool canAssign);
 
   // Parse functions (infix)
   void binary(bool canAssign);
@@ -239,6 +240,7 @@ private:
   void loopStatement();
   void switchStatement();
   void forStatement();
+  void foreachStatement();
   void returnStatement();
   void block();
   void yieldStatement();
@@ -292,6 +294,7 @@ private:
   bool inProcessFunction() const;
 
   void initRules();
+  
 
   void frameStatement();
   void exitStatement();

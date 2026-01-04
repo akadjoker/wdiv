@@ -22,6 +22,8 @@ enum TokenType
     TOKEN_ELSE,
     TOKEN_WHILE,
     TOKEN_FOR,
+    TOKEN_FOREACH,
+    TOKEN_IN,
     TOKEN_RETURN,
     TOKEN_BREAK,
     TOKEN_CONTINUE,
@@ -93,6 +95,7 @@ enum TokenType
     TOKEN_EXIT,
     TOKEN_FIBER,
     TOKEN_YIELD,
+    TOKEN_LEN,
 
     TOKEN_STRUCT,
     TOKEN_ENUM,

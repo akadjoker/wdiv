@@ -102,11 +102,21 @@ void Compiler::initRules()
   rules[TOKEN_TRUE] = {&Compiler::literal, nullptr, PREC_NONE};
   rules[TOKEN_FALSE] = {&Compiler::literal, nullptr, PREC_NONE};
   rules[TOKEN_NIL] = {&Compiler::literal, nullptr, PREC_NONE};
+
+  rules[TOKEN_FOREACH] = {nullptr, nullptr, PREC_NONE};
+
+
   rules[TOKEN_LBRACKET] = {
       &Compiler::arrayLiteral, //  PREFIX: [1, 2, 3]
       &Compiler::subscript,    //  INFIX: arr[i]
       PREC_CALL                //  Mesma precedência que . e ()
   };
+
+  rules[TOKEN_LEN] = {
+    &Compiler::lengthExpression, // PREFIX
+    nullptr,                     // INFIX
+    PREC_NONE
+};
 
   rules[TOKEN_LBRACE] = {&Compiler::mapLiteral, //  PREFIX: {key: value}
                          nullptr,               //  Sem INFIX

@@ -1,4 +1,5 @@
 #include "arena.hpp"
+#include "utils.hpp"
 #include <cstring>
 #include <cstdlib>
 #include <climits>
@@ -253,21 +254,21 @@ void HeapAllocator::GetStats(AllocationStats &stats) const
 void HeapAllocator::Stats()
 {
     size_t used = GetTotalAllocated();
-    Info("Memory used: %zu KB", used / 1024);
-
+	
     AllocationStats stats;
     GetStats(stats);
-
+	
     Info("=== Heap Allocator Stats ===");
-    Info("  Reserved: %zu KB", stats.totalReserved / 1024);
-    Info("  Allocated: %zu KB", stats.totalAllocated / 1024);
+    Info("  Memory used: %s", formatBytes(used) );
+    Info("  Reserved: %s ", formatBytes(stats.totalReserved));
+    Info("  Allocated: %s ", formatBytes(stats.totalAllocated));
     
-    // Proteger contra divisão por zero
+
     if (stats.totalReserved > 0)
     {
         double utilization = 100.0 * (stats.totalAllocated - stats.largeAllocatedBytes) / stats.totalReserved;
-        Info("  Free: %zu KB (%.1f%% utilization)", 
-             stats.totalFree / 1024, 
+        Info("  Free: %s  (%.1f%% utilization)", 
+             formatBytes(stats.totalFree), 
              utilization);
     }
     else
@@ -276,21 +277,22 @@ void HeapAllocator::Stats()
     }
     
     Info("  Chunks: %zu", stats.chunkCount);
-    Info("  Large allocs: %zu (%zu KB)", 
+    Info("  Large allocs: %zu (%s)", 
          stats.largeAllocations, 
-         stats.largeAllocatedBytes / 1024);
+         formatBytes(stats.largeAllocatedBytes));
 
     if (blockSizes)
     {
-        Info("=== Block Distribution ===");
+		if(stats.blockStats[0] > 0)
+        	Info("=== Block Distribution ===");
         for (size_t i = 0; i < blockSizes; i++)
         {
             if (stats.blockStats[i] > 0)
             {
-                Info("  %3zu bytes: %4zu allocs (%zu KB)",
+                Info("* Index: %zu  %3zu bytes: %4zu allocs (%s)",i,
                      s_blockSizes[i],
                      stats.blockStats[i],
-                     (s_blockSizes[i] * stats.blockStats[i]) / 1024);
+                     formatBytes((s_blockSizes[i] * stats.blockStats[i])));
             }
         }
     }

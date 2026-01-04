@@ -61,7 +61,7 @@ Value native_format(Interpreter *vm, int argCount, Value *args)
     if (argCount < 1 || args[0].type != ValueType::STRING)
     {
         vm->runtimeError("format expects string as first argument");
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     const char *fmt = args[0].as.string->chars();
@@ -84,7 +84,7 @@ Value native_format(Interpreter *vm, int argCount, Value *args)
         }
     }
 
-    return Value::makeString(result.c_str());
+    return vm->makeString(result.c_str());
 }
 
 Value native_write(Interpreter *vm, int argCount, Value *args)
@@ -92,7 +92,7 @@ Value native_write(Interpreter *vm, int argCount, Value *args)
     if (argCount < 1 || args[0].type != ValueType::STRING)
     {
         vm->runtimeError("write expects string as first argument");
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     const char *fmt = args[0].as.string->chars();
@@ -116,7 +116,7 @@ Value native_write(Interpreter *vm, int argCount, Value *args)
     }
 
     printf("%s", result.c_str());
-    return Value::makeNil();
+    return vm->makeNil();
 }
 
 Value native_sqrt(Interpreter *vm, int argCount, Value *args)
@@ -124,7 +124,7 @@ Value native_sqrt(Interpreter *vm, int argCount, Value *args)
     if (argCount != 1)
     {
         vm->runtimeError("sqrt expects 1 argument");
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     double value;
@@ -135,41 +135,65 @@ Value native_sqrt(Interpreter *vm, int argCount, Value *args)
     else
     {
         vm->runtimeError("sqrt expects a number");
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     if (value < 0)
     {
         vm->runtimeError("sqrt of negative number");
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
-    return Value::makeDouble(std::sqrt(value));
+    return vm->makeDouble(std::sqrt(value));
 }
 
 Value native_sin(Interpreter *vm, int argCount, Value *args)
 {
     double x = args[0].isInt() ? (double)args[0].asInt() : args[0].asDouble();
-    return Value::makeDouble(std::sin(x));
+    return vm->makeDouble(std::sin(x));
 }
 
 Value native_cos(Interpreter *vm, int argCount, Value *args)
 {
     double x = args[0].isInt() ? (double)args[0].asInt() : args[0].asDouble();
-    return Value::makeDouble(std::cos(x));
+    return vm->makeDouble(std::cos(x));
 }
 
 Value native_abs(Interpreter *vm, int argCount, Value *args)
 {
     if (args[0].isInt())
-        return Value::makeInt(std::abs(args[0].asInt()));
+        return vm->makeInt(std::abs(args[0].asInt()));
     else
-        return Value::makeDouble(std::fabs(args[0].asDouble()));
+        return vm->makeDouble(std::fabs(args[0].asDouble()));
 }
 
 Value native_clock(Interpreter *vm, int argCount, Value *args)
 {
-    return Value::makeDouble(static_cast<double>(clock()) / CLOCKS_PER_SEC);
+    return vm->makeDouble(static_cast<double>(clock()) / CLOCKS_PER_SEC);
+}
+
+Value native_length(Interpreter *vm, int argCount, Value *args)
+{
+    if (argCount != 1)
+    {
+        vm->runtimeError("len expects 1 argument");
+        return vm->makeNil();
+    }
+
+    if (args[0].type == ValueType::STRING)
+    {
+        return vm->makeInt(args[0].as.string->length());
+    }
+    else if (args[0].type == ValueType::ARRAY)
+    {
+        return vm->makeInt(args[0].as.array->values.size());
+    }
+    else if (args[0].type == ValueType::MAP)
+    {
+        return vm->makeInt(args[0].as.map->table.count);
+    }
+    vm->runtimeError("len expects a string, array or map");
+    return vm->makeNil();
 }
 
 Value native_rand(Interpreter *vm, int argCount, Value *args)
@@ -177,29 +201,20 @@ Value native_rand(Interpreter *vm, int argCount, Value *args)
 
     if (argCount == 0)
     {
-        return Value::makeDouble(RandomGenerator::instance().randFloat());
+        return vm->makeDouble(RandomGenerator::instance().randFloat());
     }
     else if (argCount == 1)
     {
-<<<<<<< HEAD
-        double value = TO_DOUBLE(args[0]);
-=======
-        double value = args[0].toDouble();
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
-        return Value::makeDouble(RandomGenerator::instance().randFloat(0, value));
+        double value = args[0].asDouble();
+        return vm->makeDouble(RandomGenerator::instance().randFloat(0, value));
     }
     else
     {
-<<<<<<< HEAD
-        double min = TO_DOUBLE(args[0]);
-        double max = TO_DOUBLE(args[1]);
-=======
-        double min = args[0].toDouble();
-        double max = args[1].toDouble();
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
-        return Value::makeDouble(RandomGenerator::instance().randFloat(min, max));
+        double min = args[0].asDouble();
+        double max = args[1].asDouble();
+        return vm->makeDouble(RandomGenerator::instance().randFloat(min, max));
     }
-    return Value::makeNil();
+    return vm->makeNil();
 }
 
 struct FileLoaderContext
@@ -293,6 +308,7 @@ int main()
         .addFunction("abs", native_abs, 1);
 
     vm.registerNative("rand", native_rand, 1);
+    //vm.registerNative("len", native_length, 1);
 
     vm.registerNative("write", native_write, -1);
     vm.registerNative("format", native_format, -1);
@@ -359,17 +375,10 @@ int main()
         vm.registerNative("GetMouseY", RaylibBindings::native_GetMouseY, 0);
     }
 
-<<<<<<< HEAD
     // printf("Modules registered: %zu\n", vm.modules.size());
     // printf("Module 'raylib' functions: %zu\n", vm.modules[0]->functions.size());
 
     // printf("Global natives registered: %zu\n", vm.natives.size());
-=======
-    printf("Modules registered: %zu\n", vm.modules.size());
-    printf("Module 'raylib' functions: %zu\n", vm.modules[0]->functions.size());
-
-    printf("Global natives registered: %zu\n", vm.natives.size());
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
 
     RaylibBindings::registerColor(vm);
     RaylibBindings::registerRectangle(vm);
@@ -388,11 +397,16 @@ int main()
     std::string code((std::istreambuf_iterator<char>(file)),
                      std::istreambuf_iterator<char>());
 
-    if (!vm.run(code.c_str(), false))
-    {
-        std::cerr << "Error running code.\n";
-        return 1;
-    }
+
+                     
+                     if (!vm.run(code.c_str(), false))
+                     {
+                         std::cerr << "Error running code.\n";
+                         return 1;
+                        }
+                        
+                        
+                        vm.dumpToFile("dump.txt");
 
     // for (int i = 0; i < 5; i++)
     // {

@@ -130,31 +130,26 @@ namespace RaylibBindings
     {
         if (argc != 3)
         {
-            return Value::makeNil();
+            return vm->makeNil();
         }
-<<<<<<< HEAD
-        int width = TO_INT(args[0]);
-        int height = TO_INT(args[1]);
-=======
-        int width = args[0].toInt();
-        int height = args[1].toInt();
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
+        int width = args[0].asInt();
+        int height = args[1].asInt();
         const char *title = args[2].asString()->chars();
 
         InitWindow(width, height, title);
 
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     Value native_CloseWindow(Interpreter *vm, int argc, Value *args)
     {
         CloseWindow();
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     Value native_WindowShouldClose(Interpreter *vm, int argc, Value *args)
     {
-        return Value::makeBool(WindowShouldClose());
+        return vm->makeBool(WindowShouldClose());
     }
 
     Value native_SetTargetFPS(Interpreter *vm, int argc, Value *args)
@@ -162,24 +157,20 @@ namespace RaylibBindings
         if (argc != 1)
         {
             Error("SetTargetFPS expects 1 argument");
-            return Value::makeNil();
+            return vm->makeNil();
         }
-<<<<<<< HEAD
-        SetTargetFPS(TO_INT(args[0]));
-=======
-        SetTargetFPS(args[0].toInt());
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
-        return Value::makeNil();
+        SetTargetFPS(args[0].asInt());
+        return vm->makeNil();
     }
 
     Value native_GetFPS(Interpreter *vm, int argc, Value *args)
     {
-        return Value::makeInt(GetFPS());
+        return vm->makeInt(GetFPS());
     }
 
     Value native_GetFrameTime(Interpreter *vm, int argc, Value *args)
     {
-        return Value::makeDouble(GetFrameTime());
+        return vm->makeDouble(GetFrameTime());
     }
 
     // ========================================
@@ -191,49 +182,43 @@ namespace RaylibBindings
         if (argc != 5)
         {
             Error("DrawText expects 5 arguments");
-            return Value::makeNil();
+            return vm->makeNil();
         }
 
         if (!args[0].isString())
         {
             Error("DrawText expects argument 0 to be string");
-            return Value::makeNil();
+            return vm->makeNil();
         }
 
         if (!args[4].isNativeStructInstance())
         {
             Error("DrawText expects argument 4 to be Color");
-            return Value::makeNil();
+            return vm->makeNil();
         }
 
         auto *colorInst = args[4].asNativeStructInstance();
         Color *tint = (Color *)colorInst->data;
 
         const char *text = args[0].asString()->chars();
-<<<<<<< HEAD
-        int x = TO_INT(args[1]);
-        int y = TO_INT(args[2]);
-        int fontSize = TO_INT(args[3]);
-=======
-        int x = args[1].toInt();
-        int y = args[2].toInt();
-        int fontSize = args[3].toInt();
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
+        int x = args[1].asInt();
+        int y = args[2].asInt();
+        int fontSize = args[3].asInt();
 
         DrawText(text, x, y, fontSize, *tint); 
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     Value native_BeginDrawing(Interpreter *vm, int argc, Value *args)
     {
         BeginDrawing();
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     Value native_EndDrawing(Interpreter *vm, int argc, Value *args)
     {
         EndDrawing();
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     Value native_ClearBackground(Interpreter *vm, int argc, Value *args)
@@ -241,19 +226,19 @@ namespace RaylibBindings
         if (argc != 1)
         {
             Error("ClearBackground expects 1 argument");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[0].isNativeStructInstance())
         {
             Error("ClearBackground expects Color");
-            return Value::makeNil();
+            return vm->makeNil();
         }
 
         auto *inst = args[0].asNativeStructInstance();
         Color *c = (Color *)inst->data;
 
         ClearBackground(*c);
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     Value native_DrawPixel(Interpreter *vm, int argc, Value *args)
@@ -261,28 +246,23 @@ namespace RaylibBindings
         if (argc != 3)
         {
             Error("DrawPixel expects 3 arguments");
-            return Value::makeNil();
+            return vm->makeNil();
         }
 
         if (!args[2].isNativeStructInstance())
         {
             Error("DrawPixel expects Color");
-            return Value::makeNil();
+            return vm->makeNil();
         }
 
-<<<<<<< HEAD
-        int x = TO_INT(args[0]);
-        int y = TO_INT(args[1]);
-=======
-        int x = args[0].toInt();
-        int y = args[1].toInt();
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
+        int x =  args[0].asInt();
+        int y = args[1].asInt();
 
         auto *inst = args[2].asNativeStructInstance();
         Color *color = (Color *)inst->data;
 
         DrawPixel(x, y, *color);
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     Value native_DrawLine(Interpreter *vm, int argc, Value *args)
@@ -290,32 +270,25 @@ namespace RaylibBindings
         if (argc != 5)
         {
             Error("DrawLine expects 5 arguments");
-            return Value::makeNil();
+            return vm->makeNil();
         }
 
         if (!args[4].isNativeStructInstance())
         {
             Error("DrawLine expects Color");
-            return Value::makeNil();
+            return vm->makeNil();
         }
 
-<<<<<<< HEAD
-        int x1 = TO_INT(args[0]);
-        int y1 = TO_INT(args[1]);
-        int x2 = TO_INT(args[2]);
-        int y2 = TO_INT(args[3]);
-=======
-        int x1 = args[0].toInt();
-        int y1 = args[1].toInt();
-        int x2 = args[2].toInt();
-        int y2 = args[3].toInt();
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
+        int x1 =  args[0].asInt();
+        int y1 =  args[1].asInt();
+        int x2 =  args[2].asInt();
+        int y2 =  args[3].asInt();
 
         auto *inst = args[4].asNativeStructInstance();
         Color *color = (Color *)inst->data;
 
         DrawLine(x1, y1, x2, y2, *color);
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     Value native_DrawCircle(Interpreter *vm, int argc, Value *args)
@@ -323,28 +296,22 @@ namespace RaylibBindings
         if (argc != 4)
         {
             Error("DrawCircle expects 4 arguments");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[3].isNativeStructInstance())
         {
             Error("DrawCircle expects Color");
-            return Value::makeNil();
+            return vm->makeNil();
         }
-<<<<<<< HEAD
-        int x = TO_INT(args[0]);
-        int y = TO_INT(args[1]);
-        float radius = TO_DOUBLE(args[2]);
-=======
-        int x = args[0].toInt();
-        int y = args[1].toInt();
-        float radius = args[2].toDouble();
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
+        int x = args[0].asInt();
+        int y = args[1].asInt();
+        float radius = args[2].asDouble();
 
         auto *inst = args[3].asNativeStructInstance();
         Color *color = (Color *)inst->data;
 
         DrawCircle(x, y, radius, *color);
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     Value native_DrawCircleV(Interpreter *vm, int argc, Value *args)
@@ -352,27 +319,23 @@ namespace RaylibBindings
         if (argc != 3)
         {
             Error("DrawCircleV expects 3 arguments");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[2].isNativeStructInstance())
         {
             Error("DrawCircleV expects Color");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         auto *posInst = args[0].asNativeStructInstance();
         Vector2 *pos = (Vector2 *)posInst->data;
 
-<<<<<<< HEAD
-        float radius = TO_DOUBLE(args[1]);
-=======
-        float radius = args[1].toDouble();
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
+        float radius = args[1].asDouble();
 
         auto *colorInst = args[2].asNativeStructInstance();
         Color *color = (Color *)colorInst->data;
 
         DrawCircleV(*pos, radius, *color);
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     Value native_DrawRectangle(Interpreter *vm, int argc, Value *args)
@@ -380,30 +343,23 @@ namespace RaylibBindings
         if (argc != 5)
         {
             Error("DrawRectangle expects 5 arguments");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[4].isNativeStructInstance())
         {
             Error("DrawRectangle expects Color");
-            return Value::makeNil();
+            return vm->makeNil();
         }
-<<<<<<< HEAD
-        int x = TO_INT(args[0]);
-        int y = TO_INT(args[1]);
-        int width = TO_INT(args[2]);
-        int height = TO_INT(args[3]);
-=======
-        int x = args[0].toInt();
-        int y = args[1].toInt();
-        int width = args[2].toInt();
-        int height = args[3].toInt();
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
+        int x = args[0].asInt();
+        int y = args[1].asInt();
+        int width = args[2].asInt();
+        int height = args[3].asInt();
 
         auto *inst = args[4].asNativeStructInstance();
         Color *color = (Color *)inst->data;
 
         DrawRectangle(x, y, width, height, *color);
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     Value native_DrawRectangleRec(Interpreter *vm, int argc, Value *args)
@@ -411,17 +367,17 @@ namespace RaylibBindings
         if (argc != 2)
         {
             Error("DrawRectangleRec expects 2 arguments");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[0].isNativeStructInstance())
         {
             Error("DrawRectangleRec expects Rectangle");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[1].isNativeStructInstance())
         {
             Error("DrawRectangleRec expects Color");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         auto *rectInst = args[0].asNativeStructInstance();
         Rectangle *rect = (Rectangle *)rectInst->data;
@@ -430,7 +386,7 @@ namespace RaylibBindings
         Color *color = (Color *)colorInst->data;
 
         DrawRectangleRec(*rect, *color);
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     // ========================================
@@ -442,19 +398,19 @@ namespace RaylibBindings
         if (argc != 1)
         {
             Error("LoadTexture expects 1 argument");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[0].isString())
         {
             Error("LoadTexture expects string");
-            return Value::makeNil();
+            return vm->makeNil();
         }
-        const char *filename = args[0].asString()->chars();
+        const char *filename = args[0].asStringChars();
 
         Texture2D tex = LoadTexture(filename);
         Texture2D *texPtr = new Texture2D(tex);
 
-        return Value::makePointer(texPtr);
+        return vm->makePointer(texPtr);
     }
 
     Value native_UnloadTexture(Interpreter *vm, int argc, Value *args)
@@ -464,7 +420,7 @@ namespace RaylibBindings
         UnloadTexture(*tex);
         delete tex;
 
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     Value native_DrawTexture(Interpreter *vm, int argc, Value *args)
@@ -472,32 +428,27 @@ namespace RaylibBindings
         if (argc != 4)
         {
             Error("DrawTexture expects 4 arguments");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[0].isPointer())
         {
             Error("DrawTexture expects Texture2D");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[3].isNativeStructInstance())
         {
             Error("DrawTexture expects Color");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         Texture2D *tex = (Texture2D *)args[0].asPointer();
-<<<<<<< HEAD
-        int x = TO_INT(args[1]);
-        int y = TO_INT(args[2]);
-=======
-        int x = args[1].toInt();
-        int y = args[2].toInt();
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
+        int x = args[1].asInt();
+        int y = args[2].asInt();
 
         auto *colorInst = args[3].asNativeStructInstance();
         Color *tint = (Color *)colorInst->data;
 
         DrawTexture(*tex, x, y, *tint);
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     Value native_DrawTextureV(Interpreter *vm, int argc, Value *args)
@@ -505,22 +456,22 @@ namespace RaylibBindings
         if (argc != 3)
         {
             Error("DrawTextureV expects 3 arguments");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[0].isPointer())
         {
             Error("DrawTextureV expects Texture2D");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[1].isNativeStructInstance())
         {
             Error("DrawTextureV expects Vector2");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[2].isNativeStructInstance())
         {
             Error("DrawTextureV expects Color");
-            return Value::makeNil();
+            return vm->makeNil();
         }
 
         Texture2D *tex = (Texture2D *)args[0].asPointer();
@@ -532,7 +483,7 @@ namespace RaylibBindings
         Color *tint = (Color *)colorInst->data;
 
         DrawTextureV(*tex, *pos, *tint);
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     Value native_DrawFps(Interpreter *vm, int argc, Value *args)
@@ -540,18 +491,13 @@ namespace RaylibBindings
         if (argc != 2)
         {
             Error("DrawFps expects 2 arguments");
-            return Value::makeNil();
+            return vm->makeNil();
         }
-<<<<<<< HEAD
-        int x =  TO_INT(args[0]);
-        int y = TO_INT(args[1]);
-=======
-        int x = args[0].toInt();
-        int y = args[1].toInt();
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
+        int x = args[0].asInt();
+        int y = args[1].asInt();
 
         DrawFPS(x, y);
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     Value native_IsMouseButtonDown(Interpreter *vm, int argc, Value *args)
@@ -559,19 +505,15 @@ namespace RaylibBindings
         if (argc != 1)
         {
             Error("IsMouseButtonDown expects 1 argument");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[0].isInt())
         {
             Error("IsMouseButtonDown expects int");
-            return Value::makeNil();
+            return vm->makeNil();
         }
 
-<<<<<<< HEAD
-        return Value::makeBool(IsMouseButtonDown(TO_INT(args[0])));
-=======
-        return Value::makeBool(IsMouseButtonDown(args[0].toInt()));
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
+        return vm->makeBool(IsMouseButtonDown(args[0].asInt()));
     }
 
     Value native_IsMouseButtonPressed(Interpreter *vm, int argc, Value *args)
@@ -579,19 +521,15 @@ namespace RaylibBindings
         if (argc != 1)
         {
             Error("IsMouseButtonPressed expects 1 argument");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[0].isInt())
         {
             Error("IsMouseButtonPressed expects int");
-            return Value::makeNil();
+            return vm->makeNil();
         }
 
-<<<<<<< HEAD
-        return Value::makeBool(IsMouseButtonPressed(TO_INT(args[0])));
-=======
-        return Value::makeBool(IsMouseButtonPressed(args[0].toInt()));
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
+        return vm->makeBool(IsMouseButtonPressed(args[0].asInt()));
     }
 
     Value native_IsMouseButtonReleased(Interpreter *vm, int argc, Value *args)
@@ -599,19 +537,15 @@ namespace RaylibBindings
         if (argc != 1)
         {
             Error("IsMouseButtonReleased expects 1 argument");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[0].isInt())
         {
             Error("IsMouseButtonReleased expects int");
-            return Value::makeNil();
+            return vm->makeNil();
         }
 
-<<<<<<< HEAD
-        return Value::makeBool(IsMouseButtonReleased(TO_INT(args[0])));
-=======
-        return Value::makeBool(IsMouseButtonReleased(args[0].toInt()));
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
+        return vm->makeBool(IsMouseButtonReleased(args[0].asInt()));
     }
 
     Value native_IsMouseButtonUp(Interpreter *vm, int argc, Value *args)
@@ -619,35 +553,31 @@ namespace RaylibBindings
         if (argc != 1)
         {
             Error("IsMouseButtonUp expects 1 argument");
-            return Value::makeNil();
+            return vm->makeNil();
         }
         if (!args[0].isInt())
         {
             Error("IsMouseButtonUp expects int");
-            return Value::makeNil();
+            return vm->makeNil();
         }
 
-<<<<<<< HEAD
-        return Value::makeBool(IsMouseButtonUp(TO_INT(args[0])));
-=======
-        return Value::makeBool(IsMouseButtonUp(args[0].toInt()));
->>>>>>> c1b4393c567ab35d8cb2942d3a956cde72ec38e2
+        return vm->makeBool(IsMouseButtonUp(args[0].asInt()));
     }
 
     Value native_GetMouseX(Interpreter *vm, int argc, Value *args)
     {
-        return Value::makeInt(GetMouseX());
+        return vm->makeInt(GetMouseX());
     }
 
     Value native_GetMouseY(Interpreter *vm, int argc, Value *args)
     {
-        return Value::makeInt(GetMouseY());
+        return vm->makeInt(GetMouseY());
     }
 
     Value native_GetMousePosition(Interpreter *vm, int argc, Value *args)
     {
         Vector2 v = GetMousePosition();
-        return Value::makeInt(-1);
+        return vm->makeInt(-1);
     }
 
 }

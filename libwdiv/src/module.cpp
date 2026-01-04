@@ -16,13 +16,13 @@ void ModuleDef::clear()
     
 }
 
-ModuleDef::ModuleDef(String *name) : name(name)
+ModuleDef::ModuleDef(String *name, Interpreter *vm) : name(name), vm(vm)
 {
 }
 
 uint16 ModuleDef::addFunction(const char *name, NativeFunction func, int arity)
 {
-    String *nameStr = createString(name);
+    String *nameStr = vm->createString(name);
 
     uint16 existingId;
      if (functionNames.get(nameStr, &existingId))
@@ -49,7 +49,7 @@ uint16 ModuleDef::addFunction(const char *name, NativeFunction func, int arity)
 
 uint16 ModuleDef::addConstant(const char *name, Value value)
 {
-    String *nameStr = createString(name);
+    String *nameStr = vm->createString(name);
 
    
     uint16 existingId;
@@ -167,7 +167,7 @@ bool ModuleDef::getConstantName(uint16 id, String **outName)
     return found;
 }
 
-ModuleBuilder::ModuleBuilder(ModuleDef *module) : module(module)
+ModuleBuilder::ModuleBuilder(ModuleDef *module, Interpreter *vm) : module(module), vm(vm)
 {
 }
 
@@ -179,31 +179,31 @@ ModuleBuilder &ModuleBuilder::addFunction(const char *name, NativeFunction func,
 
 ModuleBuilder &ModuleBuilder::addInt(const char *name, int value)
 {
-    module->addConstant(name,Value::makeInt(value));
+    module->addConstant(name,vm->makeInt(value));
     return *this;
 }
 
 ModuleBuilder &ModuleBuilder::addFloat(const char *name, float value)
 {
-    module->addConstant(name,Value::makeFloat(value));
+    module->addConstant(name,vm->makeFloat(value));
     return *this;
 }
 
 ModuleBuilder &ModuleBuilder::addDouble(const char *name, double value)
 {
-    module->addConstant(name,Value::makeDouble(value));
+    module->addConstant(name,vm->makeDouble(value));
     return *this;
 }
 
 ModuleBuilder &ModuleBuilder::addBool(const char *name, bool value)
 {
-    module->addConstant(name,Value::makeBool(value));
+    module->addConstant(name,vm->makeBool(value));
     return *this;
 }
 
 ModuleBuilder &ModuleBuilder::addString(const char *name, const char *value)
 {
-    module->addConstant(name,Value::makeString(value));
+    module->addConstant(name,vm->makeString(value));
     return *this;
 }
 
@@ -219,8 +219,9 @@ uint16 Interpreter::defineModule(const char *name)
         return existingId;
     }
 
-    ModuleDef *mod = new ModuleDef(nameStr);
+    ModuleDef *mod = new ModuleDef(nameStr, this);
     uint16 id = (uint16)modules.size();
+    totalAllocated += sizeof(ModuleDef);
 
     if (id >= 4096)
     {
@@ -237,7 +238,8 @@ uint16 Interpreter::defineModule(const char *name)
 ModuleBuilder Interpreter::addModule(const char *name)
 {
     uint16 id = defineModule(name);
-    return ModuleBuilder(modules[id]);
+
+    return ModuleBuilder(modules[id], this);
 }
 
 ModuleDef *Interpreter::getModule(uint16 id)
