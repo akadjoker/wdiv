@@ -601,15 +601,15 @@ class Interpreter
     arena.Free(n, size);
   }
 
-  FORCE_INLINE void markRoots();
-  FORCE_INLINE void markValue(const Value &v);
+   void markRoots();
+   void markValue(const Value &v);
 
-  FORCE_INLINE void markArray(ArrayInstance *a);
-  FORCE_INLINE void markStruct(StructInstance *s);
-  FORCE_INLINE void markClass(ClassInstance *c);
-  FORCE_INLINE void markMap(MapInstance *m);
-  FORCE_INLINE void markNativeClass(NativeClassInstance *n);
-  FORCE_INLINE void markNativeStruct(NativeStructInstance *n);
+   void markArray(ArrayInstance *a);
+   void markStruct(StructInstance *s);
+   void markClass(ClassInstance *c);
+   void markMap(MapInstance *m);
+   void markNativeClass(NativeClassInstance *n);
+   void markNativeStruct(NativeStructInstance *n);
 
   // SWEEP
   void sweepArrays();

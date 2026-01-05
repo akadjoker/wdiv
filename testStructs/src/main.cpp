@@ -60,7 +60,7 @@ Value native_format(Interpreter *vm, int argCount, Value *args)
     if (argCount < 1 || args[0].type != ValueType::STRING)
     {
         vm->runtimeError("format expects string as first argument");
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     const char *fmt = args[0].as.string->chars();
@@ -83,7 +83,7 @@ Value native_format(Interpreter *vm, int argCount, Value *args)
         }
     }
 
-    return Value::makeString(result.c_str());
+    return vm->makeString(result.c_str());
 }
 
 Value native_write(Interpreter *vm, int argCount, Value *args)
@@ -91,7 +91,7 @@ Value native_write(Interpreter *vm, int argCount, Value *args)
     if (argCount < 1 || args[0].type != ValueType::STRING)
     {
         vm->runtimeError("write expects string as first argument");
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     const char *fmt = args[0].as.string->chars();
@@ -115,7 +115,7 @@ Value native_write(Interpreter *vm, int argCount, Value *args)
     }
 
     OsPrintf("%s", result.c_str());
-    return Value::makeNil();
+    return vm->makeNil();
 }
 
 Value native_sqrt(Interpreter *vm, int argCount, Value *args)
@@ -123,7 +123,7 @@ Value native_sqrt(Interpreter *vm, int argCount, Value *args)
     if (argCount != 1)
     {
         vm->runtimeError("sqrt expects 1 argument");
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     double value;
@@ -134,41 +134,41 @@ Value native_sqrt(Interpreter *vm, int argCount, Value *args)
     else
     {
         vm->runtimeError("sqrt expects a number");
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
     if (value < 0)
     {
         vm->runtimeError("sqrt of negative number");
-        return Value::makeNil();
+        return vm->makeNil();
     }
 
-    return Value::makeDouble(std::sqrt(value));
+    return vm->makeDouble(std::sqrt(value));
 }
 
 Value native_sin(Interpreter *vm, int argCount, Value *args)
 {
     double x = args[0].isInt() ? (double)args[0].asInt() : args[0].asDouble();
-    return Value::makeDouble(std::sin(x));
+    return vm->makeDouble(std::sin(x));
 }
 
 Value native_cos(Interpreter *vm, int argCount, Value *args)
 {
     double x = args[0].isInt() ? (double)args[0].asInt() : args[0].asDouble();
-    return Value::makeDouble(std::cos(x));
+    return vm->makeDouble(std::cos(x));
 }
 
 Value native_abs(Interpreter *vm, int argCount, Value *args)
 {
     if (args[0].isInt())
-        return Value::makeInt(std::abs(args[0].asInt()));
+        return vm->makeInt(std::abs(args[0].asInt()));
     else
-        return Value::makeDouble(std::fabs(args[0].asDouble()));
+        return vm->makeDouble(std::fabs(args[0].asDouble()));
 }
 
 Value native_clock(Interpreter *vm, int argCount, Value *args)
 {
-    return Value::makeDouble(static_cast<double>(clock()) / CLOCKS_PER_SEC);
+    return vm->makeDouble(static_cast<double>(clock()) / CLOCKS_PER_SEC);
 }
 
  
@@ -178,20 +178,20 @@ Value native_rand(Interpreter *vm, int argCount, Value *args)
 
     if (argCount == 0)
     {
-        return Value::makeDouble(RandomGenerator::instance().randFloat());
+        return vm->makeDouble(RandomGenerator::instance().randFloat());
     }
     else if (argCount == 1)
     {
         double value = args[0].asDouble();
-        return Value::makeDouble(RandomGenerator::instance().randFloat(0, value));
+        return vm->makeDouble(RandomGenerator::instance().randFloat(0, value));
     }
     else
     {
         double min = args[0].asDouble();
         double max = args[1].asDouble();
-        return Value::makeDouble(RandomGenerator::instance().randFloat(min, max));
+        return vm->makeDouble(RandomGenerator::instance().randFloat(min, max));
     }
-    return Value::makeNil();
+    return vm->makeNil();
 }
 
 struct FileLoaderContext
@@ -303,7 +303,7 @@ Value native_timer_create(Interpreter *vm, int argCount, Value *args)
 
     printf("[TIMER] Created timer %d with duration %.2f\n", id, duration);
 
-    return Value::makeInt(id);
+    return vm->makeInt(id);
 }
 
 // timer.elapsed(id) -> bool
@@ -314,13 +314,13 @@ Value native_timer_elapsed(Interpreter *vm, int argCount, Value *args)
     if (id < 0 || id >= timers.size())
     {
         printf("[TIMER] Invalid timer ID: %d\n", id);
-        return Value::makeBool(false);
+        return vm->makeBool(false);
     }
 
     Timer &t = timers[id];
     if (!t.active)
     {
-        return Value::makeBool(false);
+        return vm->makeBool(false);
     }
 
     double elapsed = fakeTime - t.startTime;
@@ -329,7 +329,7 @@ Value native_timer_elapsed(Interpreter *vm, int argCount, Value *args)
     printf("[TIMER] Timer %d: elapsed=%.2f, duration=%.2f, done=%d\n",
            id, elapsed, t.duration, done);
 
-    return Value::makeBool(done);
+    return vm->makeBool(done);
 }
 
 // timer.reset(id)
@@ -343,7 +343,7 @@ Value native_timer_reset(Interpreter *vm, int argCount, Value *args)
         printf("[TIMER] Reset timer %d\n", id);
     }
 
-    return Value::makeNil();
+    return vm->makeNil();
 }
 
 // timer.destroy(id)
@@ -357,7 +357,7 @@ Value native_timer_destroy(Interpreter *vm, int argCount, Value *args)
         printf("[TIMER] Destroyed timer %d\n", id);
     }
 
-    return Value::makeNil();
+    return vm->makeNil();
 }
 
 // ============================================
@@ -425,7 +425,7 @@ int main()
     // vm.addStructField(input, "KEY_B", offsetof(InputState, KEY_B), FieldType::INT, true);
 
     // InputState inputState = { .KEY_A = 65, .KEY_B = 66};
-    // vm.addGlobal("Input", Value::makeNativeStruct(input->));
+    // vm.addGlobal("Input", vm->makeNativeStruct(input->));
 
     FileLoaderContext ctx;
     ctx.searchPaths[0] = "./bin";
