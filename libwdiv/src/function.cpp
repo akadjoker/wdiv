@@ -68,7 +68,7 @@ int Interpreter::registerNative(const char *name, NativeFunction func, int arity
 
  //   Info("Registered native: %s (index=%d)", name, def.index);
 
-    globals.set(nName, Value::makeNative(def.index));
+    globals.set(nName, makeNative(def.index));
 
     return def.index;
 }

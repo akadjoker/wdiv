@@ -32,8 +32,13 @@ Compiler::Compiler(Interpreter *vm)
 
   initRules();
   cursor = 0;
+  tryDepth = 0;
 }
-Compiler::~Compiler() { delete lexer; }
+Compiler::~Compiler()
+{
+ 
+  delete lexer; 
+}
 
 // ============================================
 // INICIALIZAÇÃO DA TABELA
@@ -98,11 +103,21 @@ void Compiler::initRules()
   rules[TOKEN_TRUE] = {&Compiler::literal, nullptr, PREC_NONE};
   rules[TOKEN_FALSE] = {&Compiler::literal, nullptr, PREC_NONE};
   rules[TOKEN_NIL] = {&Compiler::literal, nullptr, PREC_NONE};
+
+  rules[TOKEN_FOREACH] = {nullptr, nullptr, PREC_NONE};
+
+
   rules[TOKEN_LBRACKET] = {
       &Compiler::arrayLiteral, //  PREFIX: [1, 2, 3]
       &Compiler::subscript,    //  INFIX: arr[i]
       PREC_CALL                //  Mesma precedência que . e ()
   };
+
+  rules[TOKEN_LEN] = {
+    &Compiler::lengthExpression, // PREFIX
+    nullptr,                     // INFIX
+    PREC_NONE
+};
 
   rules[TOKEN_LBRACE] = {&Compiler::mapLiteral, //  PREFIX: {key: value}
                          nullptr,               //  Sem INFIX
@@ -168,6 +183,9 @@ ProcessDef *Compiler::compile(const std::string &source)
 
   currentProcess->finalize();
 
+  importedModules.clear();
+  usingModules.clear();;
+
   return currentProcess;
 }
 
@@ -205,6 +223,10 @@ ProcessDef *Compiler::compileExpression(const std::string &source)
   }
   currentProcess->finalize();
 
+  importedModules.clear();
+  usingModules.clear();
+
+
   return currentProcess;
 }
 
@@ -220,6 +242,9 @@ void Compiler::clear()
   currentProcess = nullptr;
   currentClass = nullptr;
   hadError = false;
+  importedModules.clear();
+  usingModules.clear();
+  tryDepth = 0;
   panicMode = false;
   scopeDepth = 0;
   localCount_ = 0;
@@ -327,29 +352,54 @@ void Compiler::errorAtCurrent(const char *message)
 
 void Compiler::synchronize()
 {
-  panicMode = false;
-
-  while (current.type != TOKEN_EOF)
-  {
-    if (previous.type == TOKEN_SEMICOLON)
-      return;
-
-    switch (current.type)
+    panicMode = false;
+    
+    while (current.type != TOKEN_EOF)
     {
-    case TOKEN_DEF:
-    case TOKEN_VAR:
-    case TOKEN_FOR:
-    case TOKEN_IF:
-    case TOKEN_WHILE:
-    case TOKEN_PRINT:
-    case TOKEN_RETURN:
-      return;
-
-    default:; // Nothing
+        if (previous.type == TOKEN_SEMICOLON)
+            return;
+        
+        switch (current.type)
+        {
+            //  TOP-LEVEL DECLARATIONS
+            case TOKEN_IMPORT:
+            case TOKEN_USING:
+            case TOKEN_INCLUDE:
+            case TOKEN_DEF:
+            case TOKEN_PROCESS:
+            case TOKEN_CLASS:
+            case TOKEN_STRUCT:
+            case TOKEN_VAR:
+            
+            //  CONTROL FLOW STATEMENTS
+            case TOKEN_IF:
+            case TOKEN_WHILE:
+            case TOKEN_DO:
+            case TOKEN_LOOP:
+            case TOKEN_FOR:
+            case TOKEN_SWITCH:
+            
+            //  JUMP STATEMENTS
+            case TOKEN_BREAK:
+            case TOKEN_CONTINUE:
+            case TOKEN_RETURN:
+            case TOKEN_GOTO:
+            case TOKEN_GOSUB:
+            
+            //  SPECIAL STATEMENTS
+            case TOKEN_PRINT:
+            case TOKEN_YIELD:
+            case TOKEN_FIBER:
+            case TOKEN_FRAME:
+            case TOKEN_EXIT:
+                return;
+            
+            default:
+                ; // Nothing
+        }
+        
+        advance();
     }
-
-    advance();
-  }
 }
 
 // ============================================
@@ -365,6 +415,12 @@ void Compiler::emitBytes(uint8 byte1, uint8 byte2)
 {
   emitByte(byte1);
   emitByte(byte2);
+}
+
+void Compiler::emitDiscard(uint8 count)
+{
+  emitByte(OP_DISCARD);
+  emitByte(count);
 }
 
 void Compiler::emitReturn()

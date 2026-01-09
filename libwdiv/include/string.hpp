@@ -17,14 +17,12 @@ struct String
     char data[24];
   };
 
-  bool isLong() const { return length_and_flag & IS_LONG_FLAG; }
-  size_t length() const;
+  FORCE_INLINE bool isLong() const { return length_and_flag & IS_LONG_FLAG; }
+  FORCE_INLINE size_t length() const { return length_and_flag & ~IS_LONG_FLAG; };
 
-  const char *chars() const { return isLong() ? ptr : data; }
-  char *chars() { return isLong() ? ptr : data; }
+  FORCE_INLINE const char *chars() const { return isLong() ? ptr : data; }
+  FORCE_INLINE char *chars() { return isLong() ? ptr : data; }
 };
-
- 
 
 inline size_t hashString(const char *s, uint32 len)
 {
@@ -35,15 +33,10 @@ inline size_t hashString(const char *s, uint32 len)
   while (p != end)
   {
     h ^= *p++;
-    h *= 16777619u;  
+    h *= 16777619u;
   }
   return h;
 }
-
- 
-
-
-
 
 struct IntEq
 {
@@ -66,3 +59,12 @@ struct StringHasher
 {
   size_t operator()(String *x) const { return x->hash; }
 };
+
+static inline bool compare_strings(String *a, String *b)
+{
+  if (a == b)
+    return true;
+  if (a->length() != b->length())
+    return false;
+  return memcmp(a->chars(), b->chars(), a->length()) == 0;
+}

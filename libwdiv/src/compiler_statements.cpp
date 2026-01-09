@@ -24,10 +24,17 @@ void Compiler::declaration()
     {
         varDeclaration();
     }
- 
+    else if (match(TOKEN_IMPORT))
+    {
+        parseImport();
+    }
     else if (match(TOKEN_INCLUDE))
     {
         includeStatement();
+    }
+    else if (match(TOKEN_USING))
+    {
+        parseUsing();
     }
     else
     {
@@ -42,11 +49,7 @@ void Compiler::declaration()
 
 void Compiler::statement()
 {
-    if (match(TOKEN_INCLUDE))
-    {
-        includeStatement();
-    }
-    else if (check(TOKEN_IDENTIFIER) && peek(0).type == TOKEN_COLON)
+    if (check(TOKEN_IDENTIFIER) && peek(0).type == TOKEN_COLON)
     {
         labelStatement();
     }
@@ -98,6 +101,10 @@ void Compiler::statement()
     {
         forStatement();
     }
+    else if (match(TOKEN_FOREACH))
+    {
+        foreachStatement();
+    }
     else if (match(TOKEN_BREAK))
     {
         breakStatement();
@@ -118,6 +125,14 @@ void Compiler::statement()
     {
         classDeclaration();
     }
+    else if (match(TOKEN_TRY))
+    {
+        tryStatement();
+    }
+    else if (match(TOKEN_THROW))
+    {
+        throwStatement();
+    }
     else if (match(TOKEN_LBRACE))
     {
         beginScope();
@@ -136,11 +151,48 @@ void Compiler::statement()
 
 void Compiler::printStatement()
 {
-    expression();
-    consume(TOKEN_SEMICOLON, "Expect ';' after value");
-    emitByte(OP_PRINT);
+    uint8_t argCount = 0;
+    
+    // Se não tem parênteses, aceita sintaxe antiga: print x;
+    if (!check(TOKEN_LPAREN))
+    {
+        expression();
+        argCount = 1;
+    }
+    else
+    {
+        consume(TOKEN_LPAREN, "Expect '('");
+      
+        if (!check(TOKEN_RPAREN))
+        {
+            do
+            {
+                expression();
+                argCount++;
+                
+                if (argCount > 255)
+                {
+                    error("Cannot have more than 255 arguments");
+                }
+            } while (match(TOKEN_COMMA));
+        }
+        
+        consume(TOKEN_RPAREN, "Expect ')' after arguments");
+    }
+    
+    consume(TOKEN_SEMICOLON, "Expect ';'");
+    
+    emitBytes(OP_PRINT, argCount);  
 }
 
+
+// void Compiler::printStatement()
+// {
+//     expression();
+//     consume(TOKEN_SEMICOLON, "Expect ';' after value");
+//     emitByte(OP_PRINT);
+// }
+ 
 void Compiler::expressionStatement()
 {
 
@@ -199,8 +251,135 @@ void Compiler::varDeclaration()
 void Compiler::variable(bool canAssign)
 {
     Token name = previous;
+    std::string nameStr = name.lexeme;
 
-  
+    // =====================================================
+    // PASSO 1: Procura em módulos USING (flat access)
+    // =====================================================
+    bool foundInUsing = false;
+
+    for (const auto &modName : usingModules)
+    {
+
+        uint16 moduleId;
+        if (!vm_->getModuleId(modName.c_str(), &moduleId))
+        {
+            continue; // Módulo não existe (não deve acontecer)
+        }
+
+        ModuleDef *mod = vm_->getModule(moduleId);
+        if (!mod)
+        {
+            continue;
+        }
+
+        // Tenta como função
+        uint16 funcId;
+        if (mod->getFunctionId(nameStr.c_str(), &funcId))
+        {
+            // É função! Deve ser chamada
+            if (!match(TOKEN_LPAREN))
+            {
+                error("Module functions must be called");
+                return;
+            }
+
+            // Emite ModuleRef
+            Value ref = vm_->makeModuleRef(moduleId, funcId);
+            emitConstant(ref);
+
+            // Compila argumentos e CALL
+            call(false);
+
+            foundInUsing = true;
+            return; //  Encontrou!
+        }
+
+        // Tenta como constante
+        uint16 constId;
+        if (mod->getConstantId(nameStr.c_str(), &constId))
+        {
+            // É constante! Emite valor direto
+            Value *value = mod->getConstant(constId);
+            if (value)
+            {
+                emitConstant(*value);
+                foundInUsing = true;
+                return; //  Encontrou!
+            }
+        }
+    }
+
+    // =====================================================
+    // PASSO 2: Verifica se é module.member (DOT access)
+    // =====================================================
+    if (check(TOKEN_DOT))
+    {
+        // Verifica se é módulo importado
+        if (importedModules.find(nameStr) != importedModules.end())
+        {
+            // É módulo! Processa module.member
+            advance(); // Consome DOT
+            consume(TOKEN_IDENTIFIER, "Expect member name");
+            Token member = previous;
+
+            uint16 moduleId;
+            if (!vm_->getModuleId(nameStr.c_str(), &moduleId))
+            {
+                fail("Module '%s' not found", nameStr.c_str());
+                return;
+            }
+
+            ModuleDef *mod = vm_->getModule(moduleId);
+            if (!mod)
+            {
+                fail("Module '%s' not found", nameStr.c_str());
+                return;
+            }
+            // Tenta como função
+            uint16 funcId;
+            if (mod->getFunctionId(member.lexeme.c_str(), &funcId))
+            {
+                // É função! Deve ser chamada
+                if (!match(TOKEN_LPAREN))
+                {
+                    error("Module functions must be called");
+                    return;
+                }
+
+                // Emite ModuleRef
+                Value ref = vm_->makeModuleRef(moduleId, funcId);
+                emitConstant(ref);
+
+                // Compila argumentos e CALL
+                call(false);
+                return; //  Sucesso!
+            }
+
+            // Tenta como constante
+            uint16 constId;
+            if (mod->getConstantId(member.lexeme.c_str(), &constId))
+            {
+                // É constante! Emite valor direto
+                Value *value = mod->getConstant(constId);
+                if (value)
+                {
+                    emitConstant(*value);
+                    return; //  Sucesso!
+                }
+            }
+
+            // Não encontrou
+            fail("'%s' not found in module '%s'",
+                 member.lexeme.c_str(),
+                 nameStr.c_str());
+            return;
+        }
+    }
+
+    // =====================================================
+    // PASSO 3: Variável normal (local ou global)
+    // =====================================================
     namedVariable(name, canAssign);
 }
 
@@ -230,7 +409,7 @@ void Compiler::or_(bool canAssign)
 uint8 Compiler::identifierConstant(Token &name)
 {
 
-    return makeConstant(Value::makeString(name.lexeme.c_str()));
+    return makeConstant(vm_->makeString(name.lexeme.c_str()));
 }
 
 void Compiler::handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssign)
@@ -241,7 +420,7 @@ void Compiler::handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssi
         // i++ (postfix)
         emitBytes(getOp, (uint8)arg);
         emitBytes(getOp, (uint8)arg);
-        emitConstant(Value::makeInt(1));
+        emitConstant(vm_->makeInt(1));
         emitByte(OP_ADD);
         emitBytes(setOp, (uint8)arg);
         emitByte(OP_POP);
@@ -251,7 +430,7 @@ void Compiler::handle_assignment(uint8 getOp, uint8 setOp, int arg, bool canAssi
         // i-- (postfix)
         emitBytes(getOp, (uint8)arg);
         emitBytes(getOp, (uint8)arg);
-        emitConstant(Value::makeInt(1));
+        emitConstant(vm_->makeInt(1));
         emitByte(OP_SUBTRACT);
         emitBytes(setOp, (uint8)arg);
         emitByte(OP_POP);
@@ -512,7 +691,7 @@ void Compiler::ifStatement()
     }
 }
 
-void Compiler::beginLoop(int loopStart)
+void Compiler::beginLoop(int loopStart, bool isForeach)
 {
     if (loopDepth_ >= MAX_LOOP_DEPTH)
     {
@@ -523,6 +702,7 @@ void Compiler::beginLoop(int loopStart)
     loopContexts_[loopDepth_].loopStart = loopStart;
     loopContexts_[loopDepth_].scopeDepth = scopeDepth;
     loopContexts_[loopDepth_].breakCount = 0;
+    loopContexts_[loopDepth_].isForeach = isForeach;
     loopDepth_++;
 }
 
@@ -560,9 +740,20 @@ void Compiler::emitBreak()
         return;
     }
 
+    if (tryDepth > 0)
+    {
+        error("Cannot use 'break' inside try-catch-finally block");
+        return;
+    }
+
     LoopContext &ctx = loopContexts_[loopDepth_ - 1];
 
     discardLocals(ctx.scopeDepth + 1);
+
+    if (ctx.isForeach)
+    {
+        emitDiscard(2);
+    }
 
     if (!ctx.addBreak(emitJump(OP_JUMP)))
     {
@@ -575,6 +766,11 @@ void Compiler::emitContinue()
     if (loopDepth_ == 0)
     {
         error("Cannot use 'continue' outside of a loop");
+        return;
+    }
+    if (tryDepth > 0)
+    {
+        error("Cannot use 'continue' inside try-catch-finally block");
         return;
     }
     LoopContext &ctx = loopContexts_[loopDepth_ - 1];
@@ -723,6 +919,7 @@ void Compiler::switchStatement()
 
 void Compiler::breakStatement()
 {
+
     emitBreak();
     consume(TOKEN_SEMICOLON, "Expect ';' after 'break'");
 }
@@ -821,6 +1018,129 @@ void Compiler::forStatement()
     endScope(); // Limpa variáveis do initializer
 }
 
+void Compiler::foreachStatement()
+{
+    consume(TOKEN_LPAREN, "Expect '(' after 'foreach'");
+    consume(TOKEN_IDENTIFIER, "Expect variable name");
+    Token itemName = previous;
+    consume(TOKEN_IN, "Expect 'in'");
+
+    expression();
+    consume(TOKEN_RPAREN, "Expect ')'");
+
+    Token tmp;
+    tmp.lexeme = "__seq___";
+    tmp.type = TOKEN_IDENTIFIER;
+    tmp.column = previous.column;
+    addLocal(tmp);
+    markInitialized();
+    emitByte(OP_NIL);
+    tmp.lexeme = "__iter__";
+    addLocal(tmp);
+    markInitialized();
+    int loopStart = currentChunk->count;
+    beginLoop(loopStart, true);
+
+    emitByte(OP_COPY2);
+    emitByte(OP_ITER_NEXT);
+
+    int exitJump = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP);
+
+    emitByte(OP_SWAP);
+    emitByte(OP_POP);
+
+    emitByte(OP_COPY2);
+    emitByte(OP_ITER_VALUE);
+
+    beginScope();
+    addLocal(itemName);
+    markInitialized();
+    statement();
+
+    endScope(); // Remove item (slot 2), faz POP
+
+    emitLoop(loopStart);
+
+    patchJump(exitJump);
+    emitDiscard(4);
+
+    localCount_ -= 2; // Remove seq e iter
+
+    endLoop();
+}
+
+// void Compiler::foreachStatement()
+// {
+//     consume(TOKEN_LPAREN, "Expect '(' after 'foreach'");
+//     consume(TOKEN_IDENTIFIER, "Expect variable name");
+//     Token itemName = previous;
+//     consume(TOKEN_IN, "Expect 'in'");
+
+//     expression();
+//     consume(TOKEN_RPAREN, "Expect ')'");
+
+//     beginScope();
+
+//     Token tmp;
+//     tmp.lexeme = "__seq___";
+//     tmp.type = TOKEN_IDENTIFIER;
+//     tmp.column = previous.column;
+
+//     addLocal(tmp);
+//     markInitialized();
+//     uint8_t seqSlot = localCount_ - 1;
+//     emitByte(OP_SET_LOCAL);
+//     emitByte(seqSlot);
+
+//     // var __iter = nil
+//     emitByte(OP_NIL);
+//     tmp.lexeme = "__ite___";
+//     addLocal(tmp);
+//     markInitialized();
+//     uint8_t iterSlot = localCount_ - 1;
+//     emitByte(OP_SET_LOCAL);
+//     emitByte(iterSlot);
+
+//     int loopStart = currentChunk->count;
+//     beginLoop(loopStart);
+
+//     emitByte(OP_GET_LOCAL);
+//     emitByte(seqSlot);
+//     emitByte(OP_GET_LOCAL);
+//     emitByte(iterSlot);
+//     emitByte(OP_ITER_NEXT);
+
+//     int exitJump = emitJump(OP_JUMP_IF_FALSE);
+//     emitByte(OP_POP);  //   POP (bool)
+
+//     emitByte(OP_SET_LOCAL);
+//     emitByte(iterSlot);
+
+//     emitByte(OP_GET_LOCAL);
+//     emitByte(seqSlot);
+//     emitByte(OP_GET_LOCAL);
+//     emitByte(iterSlot);
+//     emitByte(OP_ITER_VALUE);
+
+//     beginScope();
+//     addLocal(itemName);
+//     markInitialized();
+//     uint8_t itemSlot = localCount_ - 1;
+//     emitByte(OP_SET_LOCAL);
+//     emitByte(itemSlot);
+
+//     statement();
+//     endScope();
+
+//     emitLoop(loopStart);
+
+//     patchJump(exitJump);
+
+//     endLoop();
+//     endScope();
+// }
+
 void Compiler::returnStatement()
 {
 
@@ -904,7 +1224,7 @@ void Compiler::funDeclaration()
     compileFunction(func, false); // false = não é process
 
     // Emite constant com o index da função
-    emitConstant(Value::makeFunction(func->index));
+    emitConstant(vm_->makeFunction(func->index));
     // Define como global
     uint8 nameConstant = identifierConstant(nameToken);
     defineVariable(nameConstant);
@@ -964,7 +1284,7 @@ void Compiler::processDeclaration()
 
     // Warning("Process '%s' registered with index %d", nameToken.lexeme.c_str(), index);
 
-    emitConstant(Value::makeProcess(proc->index));
+    emitConstant(vm_->makeProcess(proc->index));
     uint8 nameConstant = identifierConstant(nameToken);
     defineVariable(nameConstant);
 
@@ -1029,7 +1349,7 @@ void Compiler::compileFunction(Function *func, bool isProcess)
             consume(TOKEN_IDENTIFIER, "Expect parameter name");
             if (isProcess)
             {
-                argNames.push(std::move(createString(previous.lexeme.c_str())));
+                argNames.push(vm_->createString(previous.lexeme.c_str()));
             }
             addLocal(previous);
             markInitialized();
@@ -1096,7 +1416,7 @@ void Compiler::prefixIncrement(bool canAssign)
 
     // i = i + 1
     emitBytes(getOp, (uint8)arg);
-    emitConstant(Value::makeInt(1));
+    emitConstant(vm_->makeInt(1));
     emitByte(OP_ADD);
     emitBytes(setOp, (uint8)arg);
 
@@ -1134,7 +1454,7 @@ void Compiler::prefixDecrement(bool canAssign)
     }
 
     emitBytes(getOp, (uint8)arg);
-    emitConstant(Value::makeInt(1));
+    emitConstant(vm_->makeInt(1));
     emitByte(OP_SUBTRACT);
     emitBytes(setOp, (uint8)arg);
 
@@ -1158,7 +1478,7 @@ void Compiler::frameStatement()
     else
     {
         // frame; = frame(100);
-        emitBytes(OP_CONSTANT, makeConstant(Value::makeInt(100)));
+        emitBytes(OP_CONSTANT, makeConstant(vm_->makeInt(100)));
     }
 
     consume(TOKEN_SEMICOLON, "Expect ';' after frame");
@@ -1182,7 +1502,7 @@ void Compiler::exitStatement()
     else
     {
         // exit;
-        emitConstant(Value::makeInt(0));
+        emitConstant(vm_->makeInt(0));
     }
 
     consume(TOKEN_SEMICOLON, "Expect ';' after exit");
@@ -1251,7 +1571,83 @@ void Compiler::includeStatement()
     includedFiles.erase(filename);
 
     consume(TOKEN_SEMICOLON, "Expect ';' after include");
-} 
+}
+
+void Compiler::parseUsing()
+{
+    // using raylib, math;
+
+    do
+    {
+        consume(TOKEN_IDENTIFIER, "Expect module name");
+        Token moduleName = previous;
+        std::string modName = moduleName.lexeme;
+
+        if (importedModules.find(modName) == importedModules.end())
+        {
+            fail("Module '%s' not imported. Use 'import %s;' first",
+                 moduleName.lexeme.c_str(),
+                 moduleName.lexeme.c_str());
+            return;
+        }
+
+        if (usingModules.find(modName) != usingModules.end())
+        {
+            Warning("Module '%s' already using", moduleName.lexeme.c_str());
+        }
+        else
+        {
+            usingModules.insert(modName);
+        }
+
+    } while (match(TOKEN_COMMA));
+
+    consume(TOKEN_SEMICOLON, "Expect ';'");
+}
+
+void Compiler::parseImport()
+{
+    // import *;
+    if (match(TOKEN_STAR))
+    {
+        // Importa TODOS os módulos definidos
+        for (size_t i = 0; i < vm_->modules.size(); i++)
+        {
+            ModuleDef *mod = vm_->modules[i];
+            importedModules.insert(mod->getName()->chars());
+        }
+        consume(TOKEN_SEMICOLON, "Expect ';'");
+        return;
+    }
+
+    // import timer, net, fs;
+    do
+    {
+        consume(TOKEN_IDENTIFIER, "Expect module name");
+        Token moduleName = previous;
+        std::string modName = moduleName.lexeme;
+
+        // Verifica se módulo existe
+        if (!vm_->containsModule(modName.c_str()))
+        {
+            fail("Module '%s' not defined", moduleName.lexeme.c_str());
+            return;
+        }
+
+        //  Adiciona a importedModules, não usingModules!
+        if (importedModules.find(modName) == importedModules.end())
+        {
+            importedModules.insert(modName);
+        }
+        else
+        {
+            Warning("Module '%s' already imported", moduleName.lexeme.c_str());
+        }
+
+    } while (match(TOKEN_COMMA));
+
+    consume(TOKEN_SEMICOLON, "Expect ';' after import");
+}
 
 void Compiler::yieldStatement()
 {
@@ -1264,7 +1660,7 @@ void Compiler::yieldStatement()
     else
     {
 
-        emitBytes(OP_CONSTANT, makeConstant(Value::makeDouble(1.0)));
+        emitBytes(OP_CONSTANT, makeConstant(vm_->makeDouble(1.0)));
     }
 
     consume(TOKEN_SEMICOLON, "Expect ';' after yild");
@@ -1303,18 +1699,19 @@ void Compiler::fiberStatement()
 
     emitByte(OP_SPAWN);
     emitByte(argCount);
-    // emitByte(OP_POP); // descarta o nil/handle se spawn devolver algo
 }
 
 void Compiler::dot(bool canAssign)
 {
     consume(TOKEN_IDENTIFIER, "Expect property name after '.'");
     Token propName = previous;
+
     uint8_t nameIdx = identifierConstant(propName);
 
     //  METHOD CALL
     if (match(TOKEN_LPAREN))
     {
+
         uint8_t argCount = argumentList();
         emitBytes(OP_INVOKE, nameIdx);
         emitByte(argCount);
@@ -1374,7 +1771,7 @@ void Compiler::dot(bool canAssign)
         // self.x++ (postfix)
         emitByte(OP_DUP);                    // [self, self]
         emitBytes(OP_GET_PROPERTY, nameIdx); // [self, old_x]
-        emitConstant(Value::makeInt(1));     // [self, old_x, 1]
+        emitConstant(vm_->makeInt(1));       // [self, old_x, 1]
         emitByte(OP_ADD);                    // [self, new_x]
         emitBytes(OP_SET_PROPERTY, nameIdx); // []
     }
@@ -1383,7 +1780,7 @@ void Compiler::dot(bool canAssign)
         // self.x-- (postfix)
         emitByte(OP_DUP);
         emitBytes(OP_GET_PROPERTY, nameIdx);
-        emitConstant(Value::makeInt(1));
+        emitConstant(vm_->makeInt(1));
         emitByte(OP_SUBTRACT);
         emitBytes(OP_SET_PROPERTY, nameIdx);
     }
@@ -1487,8 +1884,7 @@ void Compiler::structDeclaration()
 
     consume(TOKEN_LBRACE, "Expect '{' before struct body");
 
-    StructDef *structDef = vm_->registerStruct(
-        createString(structName.lexeme.c_str()));
+    StructDef *structDef = vm_->registerStruct(vm_->createString(structName.lexeme.c_str()));
 
     if (!structDef)
     {
@@ -1509,7 +1905,7 @@ void Compiler::structDeclaration()
         {
             consume(TOKEN_IDENTIFIER, "Expect field name");
 
-            String *fieldName = createString(previous.lexeme.c_str());
+            String *fieldName = vm_->createString(previous.lexeme.c_str());
             structDef->names.set(fieldName, structDef->argCount);
             structDef->argCount++;
 
@@ -1526,7 +1922,7 @@ void Compiler::structDeclaration()
     consume(TOKEN_RBRACE, "Expect '}' after struct body");
     consume(TOKEN_SEMICOLON, "Expect ';' after struct");
 
-    emitConstant(Value::makeStruct(structDef->index));
+    emitConstant(vm_->makeStruct(structDef->index));
     defineVariable(nameConstant);
 }
 
@@ -1593,7 +1989,7 @@ void Compiler::classDeclaration()
     //  Regista class blueprint na VM
 
     ClassDef *classDef = vm_->registerClass(
-        createString(className.lexeme.c_str()));
+        vm_->createString(className.lexeme.c_str()));
 
     if (!classDef)
     {
@@ -1605,7 +2001,7 @@ void Compiler::classDeclaration()
     // printf("fieldCount inicial: %d\n", classDef->fieldCount);
 
     // Emite class ID como constante
-    emitConstant(Value::makeClass(classDef->index));
+    emitConstant(vm_->makeClass(classDef->index));
     defineVariable(nameConstant);
 
     // Herança?
@@ -1646,7 +2042,7 @@ void Compiler::classDeclaration()
             consume(TOKEN_IDENTIFIER, "Expect field name");
             Token fieldName = previous;
 
-            String *name = createString(fieldName.lexeme.c_str());
+            String *name = vm_->createString(fieldName.lexeme.c_str());
             classDef->fieldNames.set(name, classDef->fieldCount);
             classDef->fieldCount++;
 
@@ -1693,7 +2089,7 @@ void Compiler::method(ClassDef *classDef)
     // Registra função
     //    std::string funcName = classDef->name->chars() +std::string("::") + methodName.lexeme;
     std::string funcName = methodName.lexeme;
-    Function *func = classDef->canRegisterFunction(funcName.c_str());
+    Function *func = classDef->canRegisterFunction(vm_->createString(funcName.c_str()));
     if (!func)
     {
         fail("Function '%s' already exists in class '%s' ", funcName.c_str(), classDef->name->chars());
@@ -1787,4 +2183,117 @@ void Compiler::method(ClassDef *classDef)
     this->localCount_ = enclosingLocalCount;
     this->currentClass = enclosingClass;
     this->currentFunctionType = FunctionType::TYPE_SCRIPT;
+}
+
+void Compiler::tryStatement()
+{
+    consume(TOKEN_LBRACE, "Expect '{' after 'try'");
+    tryDepth++;
+
+    emitByte(OP_TRY);
+
+    int catchAddrOffset = currentChunk->count;
+    emitByte(0xFF);
+    emitByte(0xFF);
+
+    int finallyAddrOffset = currentChunk->count;
+    emitByte(0xFF);
+    emitByte(0xFF);
+
+    // TRY BLOCK
+    beginScope();
+    block();
+    endScope();
+
+    emitByte(OP_POP_TRY);
+    int tryExitJump = emitJump(OP_JUMP);
+
+    // CATCH BLOCK
+    int catchStart = -1;
+    int catchExitJump = -1;
+
+    if (match(TOKEN_CATCH))
+    {
+        catchStart = currentChunk->count;
+
+        consume(TOKEN_LPAREN, "Expect '(' after 'catch'");
+        consume(TOKEN_IDENTIFIER, "Expect exception variable");
+        Token errorVar = previous;
+        consume(TOKEN_RPAREN, "Expect ')'");
+        consume(TOKEN_LBRACE, "Expect '{'");
+
+        emitByte(OP_ENTER_CATCH);
+
+        beginScope();
+        addLocal(errorVar);
+        markInitialized();
+
+        block();
+        endScope();
+
+        emitByte(OP_POP_TRY);
+        catchExitJump = emitJump(OP_JUMP); // ← CRÍTICO! Catch também pula para finally
+    }
+
+    // FINALLY BLOCK
+    int finallyStart = -1;
+    if (match(TOKEN_FINALLY))
+    {
+        finallyStart = currentChunk->count;
+
+        // Patch tryExitJump para ir ao finally
+        patchJump(tryExitJump);
+
+        // Patch catchExitJump para ir ao finally (se houver catch)
+        if (catchExitJump != -1)
+        {
+            patchJump(catchExitJump);
+        }
+
+        consume(TOKEN_LBRACE, "Expect '{'");
+
+        emitByte(OP_ENTER_FINALLY);
+
+        beginScope();
+        block();
+        endScope();
+
+        emitByte(OP_EXIT_FINALLY);
+    }
+    else
+    {
+        // Sem finally
+        patchJump(tryExitJump);
+        if (catchExitJump != -1)
+        {
+            patchJump(catchExitJump);
+        }
+    }
+
+    // Valida
+    if (catchStart == -1 && finallyStart == -1)
+    {
+        error("Try must have catch or finally block");
+    }
+
+    // Patch endereços absolutos
+    if (catchStart != -1)
+    {
+        currentChunk->code[catchAddrOffset] = (catchStart >> 8) & 0xFF;
+        currentChunk->code[catchAddrOffset + 1] = catchStart & 0xFF;
+    }
+
+    if (finallyStart != -1)
+    {
+        currentChunk->code[finallyAddrOffset] = (finallyStart >> 8) & 0xFF;
+        currentChunk->code[finallyAddrOffset + 1] = finallyStart & 0xFF;
+    }
+    tryDepth--;
+}
+
+void Compiler::throwStatement()
+{
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' after throw");
+    emitByte(OP_THROW);
 }

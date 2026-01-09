@@ -45,11 +45,22 @@ const char *valueTypeToString(ValueType type)
         return "<struct>";
     case ValueType::CLASS:
         return "<class>";
- 
     case ValueType::STRUCTINSTANCE:
         return "<struct_instances>";        
     case ValueType::CLASSINSTANCE:
-        return "<class_instances>";        
+        return "<class_instances>";     
+    case ValueType::NATIVECLASSINSTANCE:
+        return "<native_class_instances>";   
+    case ValueType::NATIVESTRUCTINSTANCE:
+        return "<native_struct_instances>";
+    case ValueType::POINTER:
+        return "<pointer>";
+    case ValueType::MODULEREFERENCE:
+        return "<module_reference>";
+    case ValueType::NATIVECLASS:
+        return "<native_class>";
+    case ValueType::NATIVESTRUCT:
+        return "<native_struct>";
 
     }
     return "<?>";
@@ -93,7 +104,7 @@ const Value &Interpreter::peek(int index)
     if (realIndex < 0 || realIndex >= top)
     {
         runtimeError("Stack index %d out of bounds (size=%d)", index, top);
-        static Value null = Value::makeNil();
+        static Value null = makeNil();
         return null;
     }
 
@@ -134,7 +145,7 @@ Value Interpreter::pop()
     if (currentFiber->stackTop <= currentFiber->stack)
     {
         runtimeError("Stack underflow");
-        return Value::makeNil();
+        return makeNil();
     }
     return *--currentFiber->stackTop;
 }
@@ -149,7 +160,7 @@ Value Interpreter::pop()
 //     {
 //         runtimeError("Stack peek out of bounds: distance=%d, size=%d",
 //                      distance, stackSize);
-//         static const Value null = Value::makeNil();
+//         static const Value null = makeNil();
 //         return null;
 //     }
 //     return currentFiber->stackTop[-1 - distance];
@@ -193,27 +204,27 @@ bool Interpreter::isFunction(int index)
 
 void Interpreter::pushInt(int n)
 {
-    push(Value::makeInt(n));
+    push(makeInt(n));
 }
 
 void Interpreter::pushDouble(double d)
 {
-    push(Value::makeDouble(d));
+    push(makeDouble(d));
 }
 
 void Interpreter::pushString(const char *s)
 {
-    push(Value::makeString(s));
+    push(makeString(s));
 }
 
 void Interpreter::pushBool(bool b)
 {
-    push(Value::makeBool(b));
+    push(makeBool(b));
 }
 
 void Interpreter::pushNil()
 {
-    push(Value::makeNil());
+    push(makeNil());
 }
 
 // Type conversions
@@ -520,10 +531,10 @@ Process *Interpreter::callProcess(ProcessDef *proc, int argCount)
     }
 
     // ID e FATHER
-    instance->privates[(int)PrivateIndex::ID] = Value::makeInt(instance->id);
+    instance->privates[(int)PrivateIndex::ID] = makeInt(instance->id);
     if (currentProcess && currentProcess->id > 0)
     {
-        instance->privates[(int)PrivateIndex::FATHER] = Value::makeInt(currentProcess->id);
+        instance->privates[(int)PrivateIndex::FATHER] = makeInt(currentProcess->id);
     }
 
     if (hooks.onStart)

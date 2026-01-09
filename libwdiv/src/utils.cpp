@@ -4,20 +4,7 @@
 #include <stdarg.h>
 #include "platform.hpp"
 
-void *aAlloc(size_t size)
-{
-	return std::malloc(size);
-}
 
-void *aRealloc(void *buffer,size_t size)
-{
-     return std::realloc(buffer,size);
-}
-
-void aFree(void *mem)
-{
-	std::free(mem);
-}
 
 #define BUFFER_SIZE 64
 

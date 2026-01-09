@@ -1,6 +1,6 @@
 
 #pragma once
- 
+
 #include <cstddef>
 #include <cassert>
 #include <cfloat>
@@ -10,20 +10,33 @@
 #include <cstdio>
 #include <cmath>
 
-
 #if defined(__EMSCRIPTEN__)
-    #define OS_EMSCRIPTEN
+#define OS_EMSCRIPTEN
 #elif defined(_WIN32)
-    #define OS_WINDOWS
+#define OS_WINDOWS
 #elif defined(__linux__)
-    #define OS_LINUX
+#define OS_LINUX
 #elif defined(__ANDROID__)
-    #define OS_ANDROID
+#define OS_ANDROID
 #elif defined(__APPLE__)
-    #define OS_MAC
+#define OS_MAC
 #endif
 
 
+
+
+#if defined(__GNUC__) || defined(__clang__)
+  #define FORCE_INLINE __attribute__((always_inline)) inline
+  #define UNLIKELY(x)  __builtin_expect(!!(x), 0)
+  #define LIKELY(x)    __builtin_expect(!!(x), 1)  
+#else
+  #define FORCE_INLINE inline
+  #define UNLIKELY(x)  (x)
+  #define LIKELY(x)    (x)
+#endif
+
+#define USE_COMPUTED_GOTO 
+ 
 typedef signed char int8;
 typedef signed short int16;
 typedef signed int int32;
@@ -41,7 +54,7 @@ template <typename T>
 inline T Max(T a, T b)
 {
     return a > b ? a : b;
-} 
+}
 
 #if __linux__
 
@@ -65,36 +78,29 @@ inline T Max(T a, T b)
 
 #endif
 
-
- 
-void Warning( const char *fmt, ...);
-void Info( const char *fmt, ...);
-void Error( const char *fmt, ...);
-void Print( const char *fmt, ...);
-void Trace(int severity,  const char *fmt, ...);
- 
+void Warning(const char *fmt, ...);
+void Info(const char *fmt, ...);
+void Error(const char *fmt, ...);
+void Print(const char *fmt, ...);
+void Trace(int severity, const char *fmt, ...);
 
 #define INFO(fmt, ...) Log(0, fmt, ##__VA_ARGS__)
 #define WARNING(fmt, ...) Log(1, fmt, ##__VA_ARGS__)
 #define ERROR(fmt, ...) Log(2, fmt, ##__VA_ARGS__)
 #define PRINT(fmt, ...) Log(3, fmt, ##__VA_ARGS__)
 
-char *LoadTextFile(const char *fileName);
-void FreeTextFile(char *text);
-
-void* aAlloc(size_t size);
-void* aRealloc(void* buffer,size_t size);
-void aFree(void* mem);
-
-const char *longToString(long value);
-const char *doubleToString(double value);
 
 
 
 
 #if defined(_DEBUG)
 #include <assert.h>
-#define DEBUG_BREAK_IF(condition) if (condition) { printf("Debug break: %s at %s:%d\n", #condition, __FILE__, __LINE__); std::exit(EXIT_FAILURE); }
+#define DEBUG_BREAK_IF(condition)                                             \
+    if (condition)                                                            \
+    {                                                                         \
+        Error("Debug break: %s at %s:%d", #condition, __FILE__, __LINE__); \
+        std::exit(EXIT_FAILURE);                                              \
+    }
 #else
 #define DEBUG_BREAK_IF(_CONDITION_)
 #endif
@@ -102,7 +108,7 @@ const char *doubleToString(double value);
 inline size_t CalculateCapacityGrow(size_t capacity, size_t minCapacity)
 {
     if (capacity < minCapacity)
-    capacity = minCapacity;
+        capacity = minCapacity;
     if (capacity < 8)
     {
         capacity = 8;
@@ -121,7 +127,22 @@ inline size_t CalculateCapacityGrow(size_t capacity, size_t minCapacity)
     return capacity;
 }
 
-static inline size_t  GROW_CAPACITY(size_t capacity)
+static inline size_t GROW_CAPACITY(size_t capacity)
 {
     return ((capacity) < 8 ? 8 : (capacity) * 2);
+}
+
+static inline void *aAlloc(size_t size)
+{
+	return std::malloc(size);
+}
+
+static inline void *aRealloc(void *buffer,size_t size)
+{
+     return std::realloc(buffer,size);
+}
+
+static inline void aFree(void *mem)
+{
+	std::free(mem);
 }

@@ -38,27 +38,29 @@ class StringPool
 {
 private:
     HeapAllocator allocator;
-    Vector<String *> statics;
+   
     HashMap<const char *, int, CStringHash, CStringEq> pool;
     size_t bytesAllocated = 0;
     friend class Interpreter;
     String * dummyString = nullptr;
+
+    Vector<String *> map;
+    String *allocString();
+    void deallocString(String *s);
+
     public:
     StringPool();
     ~StringPool();
 
     size_t getBytesAllocated() { return bytesAllocated; }
     
-    Vector<String *> map;
-
-    String *allocString();
-
-    void deallocString(String *s);
 
 
-    String *create(const char *str, uint32 len,bool isStatic);
 
-    String *create(const char *str, bool isStatic);
+    String *create(const char *str, uint32 len );
+    void destroy(String *s);
+
+    String *create(const char *str);
 
     String *format(const char *fmt, ...);  
 
@@ -87,19 +89,12 @@ private:
     String *toString(int value);
     String *toString(double value);
 
-    void destroy(String *s);
-
     void clear();
-
-    void removeWhite();
+ 
     
-    HashMap<const char*, String *, CStringHash, CStringEq> interns;
 
-    static StringPool &instance()
-    {
-        static StringPool pool;
-        return pool;
-    }
+
+    
 };
 
 
@@ -141,25 +136,9 @@ inline bool compareString(String *a, String *b)
     return memcmp(a->chars(), b->chars(), a->length()) == 0;
 }
 
-inline String *createString(const char *str, uint32 len)
-{
-    return StringPool::instance().create(str, len);
-}
 
-inline String *createString(const char *str)
-{
-    return StringPool::instance().create(str,false);
-}
 
  
-inline String *createStaticString(const char *str, uint32 len)
-{
-    return StringPool::instance().create(str, len, true);
-}
-
-inline String *createStaticString(const char *str)
-{
-    return StringPool::instance().create(str, true);
-}
+ 
 
  
